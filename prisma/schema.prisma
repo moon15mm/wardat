@@ -1,0 +1,73 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Shop {
+  id                  String    @id @default(uuid())
+  name                String
+  subdomain           String    @unique
+  
+  // WhatsApp settings per shop
+  whatsappPhoneId      String    @unique
+  whatsappToken        String
+  whatsappVerifyToken  String
+  whatsappAdminGroupId String?
+  
+  // Stripe settings per shop
+  stripeSecretKey     String
+  stripeWebhookSecret String
+  stripeSuccessUrl    String
+  stripeCancelUrl    String
+
+  createdAt           DateTime  @default(now())
+  products            Product[]
+  orders              Order[]
+  sessions            Session[]
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  shopId      String
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  name        String
+  description String
+  price       Float
+  imageUrl    String
+  category    String
+  available   Boolean  @default(true)
+}
+
+model Order {
+  id              String   @id @default(uuid())
+  shopId          String
+  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  timestamp       DateTime @default(now())
+  customerName    String
+  customerPhone   String
+  recipientName   String
+  productName     String
+  price           Float
+  paymentStatus   String   // PENDING, CONFIRMED, FAILED
+  locationUrl     String
+  stripeSessionId String?
+  cardLast4       String?
+}
+
+model Session {
+  id                String   @id @default(uuid())
+  phone             String
+  shopId            String
+  shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  state             String   // ConversationState mapping
+  messages          String   // JSON string of ChatMessage[]
+  lastActivity      BigInt   // Timestamp in milliseconds
+  selectedProductId String?  // Optional selected product ID
+  orderData         String   // JSON string of Partial<Order>
+
+  @@unique([phone, shopId])
+}

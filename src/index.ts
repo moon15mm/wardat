@@ -5,6 +5,7 @@ import { handlePaymentSuccess, handlePaymentFailed } from './agents/agent-4-fina
 import { constructWebhookEvent } from './services/stripe-service';
 import { markAsRead } from './services/whatsapp';
 import { WhatsAppMessage } from './types';
+import prisma from './services/db';
 import logger from './utils/logger';
 
 const app = express();
@@ -17,8 +18,37 @@ app.post(
     const sig = req.headers['stripe-signature'] as string;
 
     try {
-      const event = constructWebhookEvent(req.body, sig);
-      logger.info(`[Stripe] Event: ${event.type}`);
+      // Parse raw body to JSON to identify shopId before signature verification
+      const payload = JSON.parse(req.body.toString());
+      const shopId = payload.data?.object?.metadata?.shopId;
+
+      if (!shopId) {
+        logger.error('[Stripe] Missing shopId in webhook metadata');
+        res.status(400).send('Missing shopId in metadata');
+        return;
+      }
+
+      // Fetch the specific shop configuration from database
+      const shop = await prisma.shop.findUnique({
+        where: { id: shopId },
+      });
+
+      if (!shop) {
+        logger.error(`[Stripe] Shop with ID ${shopId} not found`);
+        res.status(404).send('Shop not found');
+        return;
+      }
+
+      const stripeConfig = {
+        secretKey: shop.stripeSecretKey,
+        webhookSecret: shop.stripeWebhookSecret,
+        successUrl: shop.stripeSuccessUrl,
+        cancelUrl: shop.stripeCancelUrl,
+      };
+
+      // Construct and verify event signature using shop-specific webhook secret
+      const event = constructWebhookEvent(stripeConfig, req.body, sig);
+      logger.info(`[Stripe] Verified Event: ${event.type} for shop: ${shop.name}`);
 
       if (event.type === 'checkout.session.completed') {
         await handlePaymentSuccess(event.data.object as any);
@@ -36,14 +66,14 @@ app.post(
 
 app.use(express.json());
 
-// WhatsApp webhook verification
+// WhatsApp webhook verification (universal platform verification token)
 app.get('/webhook/whatsapp', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
   if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
-    logger.info('[WhatsApp] Webhook verified');
+    logger.info('[WhatsApp] Universal webhook verified');
     res.status(200).send(challenge);
   } else {
     logger.warn('[WhatsApp] Webhook verification failed');
@@ -70,6 +100,25 @@ app.post('/webhook/whatsapp', async (req, res) => {
       return;
     }
 
+    // Identify target phone number ID to locate the tenant
+    const targetPhoneId = value.metadata?.phone_number_id;
+    if (!targetPhoneId) {
+      logger.warn('[WhatsApp] Missing phone_number_id in incoming webhook metadata');
+      res.sendStatus(200);
+      return;
+    }
+
+    // Query tenant shop config
+    const shop = await prisma.shop.findUnique({
+      where: { whatsappPhoneId: targetPhoneId },
+    });
+
+    if (!shop) {
+      logger.error(`[WhatsApp] Incoming message target Phone ID ${targetPhoneId} has no registered shop`);
+      res.sendStatus(200);
+      return;
+    }
+
     const rawMessage = value.messages[0];
     const contact = value.contacts?.[0];
 
@@ -81,13 +130,19 @@ app.post('/webhook/whatsapp', async (req, res) => {
       image: rawMessage.image,
     };
 
-    markAsRead(rawMessage.id);
+    const whatsappConfig = {
+      token: shop.whatsappToken,
+      phoneId: shop.whatsappPhoneId,
+      adminGroupId: shop.whatsappAdminGroupId,
+    };
+
+    markAsRead(whatsappConfig, rawMessage.id);
 
     logger.info(
-      `[WhatsApp] Message from ${message.from} (${contact?.profile?.name || 'unknown'}): ${message.text?.body || message.type}`
+      `[WhatsApp] Message from ${message.from} (${contact?.profile?.name || 'unknown'}) to Shop ${shop.name}: ${message.text?.body || message.type}`
     );
 
-    await handleMessage(message);
+    await handleMessage(message, shop.id);
 
     res.sendStatus(200);
   } catch (err: any) {

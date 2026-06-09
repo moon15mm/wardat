@@ -2,14 +2,25 @@ import Stripe from 'stripe';
 import { PaymentRequest } from '../types';
 import logger from '../utils/logger';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-04-30.basil',
-});
+export interface StripeConfig {
+  secretKey: string;
+  webhookSecret: string;
+  successUrl: string;
+  cancelUrl: string;
+}
+
+function getStripeInstance(secretKey: string): Stripe {
+  return new Stripe(secretKey, {
+    apiVersion: '2025-04-30.basil' as any,
+  });
+}
 
 export async function createCheckoutSession(
+  config: StripeConfig,
   payment: PaymentRequest
 ): Promise<{ url: string; sessionId: string }> {
   try {
+    const stripe = getStripeInstance(config.secretKey);
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -19,18 +30,20 @@ export async function createCheckoutSession(
             product_data: {
               name: payment.product,
             },
-            unit_amount: payment.price * 100,
+            unit_amount: Math.round(payment.price * 100), // Ensure integer in cents
           },
           quantity: 1,
         },
       ],
       mode: 'payment',
-      success_url: process.env.STRIPE_SUCCESS_URL || 'https://example.com/success',
-      cancel_url: process.env.STRIPE_CANCEL_URL || 'https://example.com/cancel',
+      success_url: config.successUrl,
+      cancel_url: config.cancelUrl,
       metadata: {
         orderId: payment.orderId,
         customerPhone: payment.customerPhone,
         customerName: payment.customerName,
+        shopId: payment.shopId || '', // Store shopId in metadata
+        product: payment.product,
       },
     });
 
@@ -43,19 +56,23 @@ export async function createCheckoutSession(
 }
 
 export function constructWebhookEvent(
+  config: StripeConfig,
   body: Buffer,
   signature: string
 ): Stripe.Event {
+  const stripe = getStripeInstance(config.secretKey);
   return stripe.webhooks.constructEvent(
     body,
     signature,
-    process.env.STRIPE_WEBHOOK_SECRET!
+    config.webhookSecret
   );
 }
 
 export async function getSessionDetails(
+  config: StripeConfig,
   sessionId: string
 ): Promise<Stripe.Checkout.Session> {
+  const stripe = getStripeInstance(config.secretKey);
   return stripe.checkout.sessions.retrieve(sessionId, {
     expand: ['payment_intent.latest_charge'],
   });

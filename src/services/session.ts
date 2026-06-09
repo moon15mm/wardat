@@ -1,57 +1,133 @@
-import { Session, ConversationState, ChatMessage } from '../types';
+import { Session, ConversationState, ChatMessage, Product } from '../types';
+import prisma from './db';
 import logger from '../utils/logger';
-
-const sessions = new Map<string, Session>();
 
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 
-export function getSession(phone: string): Session {
-  let session = sessions.get(phone);
+export async function getSession(phone: string, shopId: string): Promise<Session> {
+  const now = Date.now();
+  
+  let dbSession = await prisma.session.findUnique({
+    where: {
+      phone_shopId: { phone, shopId }
+    }
+  });
 
-  if (session && Date.now() - session.lastActivity > SESSION_TIMEOUT) {
-    logger.info(`Session expired for ${phone}`);
-    sessions.delete(phone);
-    session = undefined;
+  if (dbSession && (now - Number(dbSession.lastActivity) > SESSION_TIMEOUT)) {
+    logger.info(`Session expired for ${phone} in shop ${shopId}`);
+    await prisma.session.delete({
+      where: { id: dbSession.id }
+    });
+    dbSession = null;
   }
 
-  if (!session) {
-    session = {
-      phone,
-      state: 'GREETING',
-      messages: [],
-      orderData: {},
-      lastActivity: Date.now(),
-    };
-    sessions.set(phone, session);
-    logger.info(`New session created for ${phone}`);
+  if (!dbSession) {
+    dbSession = await prisma.session.create({
+      data: {
+        phone,
+        shopId,
+        state: 'GREETING',
+        messages: JSON.stringify([]),
+        lastActivity: BigInt(now),
+        orderData: JSON.stringify({}),
+      }
+    });
+    logger.info(`New session created for ${phone} in shop ${shopId}`);
+  } else {
+    // Update last activity
+    dbSession = await prisma.session.update({
+      where: { id: dbSession.id },
+      data: { lastActivity: BigInt(now) }
+    });
   }
 
-  session.lastActivity = Date.now();
-  return session;
+  let selectedProduct: Product | undefined = undefined;
+  if (dbSession.selectedProductId) {
+    const dbProduct = await prisma.product.findUnique({
+      where: { id: dbSession.selectedProductId }
+    });
+    if (dbProduct) {
+      selectedProduct = {
+        id: dbProduct.id,
+        name: dbProduct.name,
+        description: dbProduct.description,
+        price: dbProduct.price,
+        imageUrl: dbProduct.imageUrl,
+        category: dbProduct.category,
+        available: dbProduct.available,
+      };
+    }
+  }
+
+  return {
+    phone: dbSession.phone,
+    state: dbSession.state as ConversationState,
+    messages: JSON.parse(dbSession.messages),
+    orderData: JSON.parse(dbSession.orderData),
+    lastActivity: Number(dbSession.lastActivity),
+    selectedProduct,
+  };
 }
 
-export function updateSessionState(
+export async function updateSessionState(
   phone: string,
+  shopId: string,
   state: ConversationState
-): void {
-  const session = getSession(phone);
-  session.state = state;
-  logger.info(`Session ${phone} state: ${state}`);
+): Promise<void> {
+  await prisma.session.update({
+    where: {
+      phone_shopId: { phone, shopId }
+    },
+    data: { state }
+  });
+  logger.info(`Session ${phone} in shop ${shopId} state updated to: ${state}`);
 }
 
-export function addMessage(phone: string, message: ChatMessage): void {
-  const session = getSession(phone);
+export async function addMessage(
+  phone: string,
+  shopId: string,
+  message: ChatMessage
+): Promise<void> {
+  const session = await getSession(phone, shopId);
   session.messages.push(message);
   if (session.messages.length > 20) {
     session.messages = session.messages.slice(-10);
   }
+
+  await prisma.session.update({
+    where: {
+      phone_shopId: { phone, shopId }
+    },
+    data: {
+      messages: JSON.stringify(session.messages)
+    }
+  });
 }
 
-export function clearSession(phone: string): void {
-  sessions.delete(phone);
-  logger.info(`Session cleared for ${phone}`);
+export async function updateSessionOrderData(
+  phone: string,
+  shopId: string,
+  orderData: any,
+  selectedProductId?: string
+): Promise<void> {
+  await prisma.session.update({
+    where: {
+      phone_shopId: { phone, shopId }
+    },
+    data: {
+      orderData: JSON.stringify(orderData),
+      selectedProductId: selectedProductId || null
+    }
+  });
 }
 
-export function getActiveSessionCount(): number {
-  return sessions.size;
+export async function clearSession(phone: string, shopId: string): Promise<void> {
+  await prisma.session.deleteMany({
+    where: { phone, shopId }
+  });
+  logger.info(`Session cleared for ${phone} in shop ${shopId}`);
+}
+
+export async function getActiveSessionCount(): Promise<number> {
+  return await prisma.session.count();
 }

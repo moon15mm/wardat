@@ -10,6 +10,7 @@ export interface Product {
 
 export interface Order {
   id: string;
+  shopId: string;
   timestamp: string;
   customerName: string;
   customerPhone: string;
@@ -60,6 +61,7 @@ export interface WhatsAppMessage {
 
 export interface PaymentRequest {
   orderId: string;
+  shopId: string;
   customerPhone: string;
   customerName: string;
   product: string;

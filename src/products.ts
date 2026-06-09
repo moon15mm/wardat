@@ -1,70 +1,65 @@
+import prisma from './services/db';
 import { Product } from './types';
 
-const products: Product[] = [
-  {
-    id: 'bouquet-red-roses',
-    name: 'باقة ورد أحمر فاخرة',
-    description: 'باقة من 24 وردة حمراء طبيعية مع تغليف أنيق',
-    price: 199,
-    imageUrl: 'https://example.com/images/red-roses.jpg',
-    category: 'ورد',
-    available: true,
-  },
-  {
-    id: 'bouquet-mixed',
-    name: 'باقة ورد مشكّلة',
-    description: 'باقة مميزة من الورود المتنوعة بألوان زاهية',
-    price: 149,
-    imageUrl: 'https://example.com/images/mixed-bouquet.jpg',
-    category: 'ورد',
-    available: true,
-  },
-  {
-    id: 'bouquet-white',
-    name: 'باقة ورد أبيض',
-    description: 'باقة أنيقة من الورود البيضاء مع أوراق خضراء',
-    price: 179,
-    imageUrl: 'https://example.com/images/white-roses.jpg',
-    category: 'ورد',
-    available: true,
-  },
-  {
-    id: 'box-luxury',
-    name: 'صندوق ورد فاخر',
-    description: 'صندوق مخملي فاخر مع ورود مرتبة بشكل احترافي',
-    price: 299,
-    imageUrl: 'https://example.com/images/luxury-box.jpg',
-    category: 'صناديق',
-    available: true,
-  },
-  {
-    id: 'box-chocolate',
-    name: 'صندوق ورد وشوكولاتة',
-    description: 'صندوق يجمع بين الورود الجميلة والشوكولاتة الفاخرة',
-    price: 349,
-    imageUrl: 'https://example.com/images/choco-box.jpg',
-    category: 'صناديق',
-    available: true,
-  },
-];
-
-export function getAllProducts(): Product[] {
-  return products.filter((p) => p.available);
+export async function getAllProducts(shopId: string): Promise<Product[]> {
+  const dbProducts = await prisma.product.findMany({
+    where: { shopId, available: true },
+  });
+  return dbProducts.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    price: p.price,
+    imageUrl: p.imageUrl,
+    category: p.category,
+    available: p.available,
+  }));
 }
 
-export function getProductById(id: string): Product | undefined {
-  return products.find((p) => p.id === id && p.available);
+export async function getProductById(shopId: string, id: string): Promise<Product | null> {
+  const p = await prisma.product.findFirst({
+    where: { id, shopId, available: true },
+  });
+  if (!p) return null;
+  return {
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    price: p.price,
+    imageUrl: p.imageUrl,
+    category: p.category,
+    available: p.available,
+  };
 }
 
-export function getProductByName(name: string): Product | undefined {
-  const lower = name.toLowerCase();
-  return products.find(
-    (p) => p.available && (p.name.includes(name) || p.id.includes(lower))
-  );
+export async function getProductByName(shopId: string, name: string): Promise<Product | null> {
+  const p = await prisma.product.findFirst({
+    where: {
+      shopId,
+      available: true,
+      OR: [
+        { name: { contains: name } },
+        { id: { contains: name.toLowerCase() } },
+      ],
+    },
+  });
+  if (!p) return null;
+  return {
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    price: p.price,
+    imageUrl: p.imageUrl,
+    category: p.category,
+    available: p.available,
+  };
 }
 
-export function formatProductList(): string {
-  const available = getAllProducts();
+export async function formatProductList(shopId: string): Promise<string> {
+  const available = await getAllProducts(shopId);
+  if (available.length === 0) {
+    return 'لا توجد منتجات متوفرة حالياً في هذا المتجر.';
+  }
   let list = 'منتجاتنا المتوفرة:\n\n';
   available.forEach((p, i) => {
     list += `${i + 1}. ${p.name}\n`;
@@ -75,4 +70,4 @@ export function formatProductList(): string {
   return list;
 }
 
-export default products;
+export default getAllProducts;
