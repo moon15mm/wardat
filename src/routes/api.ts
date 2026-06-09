@@ -163,7 +163,7 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
 router.delete('/admin/shops/:id', authenticateSuperAdmin, async (req, res) => {
   try {
     await prisma.shop.delete({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
     });
     res.json({ message: 'تم حذف المتجر وبياناته بنجاح' });
   } catch (err: any) {
@@ -299,7 +299,7 @@ router.put('/shop/products/:id', authenticateShop, async (req, res) => {
   try {
     // Ensure product belongs to this shop
     const product = await prisma.product.findFirst({
-      where: { id: req.params.id, shopId },
+      where: { id: req.params.id as string, shopId },
     });
 
     if (!product) {
@@ -307,7 +307,7 @@ router.put('/shop/products/:id', authenticateShop, async (req, res) => {
     }
 
     const updated = await prisma.product.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       data: {
         name,
         description,
@@ -329,7 +329,7 @@ router.delete('/shop/products/:id', authenticateShop, async (req, res) => {
   try {
     // Ensure product belongs to this shop
     const product = await prisma.product.findFirst({
-      where: { id: req.params.id, shopId },
+      where: { id: req.params.id as string, shopId },
     });
 
     if (!product) {
@@ -337,7 +337,7 @@ router.delete('/shop/products/:id', authenticateShop, async (req, res) => {
     }
 
     await prisma.product.delete({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
     });
 
     res.json({ message: 'تم حذف المنتج بنجاح' });
