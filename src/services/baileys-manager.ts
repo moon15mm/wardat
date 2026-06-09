@@ -54,20 +54,21 @@ export async function startBaileysSession(shopId: string): Promise<void> {
   connectionStatuses.set(shopId, 'CONNECTING');
   logger.info(`[Baileys] Starting session for Shop: ${shopId}`);
 
-  const shopSessionPath = path.join(sessionsDir, shopId);
-  if (!fs.existsSync(shopSessionPath)) {
-    fs.mkdirSync(shopSessionPath, { recursive: true });
-  }
+  try {
+    const shopSessionPath = path.join(sessionsDir, shopId);
+    if (!fs.existsSync(shopSessionPath)) {
+      fs.mkdirSync(shopSessionPath, { recursive: true });
+    }
 
-  const { state, saveCreds } = await useMultiFileAuthState(shopSessionPath);
+    const { state, saveCreds } = await useMultiFileAuthState(shopSessionPath);
 
-  const sock = makeWASocket({
-    auth: state,
-    printQRInTerminal: false,
-    logger: pino({ level: 'silent' }) as any,
-  });
+    const sock = makeWASocket({
+      auth: state,
+      printQRInTerminal: false,
+      logger: pino({ level: 'silent' }) as any,
+    });
 
-  activeSockets.set(shopId, sock);
+    activeSockets.set(shopId, sock);
 
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
@@ -144,6 +145,12 @@ export async function startBaileysSession(shopId: string): Promise<void> {
       }
     }
   });
+  } catch (err: any) {
+    logger.error(`[Baileys] Error starting session for shop ${shopId}: ${err.message}`);
+    connectionStatuses.set(shopId, 'DISCONNECTED');
+    activeSockets.delete(shopId);
+    throw err;
+  }
 }
 
 export function getSocket(shopId: string): any {
