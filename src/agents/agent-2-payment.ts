@@ -27,6 +27,7 @@ export async function processPayment(payment: PaymentRequest): Promise<void> {
 
   const whatsappConfig: WhatsAppConfig = {
     whatsappType: shop.whatsappType as 'BUSINESS' | 'NORMAL',
+    shopId: shop.id,
     token: shop.whatsappToken,
     phoneId: shop.whatsappPhoneId,
     adminGroupId: shop.whatsappAdminGroupId,

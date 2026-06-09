@@ -39,6 +39,7 @@ export async function handlePaymentSuccess(session: Stripe.Checkout.Session): Pr
 
   const whatsappConfig: WhatsAppConfig = {
     whatsappType: shop.whatsappType as 'BUSINESS' | 'NORMAL',
+    shopId: shop.id,
     token: shop.whatsappToken,
     phoneId: shop.whatsappPhoneId,
     adminGroupId: shop.whatsappAdminGroupId,
@@ -106,6 +107,7 @@ export async function handlePaymentFailed(session: Stripe.Checkout.Session): Pro
 
   const whatsappConfig: WhatsAppConfig = {
     whatsappType: shop.whatsappType as 'BUSINESS' | 'NORMAL',
+    shopId: shop.id,
     token: shop.whatsappToken,
     phoneId: shop.whatsappPhoneId,
     adminGroupId: shop.whatsappAdminGroupId,

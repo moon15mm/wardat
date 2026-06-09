@@ -20,7 +20,10 @@
     "stripe": "^17.0.0",
     "uuid": "^10.0.0",
     "winston": "^3.14.0",
-    "@prisma/client": "^5.14.0"
+    "@prisma/client": "^5.14.0",
+    "@whiskeysockets/baileys": "^6.7.5",
+    "qrcode": "^1.5.3",
+    "pino": "^9.0.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

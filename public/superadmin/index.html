@@ -466,7 +466,7 @@
             <label for="whatsappType">نوع اتصال واتساب للمتجر</label>
             <select id="whatsappType" onchange="toggleWhatsappFields()" required>
               <option value="BUSINESS">🏢 واتساب الأعمال الرسمي (Meta Cloud API)</option>
-              <option value="NORMAL">📱 واتساب العادي (Ultramsg Gateway)</option>
+              <option value="NORMAL">📱 واتساب العادي المجاني (مسح كود QR)</option>
             </select>
           </div>
 
@@ -486,16 +486,16 @@
             </div>
           </div>
 
-          <!-- Ultramsg Fields -->
-          <div id="ultramsgFields" class="form-group-wrapper full-width" style="display: none; grid-template-columns: 1fr 1fr; gap: 15px; grid-column: 1 / -1;">
-            <div class="form-group">
-              <label for="ultramsgInstanceId">Ultramsg Instance ID</label>
-              <input type="text" id="ultramsgInstanceId" placeholder="مثال: instance1234">
-            </div>
-            <div class="form-group">
-              <label for="ultramsgToken">Ultramsg Token</label>
-              <input type="text" id="ultramsgToken" placeholder="أدخل رمز الوصول الخاص بـ Ultramsg">
-            </div>
+          <!-- Free Standard WhatsApp Info (Self-hosted Baileys) -->
+          <div id="normalWhatsappInfo" class="form-group-wrapper full-width" style="display: none; background: rgba(142, 45, 226, 0.08); border: 1px solid rgba(142, 45, 226, 0.2); padding: 15px; border-radius: 10px; grid-column: 1 / -1; text-align: right; color: var(--text-main);">
+            <p style="font-weight: bold; margin-bottom: 5px; color: #a29bfe;">📱 واتساب العادي المجاني (مسح كود QR)</p>
+            <p style="font-size: 0.85rem; color: var(--text-sub); line-height: 1.5;">لا يتطلب هذا الخيار أي بوابات دفع خارجية أو اشتراكات مدفوعة (مثل Ultramsg). سيتمكن صاحب المتجر من الدخول إلى لوحة تحكمه وتوليد كود QR ومسحه مجاناً بالكامل لربط حسابه الشخصي مباشرة.</p>
+          </div>
+
+          <!-- Hidden Ultramsg Fields to preserve compatibility -->
+          <div id="ultramsgFields" style="display: none;">
+            <input type="hidden" id="ultramsgInstanceId" value="">
+            <input type="hidden" id="ultramsgToken" value="">
           </div>
 
           <div class="form-group full-width" style="grid-column: 1 / -1;">
@@ -667,13 +667,16 @@
       const type = document.getElementById('whatsappType').value;
       const meta = document.getElementById('metaFields');
       const ultra = document.getElementById('ultramsgFields');
+      const normalInfo = document.getElementById('normalWhatsappInfo');
       
       if (type === 'BUSINESS') {
         meta.style.display = 'grid';
         ultra.style.display = 'none';
+        normalInfo.style.display = 'none';
       } else {
         meta.style.display = 'none';
-        ultra.style.display = 'grid';
+        ultra.style.display = 'none';
+        normalInfo.style.display = 'block';
       }
     }
 

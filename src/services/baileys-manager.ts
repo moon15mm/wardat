@@ -1,0 +1,184 @@
+import makeWASocket, { useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
+import { Boom } from '@hapi/boom';
+import qrcode from 'qrcode';
+import fs from 'fs';
+import path from 'path';
+import logger from '../utils/logger';
+import prisma from './db';
+import { handleMessage } from '../agents/agent-1-conversation';
+import pino from 'pino';
+
+// Active sockets map
+const activeSockets = new Map<string, any>();
+// Latest QR code strings map
+const latestQrCodes = new Map<string, string>();
+// Connection statuses map
+const connectionStatuses = new Map<string, 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'QR_READY'>();
+
+const sessionsDir = path.join(__dirname, '../../data/whatsapp-sessions');
+
+if (!fs.existsSync(sessionsDir)) {
+  fs.mkdirSync(sessionsDir, { recursive: true });
+}
+
+export async function initAllSessions(): Promise<void> {
+  logger.info('[Baileys] Initializing active WhatsApp sessions...');
+  try {
+    const shops = await prisma.shop.findMany({
+      where: {
+        whatsappType: 'NORMAL',
+        subscriptionStatus: 'ACTIVE',
+      },
+    });
+
+    for (const shop of shops) {
+      // Check if session directory has auth files already to reconnect
+      const shopSessionPath = path.join(sessionsDir, shop.id);
+      if (fs.existsSync(path.join(shopSessionPath, 'creds.json'))) {
+        logger.info(`[Baileys] Autostarting WhatsApp session for shop: ${shop.name}`);
+        startBaileysSession(shop.id).catch((err) => {
+          logger.error(`[Baileys] Failed to autostart session for ${shop.name}: ${err.message}`);
+        });
+      }
+    }
+  } catch (err: any) {
+    logger.error(`[Baileys] Error in initAllSessions: ${err.message}`);
+  }
+}
+
+export async function startBaileysSession(shopId: string): Promise<void> {
+  if (activeSockets.has(shopId)) {
+    return;
+  }
+
+  connectionStatuses.set(shopId, 'CONNECTING');
+  logger.info(`[Baileys] Starting session for Shop: ${shopId}`);
+
+  const shopSessionPath = path.join(sessionsDir, shopId);
+  if (!fs.existsSync(shopSessionPath)) {
+    fs.mkdirSync(shopSessionPath, { recursive: true });
+  }
+
+  const { state, saveCreds } = await useMultiFileAuthState(shopSessionPath);
+
+  const sock = makeWASocket({
+    auth: state,
+    printQRInTerminal: false,
+    logger: pino({ level: 'silent' }) as any,
+  });
+
+  activeSockets.set(shopId, sock);
+
+  sock.ev.on('connection.update', async (update) => {
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+      latestQrCodes.set(shopId, qr);
+      connectionStatuses.set(shopId, 'QR_READY');
+      logger.info(`[Baileys] QR Code ready for Shop: ${shopId}`);
+    }
+
+    if (connection === 'close') {
+      const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+      logger.warn(`[Baileys] Connection closed for ${shopId}. Reason: ${lastDisconnect?.error}. Reconnecting: ${shouldReconnect}`);
+      
+      activeSockets.delete(shopId);
+      latestQrCodes.delete(shopId);
+
+      if (shouldReconnect) {
+        startBaileysSession(shopId);
+      } else {
+        connectionStatuses.set(shopId, 'DISCONNECTED');
+        // Logged out: clean session folder
+        try {
+          fs.rmSync(shopSessionPath, { recursive: true, force: true });
+        } catch (e) {
+          logger.error(`[Baileys] Error deleting folder for ${shopId}: ${e}`);
+        }
+      }
+    } else if (connection === 'open') {
+      connectionStatuses.set(shopId, 'CONNECTED');
+      latestQrCodes.delete(shopId);
+      logger.info(`[Baileys] Connection opened successfully for Shop: ${shopId}`);
+    }
+  });
+
+  sock.ev.on('creds.update', saveCreds);
+
+  sock.ev.on('messages.upsert', async (m) => {
+    if (m.type === 'notify') {
+      for (const msg of m.messages) {
+        // Only process messages from others, with message payload
+        if (!msg.key.fromMe && msg.message) {
+          const fromJid = msg.key.remoteJid;
+          if (!fromJid) continue;
+
+          // Ignore group messages
+          if (fromJid.endsWith('@g.us')) {
+            continue;
+          }
+
+          const from = fromJid.split('@')[0];
+          const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+          const isLocation = msg.message.locationMessage;
+
+          // Structure WhatsAppMessage
+          const formattedMsg: any = {
+            from,
+            type: isLocation ? 'location' : 'text',
+            text: text ? { body: text } : undefined,
+            location: isLocation ? {
+              latitude: isLocation.degreesLatitude,
+              longitude: isLocation.degreesLongitude,
+            } : undefined,
+          };
+
+          logger.info(`[Baileys] Message from ${from} for shop ${shopId}: ${text || 'Location'}`);
+          
+          try {
+            await handleMessage(formattedMsg, shopId);
+          } catch (err: any) {
+            logger.error(`[Baileys] Error in handleMessage for shop ${shopId}: ${err.message}`);
+          }
+        }
+      }
+    }
+  });
+}
+
+export function getSocket(shopId: string): any {
+  return activeSockets.get(shopId);
+}
+
+export function getSessionStatus(shopId: string): { status: string; qr?: string } {
+  const status = connectionStatuses.get(shopId) || 'DISCONNECTED';
+  const qrString = latestQrCodes.get(shopId);
+  return { status, qr: qrString };
+}
+
+export async function generateQrCodeImage(qrString: string): Promise<string> {
+  return await qrcode.toDataURL(qrString);
+}
+
+export async function logoutSession(shopId: string): Promise<void> {
+  const sock = activeSockets.get(shopId);
+  if (sock) {
+    try {
+      await sock.logout();
+    } catch (e) {}
+    try {
+      sock.end();
+    } catch (e) {}
+  }
+  activeSockets.delete(shopId);
+  latestQrCodes.delete(shopId);
+  connectionStatuses.set(shopId, 'DISCONNECTED');
+
+  const shopSessionPath = path.join(sessionsDir, shopId);
+  try {
+    fs.rmSync(shopSessionPath, { recursive: true, force: true });
+    logger.info(`[Baileys] Session folder cleared for Shop: ${shopId}`);
+  } catch (e) {
+    logger.error(`[Baileys] Error clearing session folder for ${shopId}: ${e}`);
+  }
+}

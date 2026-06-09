@@ -5,11 +5,12 @@ const GRAPH_API = 'https://graph.facebook.com/v21.0';
 
 export interface WhatsAppConfig {
   whatsappType: 'BUSINESS' | 'NORMAL';
+  shopId?: string | null;
   token: string | null;
   phoneId: string | null;
   adminGroupId?: string | null;
-  ultramsgInstanceId?: string | null;
-  ultramsgToken?: string | null;
+  ultramsgInstanceId?: string | null; // Maintained for database compatibility
+  ultramsgToken?: string | null;      // Maintained for database compatibility
 }
 
 function getHeaders(token: string) {
@@ -26,25 +27,25 @@ export async function sendTextMessage(
 ): Promise<void> {
   if (config.whatsappType === 'NORMAL') {
     try {
-      const instanceId = config.ultramsgInstanceId;
-      const token = config.ultramsgToken;
-
-      if (!instanceId || !token) {
-        logger.error('[Ultramsg] Missing credentials to send message');
+      const shopId = config.shopId;
+      if (!shopId) {
+        logger.error('[Baileys] Missing shopId in config to send message');
         return;
       }
 
-      await axios.post(
-        `https://api.ultramsg.com/${instanceId}/messages/chat`,
-        {
-          token,
-          to,
-          body: text,
-        }
-      );
-      logger.info(`Ultramsg Message sent to ${to} (Instance ID: ${instanceId})`);
+      const { getSocket } = require('./baileys-manager');
+      const sock = getSocket(shopId);
+
+      if (!sock) {
+        logger.error(`[Baileys] WhatsApp session not active for Shop ${shopId}. Message not sent.`);
+        return;
+      }
+
+      const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
+      await sock.sendMessage(jid, { text });
+      logger.info(`[Baileys] Message sent to ${to} for Shop ${shopId}`);
     } catch (err: any) {
-      logger.error(`Failed to send Ultramsg message to ${to}: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
+      logger.error(`Failed to send Baileys message to ${to}: ${err.message}`);
       throw err;
     }
     return;
@@ -80,26 +81,25 @@ export async function sendImageMessage(
 ): Promise<void> {
   if (config.whatsappType === 'NORMAL') {
     try {
-      const instanceId = config.ultramsgInstanceId;
-      const token = config.ultramsgToken;
-
-      if (!instanceId || !token) {
-        logger.error('[Ultramsg] Missing credentials to send image');
+      const shopId = config.shopId;
+      if (!shopId) {
+        logger.error('[Baileys] Missing shopId in config to send image');
         return;
       }
 
-      await axios.post(
-        `https://api.ultramsg.com/${instanceId}/messages/image`,
-        {
-          token,
-          to,
-          image: imageUrl,
-          caption,
-        }
-      );
-      logger.info(`Ultramsg Image sent to ${to} (Instance ID: ${instanceId})`);
+      const { getSocket } = require('./baileys-manager');
+      const sock = getSocket(shopId);
+
+      if (!sock) {
+        logger.error(`[Baileys] WhatsApp session not active for Shop ${shopId}. Image not sent.`);
+        return;
+      }
+
+      const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
+      await sock.sendMessage(jid, { image: { url: imageUrl }, caption });
+      logger.info(`[Baileys] Image sent to ${to} for Shop ${shopId}`);
     } catch (err: any) {
-      logger.error(`Failed to send Ultramsg image to ${to}: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
+      logger.error(`Failed to send Baileys image to ${to}: ${err.message}`);
       throw err;
     }
     return;

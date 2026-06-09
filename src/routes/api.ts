@@ -328,6 +328,58 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
   }
 });
 
+// -------------------------------------------------------------
+// WhatsApp Built-in Session Management (Free Standard WhatsApp)
+// -------------------------------------------------------------
+router.get('/shop/whatsapp/status', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  const { getSessionStatus } = require('../services/baileys-manager');
+  const session = getSessionStatus(shopId);
+
+  res.json({
+    status: session.status,
+    hasQr: !!session.qr,
+  });
+});
+
+router.get('/shop/whatsapp/qr', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  const { startBaileysSession, getSessionStatus, generateQrCodeImage } = require('../services/baileys-manager');
+
+  let session = getSessionStatus(shopId);
+
+  // If disconnected, start a new session
+  if (session.status === 'DISCONNECTED') {
+    await startBaileysSession(shopId);
+    // Wait briefly for QR to generate
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    session = getSessionStatus(shopId);
+  }
+
+  if (session.qr) {
+    try {
+      const qrImage = await generateQrCodeImage(session.qr);
+      return res.json({ qr: qrImage, status: session.status });
+    } catch (err: any) {
+      return res.status(500).json({ error: 'Failed to generate QR code image' });
+    }
+  }
+
+  res.json({ status: session.status });
+});
+
+router.post('/shop/whatsapp/logout', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  const { logoutSession } = require('../services/baileys-manager');
+  
+  try {
+    await logoutSession(shopId);
+    res.json({ message: 'تم تسجيل الخروج وفصل الواتساب بنجاح' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/shop/products', authenticateShop, async (req, res) => {
   const shopId = (req as any).shopId;
   try {

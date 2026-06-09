@@ -24,6 +24,7 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
 
   const whatsappConfig: WhatsAppConfig = {
     whatsappType: shop.whatsappType as 'BUSINESS' | 'NORMAL',
+    shopId: shop.id,
     token: shop.whatsappToken || '',
     phoneId: shop.whatsappPhoneId || '',
     adminGroupId: shop.whatsappAdminGroupId,

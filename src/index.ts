@@ -9,6 +9,7 @@ import { markAsRead, WhatsAppConfig } from './services/whatsapp';
 import { WhatsAppMessage } from './types';
 import prisma from './services/db';
 import logger from './utils/logger';
+import { initAllSessions } from './services/baileys-manager';
 
 const app = express();
 
@@ -153,6 +154,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
 
     const whatsappConfig: WhatsAppConfig = {
       whatsappType: shop.whatsappType as 'BUSINESS' | 'NORMAL',
+      shopId: shop.id,
       token: shop.whatsappToken,
       phoneId: shop.whatsappPhoneId,
       adminGroupId: shop.whatsappAdminGroupId,
@@ -272,8 +274,10 @@ app.get('/health', (_req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   logger.info(`Server running on port ${PORT}`);
   logger.info(`WhatsApp webhook: /webhook/whatsapp`);
   logger.info(`Stripe webhook: /webhook/stripe`);
+  
+  await initAllSessions();
 });

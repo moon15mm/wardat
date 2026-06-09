@@ -643,7 +643,7 @@
               <label for="whatsappTypeInput">نوع اتصال واتساب للمحل</label>
               <select id="whatsappTypeInput" onchange="toggleShopWhatsappFields()" style="background: rgba(0,0,0,0.3); color: var(--text-main); border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; width: 100%;">
                 <option value="BUSINESS">🏢 واتساب الأعمال الرسمي (Meta Cloud API)</option>
-                <option value="NORMAL">📱 واتساب العادي (Ultramsg Gateway)</option>
+                <option value="NORMAL">📱 واتساب العادي المجاني (مسح كود QR)</option>
               </select>
             </div>
 
@@ -663,15 +663,22 @@
               </div>
             </div>
 
-            <!-- Ultramsg Fields -->
-            <div id="ultramsgShopFields" style="display: none;">
-              <div class="form-group">
-                <label for="ultramsgInstanceIdInput">Ultramsg Instance ID</label>
-                <input type="text" id="ultramsgInstanceIdInput" placeholder="مثال: instance1234">
+            <!-- Standard WhatsApp QR Code Scan Fields -->
+            <div id="ultramsgShopFields" style="display: none; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 20px; border-radius: 12px; margin-bottom: 15px; text-align: center;">
+              <h4 style="color: var(--text-main); margin-bottom: 10px;">📱 ربط واتساب العادي المجاني (مسح كود QR)</h4>
+              <p style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 15px;">قم بتوليد كود الـ QR ومسحه باستخدام كاميرا واتساب (الأجهزة المرتبطة) لتفعيل الرد التلقائي.</p>
+              
+              <div id="waConnectionStatus" style="font-weight: bold; margin-bottom: 15px; color: var(--warning);">
+                الحالة: جاري التحقق...
               </div>
-              <div class="form-group">
-                <label for="ultramsgTokenInput">Ultramsg Token</label>
-                <input type="text" id="ultramsgTokenInput" placeholder="رمز الوصول الخاص بـ Ultramsg">
+
+              <div id="waQrCodeContainer" style="display: none; margin: 15px auto; width: 200px; height: 200px; background: white; padding: 10px; border-radius: 10px; box-shadow: 0 0 20px rgba(255,255,255,0.1); justify-content: center; align-items: center;">
+                <img id="waQrImage" src="" alt="Scan QR Code" style="width: 100%; height: 100%;">
+              </div>
+              
+              <div id="waQrActions" style="margin-top: 15px; display: flex; justify-content: center; gap: 10px;">
+                <button type="button" id="btnWaGenerateQr" class="btn-save" style="padding: 8px 16px; font-size: 0.85rem; background: var(--purple-glow);" onclick="loadWaQrCode()">توليد كود QR</button>
+                <button type="button" id="btnWaLogout" class="btn-cancel" style="padding: 8px 16px; font-size: 0.85rem; border-color: rgba(255, 75, 75, 0.4); color: #ff6b6b;" onclick="logoutWaSession()">فصل الاتصال</button>
               </div>
             </div>
 
@@ -726,14 +733,12 @@
             <li>اشترك في حقل **messages** في إعدادات التطبيق.</li>
           </ul>
 
-          <h4 style="color:var(--text-main); margin: 15px 0 8px 0;">2. إعداد واتساب العادي (Ultramsg Gateway):</h4>
+          <h4 style="color:var(--text-main); margin: 15px 0 8px 0;">2. إعداد واتساب العادي (QR Code مجاناً):</h4>
           <ul class="guide-steps">
-            <li>قم بإنشاء حساب في موقع [Ultramsg.com](https://ultramsg.com).</li>
-            <li>قم بمسح كود الـ QR لربط رقم واتساب العادي الخاص بك بالمنصة.</li>
-            <li>انسخ **Instance ID** و **Token** وضعهما في نموذج الإعدادات على اليمين.</li>
-            <li>في إعدادات الـ Webhook داخل حساب Ultramsg، ضع الرابط التالي لاستقبال الرسائل:
-              <div class="code-box">https://wardat.xyz/webhook/ultramsg</div>
-            </li>
+            <li>اختر "واتساب العادي" من خيارات نوع الاتصال على اليمين.</li>
+            <li>اضغط على زر **توليد كود QR**؛ انتظر ثواني ليظهر الكود.</li>
+            <li>افتح تطبيق واتساب على هاتفك، ثم اذهب إلى **الأجهزة المرتبطة** -> **ربط جهاز**.</li>
+            <li>وجه كاميرا الهاتف نحو الشاشة وامسح كود الـ QR، وسيتم الربط وبدء الرد الآلي مجاناً!</li>
           </ul>
 
           <h4 style="color:var(--text-main); margin: 15px 0 8px 0;">3. إعداد Webhook الدفع في Stripe:</h4>
@@ -817,6 +822,8 @@
       fetchShopDetails();
     };
 
+    let waPollInterval = null;
+
     function toggleShopWhatsappFields() {
       const type = document.getElementById('whatsappTypeInput').value;
       const meta = document.getElementById('metaShopFields');
@@ -825,9 +832,18 @@
       if (type === 'BUSINESS') {
         meta.style.display = 'block';
         ultra.style.display = 'none';
+        if (waPollInterval) {
+          clearInterval(waPollInterval);
+          waPollInterval = null;
+        }
       } else {
         meta.style.display = 'none';
         ultra.style.display = 'block';
+        
+        checkWaStatus();
+        if (!waPollInterval) {
+          waPollInterval = setInterval(checkWaStatus, 5000);
+        }
       }
     }
 
@@ -836,6 +852,11 @@
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
       event.target.classList.add('active');
+      
+      if (waPollInterval) {
+        clearInterval(waPollInterval);
+        waPollInterval = null;
+      }
       
       if (tab === 'overview') {
         document.getElementById('tabOverview').classList.add('active');
@@ -881,8 +902,6 @@
         document.getElementById('whatsappPhoneIdInput').value = shop.whatsappPhoneId || '';
         document.getElementById('whatsappVerifyTokenInput').value = shop.whatsappVerifyToken || '';
         document.getElementById('whatsappTokenInput').value = shop.whatsappToken || '';
-        document.getElementById('ultramsgInstanceIdInput').value = shop.ultramsgInstanceId || '';
-        document.getElementById('ultramsgTokenInput').value = shop.ultramsgToken || '';
         document.getElementById('whatsappAdminGroupIdInput').value = shop.whatsappAdminGroupId || '';
         document.getElementById('stripeSecretKeyInput').value = shop.stripeSecretKey || '';
         document.getElementById('stripeWebhookSecretInput').value = shop.stripeWebhookSecret || '';
@@ -935,6 +954,107 @@
       }
     }
 
+    async function checkWaStatus() {
+      try {
+        const res = await fetch('/api/shop/whatsapp/status', { headers });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        
+        const statusEl = document.getElementById('waConnectionStatus');
+        const qrContainer = document.getElementById('waQrCodeContainer');
+        const btnGen = document.getElementById('btnWaGenerateQr');
+        const btnLogout = document.getElementById('btnWaLogout');
+
+        if (data.status === 'CONNECTED') {
+          statusEl.textContent = 'الحالة: متصل بنجاح ✅';
+          statusEl.style.color = 'var(--success)';
+          qrContainer.style.display = 'none';
+          btnGen.style.display = 'none';
+          btnLogout.style.display = 'inline-block';
+          
+          if (waPollInterval) {
+            clearInterval(waPollInterval);
+            waPollInterval = null;
+          }
+        } else if (data.status === 'QR_READY') {
+          statusEl.textContent = 'الحالة: جاهز للمسح 📷';
+          statusEl.style.color = 'var(--warning)';
+          btnGen.style.display = 'inline-block';
+          btnGen.textContent = 'تحديث كود QR';
+          btnLogout.style.display = 'none';
+          fetchWaQrImage();
+        } else if (data.status === 'CONNECTING') {
+          statusEl.textContent = 'الحالة: جاري الاتصال... ⏳';
+          statusEl.style.color = '#38ef7d';
+          qrContainer.style.display = 'none';
+          btnGen.style.display = 'none';
+          btnLogout.style.display = 'none';
+        } else {
+          statusEl.textContent = 'الحالة: غير متصل ❌';
+          statusEl.style.color = 'var(--danger)';
+          qrContainer.style.display = 'none';
+          btnGen.style.display = 'inline-block';
+          btnGen.textContent = 'توليد كود QR';
+          btnLogout.style.display = 'none';
+          
+          if (waPollInterval) {
+            clearInterval(waPollInterval);
+            waPollInterval = null;
+          }
+        }
+      } catch (err) {
+        console.error('Error checking WhatsApp status', err);
+      }
+    }
+
+    async function fetchWaQrImage() {
+      try {
+        const res = await fetch('/api/shop/whatsapp/qr', { headers });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+
+        if (data.qr) {
+          document.getElementById('waQrImage').src = data.qr;
+          document.getElementById('waQrCodeContainer').style.display = 'flex';
+        }
+      } catch (err) {
+        console.error('Error fetching QR image', err);
+      }
+    }
+
+    async function loadWaQrCode() {
+      const statusEl = document.getElementById('waConnectionStatus');
+      statusEl.textContent = 'جاري التشغيل وتوليد الكود... ⏳';
+      statusEl.style.color = '#38ef7d';
+
+      try {
+        const res = await fetch('/api/shop/whatsapp/qr', { headers });
+        if (!res.ok) throw new Error();
+        
+        if (!waPollInterval) {
+          waPollInterval = setInterval(checkWaStatus, 5000);
+        }
+        setTimeout(checkWaStatus, 3000);
+      } catch (err) {
+        alert('فشل في تشغيل جلسة واتساب');
+        checkWaStatus();
+      }
+    }
+
+    async function logoutWaSession() {
+      if (!confirm('هل أنت متأكد من رغبتك في فصل الاتصال برقم الواتساب؟')) return;
+
+      try {
+        const res = await fetch('/api/shop/whatsapp/logout', { method: 'POST', headers });
+        if (!res.ok) throw new Error();
+        
+        alert('تم فصل الاتصال بنجاح! 🔌');
+        checkWaStatus();
+      } catch (err) {
+        alert('فشل في فصل الاتصال');
+      }
+    }
+
     async function saveSettings(e) {
       e.preventDefault();
       
@@ -944,8 +1064,6 @@
         whatsappPhoneId: document.getElementById('whatsappPhoneIdInput').value.trim() || null,
         whatsappVerifyToken: document.getElementById('whatsappVerifyTokenInput').value.trim() || null,
         whatsappToken: document.getElementById('whatsappTokenInput').value.trim() || null,
-        ultramsgInstanceId: document.getElementById('ultramsgInstanceIdInput').value.trim() || null,
-        ultramsgToken: document.getElementById('ultramsgTokenInput').value.trim() || null,
         whatsappAdminGroupId: document.getElementById('whatsappAdminGroupIdInput').value.trim() || null,
         stripeSecretKey: document.getElementById('stripeSecretKeyInput').value.trim() || null,
         stripeWebhookSecret: document.getElementById('stripeWebhookSecretInput').value.trim() || null,
