@@ -90,6 +90,7 @@ model Session {
   lastActivity      BigInt   // Timestamp in milliseconds
   selectedProductId String?  // Optional selected product ID
   orderData         String   // JSON string of Partial<Order>
+  botPaused         Boolean  @default(false)
 
   @@unique([phone, shopId])
 }

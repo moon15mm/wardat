@@ -46,6 +46,7 @@ export interface Session {
   orderData: Partial<Order>;
   lastActivity: number;
   selectedProduct?: Product;
+  botPaused?: boolean;
 }
 
 export interface ChatMessage {

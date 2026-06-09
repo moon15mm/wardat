@@ -1,6 +1,6 @@
 import makeWASocket, { useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
-import qrcode from 'qrcode';
+const qrcode = require('qrcode');
 import fs from 'fs';
 import path from 'path';
 import logger from '../utils/logger';

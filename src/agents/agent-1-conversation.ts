@@ -46,7 +46,21 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
   // 2. Fetch session from DB
   const session = await getSession(phone, shopId);
 
-  logger.info(`[Agent1] Message from ${phone} for shop ${shop.name} (${shopId}), state: ${session.state}, type: ${msg.type}`);
+  logger.info(`[Agent1] Message from ${phone} for shop ${shop.name} (${shopId}), state: ${session.state}, type: ${msg.type}, botPaused: ${session.botPaused}`);
+
+  // 2.1 If bot is paused (manual intervention mode), only record the message and exit
+  if (session.botPaused) {
+    if (msg.type === 'location' && msg.location) {
+      const locationUrl = `https://maps.google.com/maps?q=${msg.location.latitude},${msg.location.longitude}`;
+      session.messages.push({ role: 'user', content: `📍 موقع: ${locationUrl}` });
+    } else if (msg.text?.body) {
+      session.messages.push({ role: 'user', content: msg.text.body });
+    }
+    // Save message to DB without triggering AI response
+    await saveSession(session, shopId);
+    logger.info(`[Agent1] Bot paused for ${phone} in shop ${shopId}. Message recorded, no AI response.`);
+    return;
+  }
 
   if (msg.type === 'location' && msg.location) {
     await handleLocation(phone, shopId, whatsappConfig, msg.location, session);

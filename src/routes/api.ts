@@ -2,6 +2,7 @@ import { Router } from 'express';
 import prisma from '../services/db';
 import { hashPassword, generateToken } from '../utils/auth';
 import { authenticateSuperAdmin, authenticateShop } from '../middlewares/auth';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -836,6 +837,205 @@ router.get('/shop/analytics', authenticateShop, async (req, res) => {
         predictedBusiestDayNextWeek,
         restockAlerts,
       },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// 5. LIVE CHAT & MANUAL INTERVENTION ROUTES
+// -------------------------------------------------------------
+
+// Helper: safely serialize BigInt values in objects
+function serializeBigInt(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'bigint') return obj.toString();
+  if (Array.isArray(obj)) return obj.map(serializeBigInt);
+  if (typeof obj === 'object') {
+    const result: any = {};
+    for (const key in obj) {
+      result[key] = serializeBigInt(obj[key]);
+    }
+    return result;
+  }
+  return obj;
+}
+
+// GET /api/shop/chats - List all active chat sessions for this shop
+router.get('/shop/chats', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  try {
+    const sessions = await prisma.session.findMany({
+      where: { shopId },
+      orderBy: { lastActivity: 'desc' },
+    });
+
+    const chats = sessions.map((s) => {
+      let messages: any[] = [];
+      try {
+        messages = JSON.parse(s.messages);
+      } catch (e) {
+        messages = [];
+      }
+
+      const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+
+      return {
+        phone: s.phone,
+        state: s.state,
+        botPaused: s.botPaused,
+        lastActivity: s.lastActivity.toString(),
+        lastMessage: lastMsg ? lastMsg.content : '',
+        lastMessageRole: lastMsg ? lastMsg.role : '',
+        messagesCount: messages.length,
+      };
+    });
+
+    res.json(chats);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/shop/chats/:phone - Get full conversation history for a customer
+router.get('/shop/chats/:phone', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  const phone = req.params.phone;
+
+  try {
+    const session = await prisma.session.findUnique({
+      where: { phone_shopId: { phone, shopId } },
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: 'لا توجد محادثة نشطة لهذا الرقم' });
+    }
+
+    let messages: any[] = [];
+    try {
+      messages = JSON.parse(session.messages);
+    } catch (e) {
+      messages = [];
+    }
+
+    let orderData: any = {};
+    try {
+      orderData = JSON.parse(session.orderData);
+    } catch (e) {
+      orderData = {};
+    }
+
+    res.json({
+      phone: session.phone,
+      state: session.state,
+      botPaused: session.botPaused,
+      lastActivity: session.lastActivity.toString(),
+      messages,
+      orderData,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/shop/chats/:phone/toggle-bot - Toggle bot pause state for a customer
+router.post('/shop/chats/:phone/toggle-bot', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  const phone = req.params.phone;
+
+  try {
+    const session = await prisma.session.findUnique({
+      where: { phone_shopId: { phone, shopId } },
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: 'لا توجد محادثة نشطة لهذا الرقم' });
+    }
+
+    const newState = !session.botPaused;
+
+    await prisma.session.update({
+      where: { phone_shopId: { phone, shopId } },
+      data: { botPaused: newState },
+    });
+
+    res.json({
+      phone,
+      botPaused: newState,
+      message: newState ? 'تم إيقاف البوت - يمكنك الآن التحدث مع الزبون مباشرة' : 'تم تفعيل البوت - سيعود للرد الآلي',
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/shop/chats/:phone/send - Send a manual message from shop owner to customer
+router.post('/shop/chats/:phone/send', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  const phone = req.params.phone;
+  const { message } = req.body;
+
+  if (!message || !message.trim()) {
+    return res.status(400).json({ error: 'يرجى كتابة رسالة قبل الإرسال' });
+  }
+
+  try {
+    const shop = await prisma.shop.findUnique({ where: { id: shopId } });
+    if (!shop) {
+      return res.status(404).json({ error: 'المتجر غير موجود' });
+    }
+
+    const session = await prisma.session.findUnique({
+      where: { phone_shopId: { phone, shopId } },
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: 'لا توجد محادثة نشطة لهذا الرقم' });
+    }
+
+    // 1. Send the message via WhatsApp
+    const { sendTextMessage } = require('../services/whatsapp');
+    const whatsappConfig = {
+      whatsappType: shop.whatsappType as 'BUSINESS' | 'NORMAL',
+      shopId: shop.id,
+      token: shop.whatsappToken || '',
+      phoneId: shop.whatsappPhoneId || '',
+      adminGroupId: shop.whatsappAdminGroupId,
+      ultramsgInstanceId: shop.ultramsgInstanceId,
+      ultramsgToken: shop.ultramsgToken,
+    };
+
+    await sendTextMessage(whatsappConfig, phone, message.trim());
+
+    // 2. Record the message in the session history
+    let messages: any[] = [];
+    try {
+      messages = JSON.parse(session.messages);
+    } catch (e) {
+      messages = [];
+    }
+
+    messages.push({ role: 'assistant', content: `[تدخل يدوي] ${message.trim()}` });
+
+    // Trim old messages if needed
+    if (messages.length > 20) {
+      messages = messages.slice(-10);
+    }
+
+    // 3. Auto-pause the bot when shop owner sends a manual message
+    await prisma.session.update({
+      where: { phone_shopId: { phone, shopId } },
+      data: {
+        messages: JSON.stringify(messages),
+        botPaused: true,
+        lastActivity: BigInt(Date.now()),
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'تم إرسال الرسالة للزبون بنجاح وتم إيقاف البوت تلقائياً',
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

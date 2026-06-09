@@ -66,6 +66,7 @@ export async function getSession(phone: string, shopId: string): Promise<Session
     orderData: JSON.parse(dbSession.orderData),
     lastActivity: Number(dbSession.lastActivity),
     selectedProduct,
+    botPaused: dbSession.botPaused,
   };
 }
 
