@@ -110,31 +110,32 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
     whatsappAdminGroupId,
   } = req.body;
 
-  if (
-    !name ||
-    !subdomain ||
-    !username ||
-    !password ||
-    !whatsappPhoneId ||
-    !whatsappToken ||
-    !whatsappVerifyToken ||
-    !stripeSecretKey ||
-    !stripeWebhookSecret
-  ) {
-    return res.status(400).json({ error: 'يرجى تعبئة كافة الحقول المطلوبة للمتجر الجديد' });
+  if (!name || !subdomain || !username || !password) {
+    return res.status(400).json({ error: 'يرجى تقديم اسم المتجر، الدومين الفرعي، اسم المستخدم وكلمة المرور' });
   }
 
   try {
     const existingShop = await prisma.shop.findFirst({
       where: {
-        OR: [{ subdomain }, { username }, { whatsappPhoneId }],
+        OR: [{ subdomain }, { username }],
       },
     });
 
     if (existingShop) {
       return res.status(400).json({
-        error: 'اسم المستخدم، الدومين الفرعي، أو رقم الواتساب مسجل مسبقاً لمتجر آخر',
+        error: 'اسم المستخدم أو الدومين الفرعي مسجل مسبقاً لمتجر آخر',
       });
+    }
+
+    if (whatsappPhoneId) {
+      const existingPhone = await prisma.shop.findFirst({
+        where: { whatsappPhoneId },
+      });
+      if (existingPhone) {
+        return res.status(400).json({
+          error: 'رقم الواتساب مسجل مسبقاً لمتجر آخر',
+        });
+      }
     }
 
     const shop = await prisma.shop.create({
@@ -143,13 +144,13 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
         subdomain,
         username,
         password: hashPassword(password),
-        whatsappPhoneId,
-        whatsappToken,
-        whatsappVerifyToken,
-        stripeSecretKey,
-        stripeWebhookSecret,
-        stripeSuccessUrl: stripeSuccessUrl || 'https://example.com/success',
-        stripeCancelUrl: stripeCancelUrl || 'https://example.com/cancel',
+        whatsappPhoneId: whatsappPhoneId || null,
+        whatsappToken: whatsappToken || null,
+        whatsappVerifyToken: whatsappVerifyToken || null,
+        stripeSecretKey: stripeSecretKey || null,
+        stripeWebhookSecret: stripeWebhookSecret || null,
+        stripeSuccessUrl: stripeSuccessUrl || null,
+        stripeCancelUrl: stripeCancelUrl || null,
         whatsappAdminGroupId: whatsappAdminGroupId || null,
       },
     });

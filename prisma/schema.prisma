@@ -15,16 +15,16 @@ model Shop {
   password            String    // Hashed password
   
   // WhatsApp settings per shop
-  whatsappPhoneId      String    @unique
-  whatsappToken        String
-  whatsappVerifyToken  String
+  whatsappPhoneId      String?    @unique
+  whatsappToken        String?
+  whatsappVerifyToken  String?
   whatsappAdminGroupId String?
   
   // Stripe settings per shop
-  stripeSecretKey     String
-  stripeWebhookSecret String
-  stripeSuccessUrl    String
-  stripeCancelUrl    String
+  stripeSecretKey     String?
+  stripeWebhookSecret String?
+  stripeSuccessUrl    String?
+  stripeCancelUrl    String?
 
   createdAt           DateTime  @default(now())
   products            Product[]
