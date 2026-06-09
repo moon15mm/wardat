@@ -109,6 +109,15 @@ export async function startBaileysSession(shopId: string): Promise<void> {
       connectionStatuses.set(shopId, 'CONNECTED');
       latestQrCodes.delete(shopId);
       logger.info(`[Baileys] Connection opened successfully for Shop: ${shopId}`);
+      try {
+        await prisma.shop.update({
+          where: { id: shopId },
+          data: { whatsappType: 'NORMAL' },
+        });
+        logger.info(`[Baileys] Automatically updated shop ${shopId} whatsappType to NORMAL in database`);
+      } catch (dbErr: any) {
+        logger.error(`[Baileys] Failed to auto-update shop whatsappType to NORMAL: ${dbErr.message}`);
+      }
     }
   });
 
@@ -127,9 +136,21 @@ export async function startBaileysSession(shopId: string): Promise<void> {
             continue;
           }
 
+          // Unwrap nested message types (ephemeral, view once, etc.)
+          let rawMsg = msg.message;
+          if (rawMsg.ephemeralMessage?.message) {
+            rawMsg = rawMsg.ephemeralMessage.message;
+          }
+          if (rawMsg.viewOnceMessage?.message) {
+            rawMsg = rawMsg.viewOnceMessage.message;
+          }
+          if (rawMsg.viewOnceMessageV2?.message) {
+            rawMsg = rawMsg.viewOnceMessageV2.message;
+          }
+
           const from = fromJid.split('@')[0];
-          const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
-          const isLocation = msg.message.locationMessage;
+          const text = rawMsg.conversation || rawMsg.extendedTextMessage?.text || rawMsg.imageMessage?.caption || '';
+          const isLocation = rawMsg.locationMessage;
 
           // Structure WhatsAppMessage
           const formattedMsg: any = {
@@ -142,7 +163,7 @@ export async function startBaileysSession(shopId: string): Promise<void> {
             } : undefined,
           };
 
-          logger.info(`[Baileys] Message from ${from} for shop ${shopId}: ${text || 'Location'}`);
+          logger.info(`[Baileys] Message from ${from} for shop ${shopId}: ${text || (isLocation ? 'Location' : 'Other')}`);
           
           try {
             await handleMessage(formattedMsg, shopId);
