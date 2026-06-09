@@ -17,6 +17,15 @@
       --glass-hover: rgba(255, 255, 255, 0.06);
     }
 
+    body.light-mode {
+      --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+      --text-main: #1f1f2e;
+      --text-sub: #5f6368;
+      --glass-bg: rgba(255, 255, 255, 0.8);
+      --glass-border: rgba(0, 0, 0, 0.08);
+      --glass-hover: rgba(0, 0, 0, 0.04);
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -171,9 +180,43 @@
       25% { transform: translateX(-6px); }
       75% { transform: translateX(6px); }
     }
+
+    /* Light Mode Overrides */
+    body.light-mode input {
+      background: rgba(255, 255, 255, 0.9);
+      border-color: rgba(0, 0, 0, 0.15);
+      color: var(--text-main);
+    }
+    body.light-mode input:focus {
+      background: #ffffff;
+      border-color: var(--purple-glow);
+    }
+    body.light-mode .login-card {
+      background: var(--glass-bg);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+    }
+
+    .theme-toggle-float {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 1.1rem;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+      z-index: 100;
+    }
   </style>
 </head>
 <body>
+  
+  <button id="themeToggleBtn" class="theme-toggle-float" onclick="toggleTheme()">🌞</button>
 
   <div class="container">
     <div class="login-card">
@@ -203,8 +246,29 @@
   </div>
 
   <script>
+    // Theme logic
+    function initTheme() {
+      const savedTheme = localStorage.getItem('wardat_theme') || 'dark';
+      const btn = document.getElementById('themeToggleBtn');
+      if (savedTheme === 'light') {
+        document.body.classList.add('light-mode');
+        if (btn) btn.textContent = '🌙';
+      } else {
+        document.body.classList.remove('light-mode');
+        if (btn) btn.textContent = '🌞';
+      }
+    }
+
+    function toggleTheme() {
+      const isLight = document.body.classList.toggle('light-mode');
+      localStorage.setItem('wardat_theme', isLight ? 'light' : 'dark');
+      const btn = document.getElementById('themeToggleBtn');
+      if (btn) btn.textContent = isLight ? '🌙' : '🌞';
+    }
+
     // Redirect if already logged in
     window.onload = () => {
+      initTheme();
       const token = localStorage.getItem('wardat_token');
       const role = localStorage.getItem('wardat_role');
       if (token && role) {

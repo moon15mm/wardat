@@ -19,6 +19,15 @@
       --success: #00e676;
     }
 
+    body.light-mode {
+      --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+      --text-main: #1f1f2e;
+      --text-sub: #5f6368;
+      --glass-bg: rgba(255, 255, 255, 0.8);
+      --glass-border: rgba(0, 0, 0, 0.08);
+      --glass-hover: rgba(0, 0, 0, 0.04);
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -347,6 +356,78 @@
     select:focus {
       border-color: var(--pink-glow);
     }
+
+    /* Light Mode Overrides */
+    body.light-mode input, 
+    body.light-mode textarea, 
+    body.light-mode select {
+      background: rgba(255, 255, 255, 0.9);
+      border-color: rgba(0, 0, 0, 0.15);
+      color: var(--text-main);
+    }
+    body.light-mode input:focus, 
+    body.light-mode textarea:focus, 
+    body.light-mode select:focus {
+      border-color: var(--purple-glow);
+      background: #ffffff;
+    }
+    body.light-mode .modal-content {
+      background: #ffffff;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+    }
+    body.light-mode .table-container {
+      background: var(--glass-bg);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    }
+    body.light-mode th {
+      background: rgba(0, 0, 0, 0.02);
+    }
+
+    /* Mobile Responsiveness Styles */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      header {
+        flex-direction: column;
+        gap: 12px;
+        padding: 15px;
+        text-align: center;
+      }
+      .admin-info {
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+      }
+      .btn-logout {
+        width: 100%;
+      }
+      .section-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      .btn-add {
+        width: 100%;
+        text-align: center;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+      }
+      .stat-card {
+        padding: 15px 10px !important;
+      }
+      .stat-value {
+        font-size: 1.35rem !important;
+      }
+      .stat-title {
+        font-size: 0.75rem !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -358,6 +439,7 @@
       </div>
       <div class="admin-info">
         <span id="adminName">مرحباً، مدير النظام</span>
+        <button id="themeToggleBtn" onclick="toggleTheme()" style="background: transparent; border: 1px solid var(--glass-border); color: var(--text-main); padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: all 0.3s ease;">🌞</button>
         <button class="btn-logout" onclick="logout()">خروج</button>
       </div>
     </header>
@@ -592,6 +674,26 @@
     const token = localStorage.getItem('wardat_token');
     const role = localStorage.getItem('wardat_role');
 
+    // Theme Logic
+    function initTheme() {
+      const savedTheme = localStorage.getItem('wardat_theme') || 'dark';
+      const btn = document.getElementById('themeToggleBtn');
+      if (savedTheme === 'light') {
+        document.body.classList.add('light-mode');
+        if (btn) btn.textContent = '🌙';
+      } else {
+        document.body.classList.remove('light-mode');
+        if (btn) btn.textContent = '🌞';
+      }
+    }
+
+    function toggleTheme() {
+      const isLight = document.body.classList.toggle('light-mode');
+      localStorage.setItem('wardat_theme', isLight ? 'light' : 'dark');
+      const btn = document.getElementById('themeToggleBtn');
+      if (btn) btn.textContent = isLight ? '🌙' : '🌞';
+    }
+
     // Authentication Guard
     if (!token || role !== 'superadmin') {
       localStorage.clear();
@@ -604,6 +706,7 @@
     };
 
     window.onload = () => {
+      initTheme();
       fetchStats();
       fetchShops();
     };

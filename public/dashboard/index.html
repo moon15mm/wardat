@@ -21,6 +21,18 @@
       --warning: #ffb300;
     }
 
+    body.light-mode {
+      --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+      --text-main: #1f1f2e;
+      --text-sub: #5f6368;
+      --glass-bg: rgba(255, 255, 255, 0.8);
+      --glass-border: rgba(0, 0, 0, 0.08);
+      --glass-hover: rgba(0, 0, 0, 0.04);
+      --danger: #d32f2f;
+      --success: #2e7d32;
+      --warning: #ed6c02;
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -532,6 +544,213 @@
       from { box-shadow: 0 0 10px rgba(255, 45, 129, 0.1); }
       to { box-shadow: 0 0 20px rgba(255, 45, 129, 0.2); }
     }
+
+    /* Light Mode Overrides */
+    body.light-mode input, 
+    body.light-mode textarea, 
+    body.light-mode select {
+      background: rgba(255, 255, 255, 0.9);
+      border-color: rgba(0, 0, 0, 0.15);
+      color: var(--text-main);
+    }
+    body.light-mode input:focus, 
+    body.light-mode textarea:focus, 
+    body.light-mode select:focus {
+      border-color: var(--purple-glow);
+      background: #ffffff;
+    }
+    body.light-mode .modal-content {
+      background: #ffffff;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+    }
+    body.light-mode .code-box {
+      background: rgba(0, 0, 0, 0.04);
+      color: #b0003a;
+    }
+    body.light-mode .guide-title {
+      color: #7b2cbf;
+    }
+    body.light-mode .sub-tabs-nav {
+      background: rgba(0, 0, 0, 0.03);
+    }
+
+    /* Plan and Duration Cards styling */
+    .plan-card {
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      padding: 15px;
+      border-radius: 12px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    .plan-card.active {
+      border-color: var(--pink-glow) !important;
+      background: rgba(255, 45, 129, 0.05) !important;
+      box-shadow: 0 0 12px rgba(255, 45, 129, 0.2) !important;
+    }
+    .duration-pill {
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      padding: 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    .duration-pill.active {
+      border-color: var(--pink-glow) !important;
+      background: rgba(255, 45, 129, 0.05) !important;
+    }
+
+    /* Layout Responsive Grids */
+    .analytics-layout-grid-left-heavy,
+    .analytics-layout-grid-equal,
+    .analytics-layout-grid-right-heavy {
+      display: grid;
+      gap: 25px;
+      margin-bottom: 30px;
+    }
+    .analytics-layout-grid-left-heavy {
+      grid-template-columns: 1.6fr 1fr;
+    }
+    .analytics-layout-grid-equal {
+      grid-template-columns: 1fr 1fr;
+    }
+    .analytics-layout-grid-right-heavy {
+      grid-template-columns: 1fr 1.8fr;
+    }
+
+    /* Mobile Responsiveness Styles */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      
+      header {
+        flex-direction: column;
+        gap: 12px;
+        padding: 15px;
+        text-align: center;
+      }
+      
+      .shop-info {
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+      }
+      
+      .btn-logout {
+        width: 100%;
+      }
+      
+      .tabs-nav {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 12px;
+        margin-bottom: 15px;
+      }
+      
+      .tabs-nav::-webkit-scrollbar {
+        height: 4px;
+      }
+      
+      .tabs-nav::-webkit-scrollbar-thumb {
+        background: var(--glass-border);
+        border-radius: 4px;
+      }
+      
+      .tab-btn {
+        padding: 8px 16px;
+        font-size: 0.9rem;
+      }
+      
+      .panel-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      
+      .btn-add-product {
+        width: 100%;
+        text-align: center;
+      }
+      
+      .analytics-layout-grid-left-heavy,
+      .analytics-layout-grid-equal,
+      .analytics-layout-grid-right-heavy {
+        grid-template-columns: 1fr !important;
+      }
+      
+      .sub-tabs-nav {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+      }
+    }
+    
+    @media (max-width: 600px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+      }
+      
+      .stat-card {
+        padding: 15px 10px !important;
+      }
+      
+      .stat-value {
+        font-size: 1.35rem !important;
+      }
+      
+      .stat-title {
+        font-size: 0.75rem !important;
+      }
+      
+      .product-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+      }
+      
+      .product-card {
+        border-radius: 12px;
+      }
+      
+      .product-img {
+        height: 120px !important;
+      }
+      
+      .product-details {
+        padding: 12px !important;
+      }
+      
+      .product-title {
+        font-size: 0.9rem !important;
+      }
+      
+      .product-desc {
+        font-size: 0.75rem !important;
+        margin-bottom: 10px !important;
+      }
+      
+      .product-price {
+        font-size: 1rem !important;
+      }
+      
+      .product-actions {
+        flex-direction: column;
+        width: 100%;
+        gap: 6px;
+      }
+      
+      .btn-edit, .btn-p-delete {
+        width: 100%;
+        text-align: center;
+        padding: 8px;
+        font-size: 0.75rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -543,6 +762,7 @@
       </div>
       <div class="shop-info">
         <span id="shopDomain" style="color: var(--text-sub); font-family: 'Outfit'; font-size: 0.95rem;">-</span>
+        <button id="themeToggleBtn" onclick="toggleTheme()" style="background: transparent; border: 1px solid var(--glass-border); color: var(--text-main); padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: all 0.3s ease;">🌞</button>
         <button class="btn-logout" onclick="logout()">خروج</button>
       </div>
     </header>
@@ -627,7 +847,7 @@
     <!-- 3. ANALYTICS & STATS TAB -->
     <div id="tabAnalytics" class="tab-content">
       <!-- Sub-tabs nav -->
-      <div style="display: flex; gap: 15px; margin-bottom: 25px; background: rgba(0,0,0,0.15); padding: 8px 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
+      <div class="sub-tabs-nav">
         <button class="tab-btn active" id="subTabSalesBtn" onclick="switchSubAnalyticsTab('sales')" style="padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; background: transparent; border: none; color: var(--text-sub); cursor: pointer;">📈 المبيعات والإيرادات</button>
         <button class="tab-btn" id="subTabPeakBtn" onclick="switchSubAnalyticsTab('peak')" style="padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; background: transparent; border: none; color: var(--text-sub); cursor: pointer;">🕒 أوقات الذروة والعملاء</button>
         <button class="tab-btn" id="subTabStockBtn" onclick="switchSubAnalyticsTab('stock')" style="padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; background: transparent; border: none; color: var(--text-sub); cursor: pointer;">📦 توقعات المخزون والتوريد</button>
@@ -650,7 +870,7 @@
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 25px; margin-bottom: 30px;">
+        <div class="analytics-layout-grid-left-heavy">
           <!-- Chart -->
           <div class="card-panel" style="margin-bottom:0;">
             <h3>📈 منحنى المبيعات اليومية (آخر 30 يوماً)</h3>
@@ -713,7 +933,7 @@
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 30px;">
+        <div class="analytics-layout-grid-equal">
           <!-- Hourly Chart -->
           <div class="card-panel" style="margin-bottom:0;">
             <h3>🕒 توزيع الطلبات بحسب ساعات اليوم</h3>
@@ -733,7 +953,7 @@
 
       <!-- Sub-Tab 3: Inventory Forecasts -->
       <div id="subTabStock" class="sub-analytics-content" style="display:none;">
-        <div style="display: grid; grid-template-columns: 1fr 1.8fr; gap: 25px; margin-bottom: 30px;">
+        <div class="analytics-layout-grid-right-heavy">
           <!-- Warnings -->
           <div class="guide-panel" style="display: flex; flex-direction: column; justify-content: flex-start; gap: 15px; background: rgba(255, 179, 0, 0.03); border-color: rgba(255, 179, 0, 0.15);">
             <div class="guide-title" style="color: var(--warning);">
@@ -945,21 +1165,21 @@
               <label style="margin-bottom: 12px;">اختر باقة الاشتراك</label>
               <div class="plans-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 20px;">
                 <!-- Silver Plan -->
-                <div class="plan-card" data-plan="SILVER" onclick="selectPlan('SILVER')" style="border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; cursor: pointer; text-align: center; background: rgba(255,255,255,0.01); transition: all 0.3s ease;">
+                <div class="plan-card" data-plan="SILVER" onclick="selectPlan('SILVER')">
                   <div style="font-size: 1.6rem; margin-bottom: 5px;">🥈</div>
                   <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.95rem;">الفضية</div>
                   <div style="font-size: 1.1rem; color: var(--pink-glow); font-weight: bold; font-family: 'Outfit';">50 <span style="font-size: 0.8rem; font-family: 'Tajawal';">ر.س</span></div>
                   <div style="font-size: 0.7rem; color: var(--text-sub); margin-top: 3px;">شهرياً</div>
                 </div>
                 <!-- Gold Plan -->
-                <div class="plan-card active" data-plan="GOLD" onclick="selectPlan('GOLD')" style="border: 1px solid var(--pink-glow); padding: 15px; border-radius: 12px; cursor: pointer; text-align: center; background: rgba(255,45,129,0.05); transition: all 0.3s ease; box-shadow: 0 0 10px rgba(255, 45, 129, 0.2);">
+                <div class="plan-card active" data-plan="GOLD" onclick="selectPlan('GOLD')">
                   <div style="font-size: 1.6rem; margin-bottom: 5px;">🥇</div>
                   <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.95rem;">الذهبية</div>
                   <div style="font-size: 1.1rem; color: var(--pink-glow); font-weight: bold; font-family: 'Outfit';">150 <span style="font-size: 0.8rem; font-family: 'Tajawal';">ر.س</span></div>
                   <div style="font-size: 0.7rem; color: var(--text-sub); margin-top: 3px;">شهرياً</div>
                 </div>
                 <!-- Platinum Plan -->
-                <div class="plan-card" data-plan="PLATINUM" onclick="selectPlan('PLATINUM')" style="border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; cursor: pointer; text-align: center; background: rgba(255,255,255,0.01); transition: all 0.3s ease;">
+                <div class="plan-card" data-plan="PLATINUM" onclick="selectPlan('PLATINUM')">
                   <div style="font-size: 1.6rem; margin-bottom: 5px;">💎</div>
                   <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.95rem;">البلاتينية</div>
                   <div style="font-size: 1.1rem; color: var(--pink-glow); font-weight: bold; font-family: 'Outfit';">300 <span style="font-size: 0.8rem; font-family: 'Tajawal';">ر.س</span></div>
@@ -972,19 +1192,19 @@
             <div class="form-group">
               <label style="margin-bottom: 12px;">مدة تمديد الاشتراك</label>
               <div class="duration-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px;">
-                <div class="duration-pill active" data-months="1" onclick="selectDuration(1)" style="border: 1px solid var(--pink-glow); padding: 12px; border-radius: 10px; cursor: pointer; text-align: center; background: rgba(255,45,129,0.05); font-size: 0.9rem; transition: all 0.3s ease; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                <div class="duration-pill active" data-months="1" onclick="selectDuration(1)" style="display: flex; flex-direction: column; justify-content: center; align-items: center;">
                   <span style="font-weight: bold;">📅 1 شهر</span>
                   <span style="font-size: 0.75rem; color: var(--text-sub); margin-top: 2px;">السعر الكامل</span>
                 </div>
-                <div class="duration-pill" data-months="3" onclick="selectDuration(3)" style="border: 1px solid var(--glass-border); padding: 12px; border-radius: 10px; cursor: pointer; text-align: center; background: rgba(255,255,255,0.01); font-size: 0.9rem; transition: all 0.3s ease; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                <div class="duration-pill" data-months="3" onclick="selectDuration(3)" style="display: flex; flex-direction: column; justify-content: center; align-items: center;">
                   <span style="font-weight: bold;">📅 3 أشهر</span>
                   <span style="font-size: 0.75rem; color: var(--success); margin-top: 2px; font-weight: 600;">خصم 5%</span>
                 </div>
-                <div class="duration-pill" data-months="6" onclick="selectDuration(6)" style="border: 1px solid var(--glass-border); padding: 12px; border-radius: 10px; cursor: pointer; text-align: center; background: rgba(255,255,255,0.01); font-size: 0.9rem; transition: all 0.3s ease; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                <div class="duration-pill" data-months="6" onclick="selectDuration(6)" style="display: flex; flex-direction: column; justify-content: center; align-items: center;">
                   <span style="font-weight: bold;">📅 6 أشهر</span>
                   <span style="font-size: 0.75rem; color: var(--success); margin-top: 2px; font-weight: 600;">خصم 10%</span>
                 </div>
-                <div class="duration-pill" data-months="12" onclick="selectDuration(12)" style="border: 1px solid var(--glass-border); padding: 12px; border-radius: 10px; cursor: pointer; text-align: center; background: rgba(255,255,255,0.01); font-size: 0.9rem; transition: all 0.3s ease; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                <div class="duration-pill" data-months="12" onclick="selectDuration(12)" style="display: flex; flex-direction: column; justify-content: center; align-items: center;">
                   <span style="font-weight: bold;">📅 12 شهر</span>
                   <span style="font-size: 0.75rem; color: var(--warning); margin-top: 2px; font-weight: 600;">خصم 20% 🔥</span>
                 </div>
@@ -1099,6 +1319,34 @@
     const token = localStorage.getItem('wardat_token');
     const role = localStorage.getItem('wardat_role');
 
+    // Theme Logic
+    function initTheme() {
+      const savedTheme = localStorage.getItem('wardat_theme') || 'dark';
+      const btn = document.getElementById('themeToggleBtn');
+      if (savedTheme === 'light') {
+        document.body.classList.add('light-mode');
+        if (btn) btn.textContent = '🌙';
+      } else {
+        document.body.classList.remove('light-mode');
+        if (btn) btn.textContent = '🌞';
+      }
+    }
+
+    function toggleTheme() {
+      const isLight = document.body.classList.toggle('light-mode');
+      localStorage.setItem('wardat_theme', isLight ? 'light' : 'dark');
+      const btn = document.getElementById('themeToggleBtn');
+      if (btn) btn.textContent = isLight ? '🌙' : '🌞';
+      
+      // Re-fetch or re-draw charts with correct theme colors
+      if (lastAnalyticsData) {
+        fetchAnalytics();
+        if (document.getElementById('subTabPeak').style.display === 'block') {
+          renderPeakCharts();
+        }
+      }
+    }
+
     // Authentication Guard
     if (!token || role !== 'shop') {
       localStorage.clear();
@@ -1111,6 +1359,7 @@
     };
 
     window.onload = () => {
+      initTheme();
       fetchStats();
       fetchOrders();
       fetchProducts();
@@ -1605,13 +1854,9 @@
       selectedPlan = plan;
       document.querySelectorAll('.plan-card').forEach(card => {
         if (card.dataset.plan === plan) {
-          card.style.borderColor = 'var(--pink-glow)';
-          card.style.background = 'rgba(255,45,129,0.05)';
-          card.style.boxShadow = '0 0 10px rgba(255, 45, 129, 0.2)';
+          card.classList.add('active');
         } else {
-          card.style.borderColor = 'var(--glass-border)';
-          card.style.background = 'rgba(255,255,255,0.01)';
-          card.style.boxShadow = 'none';
+          card.classList.remove('active');
         }
       });
       calculateSubPrice();
@@ -1621,11 +1866,9 @@
       selectedDuration = parseInt(duration);
       document.querySelectorAll('.duration-pill').forEach(pill => {
         if (parseInt(pill.dataset.months) === selectedDuration) {
-          pill.style.borderColor = 'var(--pink-glow)';
-          pill.style.background = 'rgba(255,45,129,0.05)';
+          pill.classList.add('active');
         } else {
-          pill.style.borderColor = 'var(--glass-border)';
-          pill.style.background = 'rgba(255,255,255,0.01)';
+          pill.classList.remove('active');
         }
       });
       calculateSubPrice();
@@ -1766,6 +2009,10 @@
         });
         const chartData = data.dailySales.map(d => d.revenue);
 
+        const isLight = document.body.classList.contains('light-mode');
+        const gridColor = isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.05)';
+        const tickColor = isLight ? '#5f6368' : '#b1a9c3';
+
         if (salesChartInstance) salesChartInstance.destroy();
         const ctx = document.getElementById('salesChart').getContext('2d');
         salesChartInstance = new Chart(ctx, {
@@ -1776,7 +2023,7 @@
               label: 'المبيعات اليومية (ريال)',
               data: chartData,
               borderColor: '#ff2d81',
-              backgroundColor: 'rgba(255, 45, 129, 0.1)',
+              backgroundColor: isLight ? 'rgba(255, 45, 129, 0.05)' : 'rgba(255, 45, 129, 0.1)',
               borderWidth: 2,
               fill: true,
               tension: 0.3,
@@ -1789,8 +2036,8 @@
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-              x: { grid: { display: false }, ticks: { color: '#b1a9c3', font: { family: 'Tajawal' } } },
-              y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#b1a9c3', font: { family: 'Tajawal' } } }
+              x: { grid: { display: false }, ticks: { color: tickColor, font: { family: 'Tajawal' } } },
+              y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'Tajawal' } } }
             }
           }
         });
@@ -1846,6 +2093,10 @@
       const hoursLabels = data.salesByHour.map(h => h.hour);
       const hoursData = data.salesByHour.map(h => h.count);
 
+      const isLight = document.body.classList.contains('light-mode');
+      const gridColor = isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.05)';
+      const tickColor = isLight ? '#5f6368' : '#b1a9c3';
+
       if (hourlyChartInstance) hourlyChartInstance.destroy();
       const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
       hourlyChartInstance = new Chart(hourlyCtx, {
@@ -1855,7 +2106,7 @@
           datasets: [{
             label: 'عدد الطلبات',
             data: hoursData,
-            backgroundColor: 'rgba(142, 45, 226, 0.6)',
+            backgroundColor: isLight ? 'rgba(142, 45, 226, 0.7)' : 'rgba(142, 45, 226, 0.6)',
             borderColor: '#8e2de2',
             borderWidth: 1.5,
             borderRadius: 5,
@@ -1866,8 +2117,8 @@
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { grid: { display: false }, ticks: { color: '#b1a9c3', font: { family: 'Tajawal', size: 9 } } },
-            y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#b1a9c3', stepSize: 1 } }
+            x: { grid: { display: false }, ticks: { color: tickColor, font: { family: 'Tajawal', size: 9 } } },
+            y: { grid: { color: gridColor }, ticks: { color: tickColor, stepSize: 1 } }
           }
         }
       });
@@ -1885,7 +2136,7 @@
           datasets: [{
             label: 'إيرادات المبيعات (ريال)',
             data: weekdayData,
-            backgroundColor: 'rgba(255, 45, 129, 0.6)',
+            backgroundColor: isLight ? 'rgba(255, 45, 129, 0.7)' : 'rgba(255, 45, 129, 0.6)',
             borderColor: '#ff2d81',
             borderWidth: 1.5,
             borderRadius: 5,
@@ -1896,8 +2147,8 @@
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { grid: { display: false }, ticks: { color: '#b1a9c3', font: { family: 'Tajawal' } } },
-            y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#b1a9c3' } }
+            x: { grid: { display: false }, ticks: { color: tickColor, font: { family: 'Tajawal' } } },
+            y: { grid: { color: gridColor }, ticks: { color: tickColor } }
           }
         }
       });
