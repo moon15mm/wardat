@@ -21,10 +21,15 @@ model Shop {
   subscriptionEnd      DateTime?
   
   // WhatsApp settings per shop
+  whatsappType         String     @default("BUSINESS") // BUSINESS or NORMAL
   whatsappPhoneId      String?    @unique
   whatsappToken        String?
   whatsappVerifyToken  String?
   whatsappAdminGroupId String?
+  
+  // Ultramsg settings (Standard WhatsApp)
+  ultramsgInstanceId   String?
+  ultramsgToken        String?
   
   // Stripe settings per shop
   stripeSecretKey     String?

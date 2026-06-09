@@ -38,9 +38,12 @@ export async function handlePaymentSuccess(session: Stripe.Checkout.Session): Pr
   };
 
   const whatsappConfig: WhatsAppConfig = {
+    whatsappType: shop.whatsappType as 'BUSINESS' | 'NORMAL',
     token: shop.whatsappToken,
     phoneId: shop.whatsappPhoneId,
     adminGroupId: shop.whatsappAdminGroupId,
+    ultramsgInstanceId: shop.ultramsgInstanceId,
+    ultramsgToken: shop.ultramsgToken,
   };
 
   let cardLast4 = '';
@@ -102,9 +105,12 @@ export async function handlePaymentFailed(session: Stripe.Checkout.Session): Pro
   if (!shop) return;
 
   const whatsappConfig: WhatsAppConfig = {
+    whatsappType: shop.whatsappType as 'BUSINESS' | 'NORMAL',
     token: shop.whatsappToken,
     phoneId: shop.whatsappPhoneId,
     adminGroupId: shop.whatsappAdminGroupId,
+    ultramsgInstanceId: shop.ultramsgInstanceId,
+    ultramsgToken: shop.ultramsgToken,
   };
 
   await updateOrderStatus(orderId, 'FAILED');

@@ -5,7 +5,7 @@ import apiRoutes from './routes/api';
 import { handleMessage } from './agents/agent-1-conversation';
 import { handlePaymentSuccess, handlePaymentFailed } from './agents/agent-4-finance';
 import { constructWebhookEvent } from './services/stripe-service';
-import { markAsRead } from './services/whatsapp';
+import { markAsRead, WhatsAppConfig } from './services/whatsapp';
 import { WhatsAppMessage } from './types';
 import prisma from './services/db';
 import logger from './utils/logger';
@@ -151,10 +151,13 @@ app.post('/webhook/whatsapp', async (req, res) => {
       image: rawMessage.image,
     };
 
-    const whatsappConfig = {
+    const whatsappConfig: WhatsAppConfig = {
+      whatsappType: shop.whatsappType as 'BUSINESS' | 'NORMAL',
       token: shop.whatsappToken,
       phoneId: shop.whatsappPhoneId,
       adminGroupId: shop.whatsappAdminGroupId,
+      ultramsgInstanceId: shop.ultramsgInstanceId,
+      ultramsgToken: shop.ultramsgToken,
     };
 
     markAsRead(whatsappConfig, rawMessage.id);
@@ -168,6 +171,97 @@ app.post('/webhook/whatsapp', async (req, res) => {
     res.sendStatus(200);
   } catch (err: any) {
     logger.error(`[WhatsApp] Error processing message: ${err.message}`);
+    res.sendStatus(200);
+  }
+});
+
+// Helper to parse Ultramsg location messages
+function parseUltramsgLocation(body: string): { latitude: number; longitude: number } | undefined {
+  if (!body) return undefined;
+  
+  // Try to match standard "lat,lng" (e.g., "24.7136,46.6753")
+  const commaMatch = body.match(/^(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)$/);
+  if (commaMatch) {
+    return {
+      latitude: parseFloat(commaMatch[1]),
+      longitude: parseFloat(commaMatch[2]),
+    };
+  }
+
+  // Try to extract from Google Maps URL or query parameter q=lat,lng
+  const urlMatch = body.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (urlMatch) {
+    return {
+      latitude: parseFloat(urlMatch[1]),
+      longitude: parseFloat(urlMatch[2]),
+    };
+  }
+
+  // Fallback pattern matching anywhere in the text
+  const coordMatch = body.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+  if (coordMatch) {
+    return {
+      latitude: parseFloat(coordMatch[1]),
+      longitude: parseFloat(coordMatch[2]),
+    };
+  }
+
+  return undefined;
+}
+
+// Ultramsg incoming messages (Standard WhatsApp)
+app.post('/webhook/ultramsg', async (req, res) => {
+  try {
+    const body = req.body;
+    const instanceId = body.instanceId;
+
+    if (!instanceId || body.event_type !== 'message_received') {
+      res.sendStatus(200);
+      return;
+    }
+
+    const rawMsg = body.data;
+    if (!rawMsg || rawMsg.fromMe === true) {
+      res.sendStatus(200);
+      return;
+    }
+
+    const shop = await prisma.shop.findFirst({
+      where: {
+        whatsappType: 'NORMAL',
+        ultramsgInstanceId: instanceId,
+      },
+    });
+
+    if (!shop) {
+      logger.warn(`[Ultramsg] Incoming message target Instance ID ${instanceId} has no registered shop`);
+      res.sendStatus(200);
+      return;
+    }
+
+    // Clean number from "@c.us" or "@g.us"
+    const fromPhone = rawMsg.from.split('@')[0];
+
+    // Check if it is a location message or text
+    const isLocation = rawMsg.type === 'location';
+    const parsedLocation = isLocation || rawMsg.body?.includes('maps.google.com') ? parseUltramsgLocation(rawMsg.body) : undefined;
+
+    const message: WhatsAppMessage = {
+      from: fromPhone,
+      type: parsedLocation ? 'location' : (rawMsg.type === 'chat' ? 'text' : rawMsg.type),
+      text: rawMsg.type === 'chat' && !parsedLocation ? { body: rawMsg.body } : undefined,
+      location: parsedLocation,
+    };
+
+    logger.info(
+      `[Ultramsg] Message from ${message.from} to Shop ${shop.name}: ${rawMsg.body || rawMsg.type}`
+    );
+
+    await handleMessage(message, shop.id);
+
+    res.sendStatus(200);
+  } catch (err: any) {
+    logger.error(`[Ultramsg] Error processing message: ${err.message}`);
     res.sendStatus(200);
   }
 });

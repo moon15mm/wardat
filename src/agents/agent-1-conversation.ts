@@ -23,9 +23,12 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
   }
 
   const whatsappConfig: WhatsAppConfig = {
+    whatsappType: shop.whatsappType as 'BUSINESS' | 'NORMAL',
     token: shop.whatsappToken || '',
     phoneId: shop.whatsappPhoneId || '',
     adminGroupId: shop.whatsappAdminGroupId,
+    ultramsgInstanceId: shop.ultramsgInstanceId,
+    ultramsgToken: shop.ultramsgToken,
   };
 
   // 1.1 Check if subscription is expired or suspended

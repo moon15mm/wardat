@@ -83,7 +83,10 @@ router.get('/admin/shops', authenticateSuperAdmin, async (req, res) => {
         name: s.name,
         subdomain: s.subdomain,
         username: s.username,
+        whatsappType: s.whatsappType,
         whatsappPhoneId: s.whatsappPhoneId,
+        ultramsgInstanceId: s.ultramsgInstanceId,
+        ultramsgToken: s.ultramsgToken,
         createdAt: s.createdAt,
         productsCount: s._count.products,
         ordersCount: s._count.orders,
@@ -103,6 +106,7 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
     subdomain,
     username,
     password,
+    whatsappType,
     whatsappPhoneId,
     whatsappToken,
     whatsappVerifyToken,
@@ -111,6 +115,8 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
     stripeSuccessUrl,
     stripeCancelUrl,
     whatsappAdminGroupId,
+    ultramsgInstanceId,
+    ultramsgToken,
     subscriptionPlan,
     subscriptionDurationMonths,
   } = req.body;
@@ -152,6 +158,7 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
         subdomain,
         username,
         password: hashPassword(password),
+        whatsappType: whatsappType || 'BUSINESS',
         whatsappPhoneId: whatsappPhoneId || null,
         whatsappToken: whatsappToken || null,
         whatsappVerifyToken: whatsappVerifyToken || null,
@@ -160,6 +167,8 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
         stripeSuccessUrl: stripeSuccessUrl || null,
         stripeCancelUrl: stripeCancelUrl || null,
         whatsappAdminGroupId: whatsappAdminGroupId || null,
+        ultramsgInstanceId: ultramsgInstanceId || null,
+        ultramsgToken: ultramsgToken || null,
         subscriptionPlan: subscriptionPlan || 'SILVER',
         subscriptionStatus: 'ACTIVE',
         subscriptionEnd: subscriptionEnd,
@@ -274,6 +283,7 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
   const shopId = (req as any).shopId;
   const {
     name,
+    whatsappType,
     whatsappPhoneId,
     whatsappToken,
     whatsappVerifyToken,
@@ -282,20 +292,25 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
     stripeSuccessUrl,
     stripeCancelUrl,
     whatsappAdminGroupId,
+    ultramsgInstanceId,
+    ultramsgToken,
     password,
   } = req.body;
 
   try {
     const updateData: any = {
       name,
-      whatsappPhoneId,
-      whatsappToken,
-      whatsappVerifyToken,
-      stripeSecretKey,
-      stripeWebhookSecret,
-      stripeSuccessUrl,
-      stripeCancelUrl,
+      whatsappType: whatsappType || 'BUSINESS',
+      whatsappPhoneId: whatsappPhoneId || null,
+      whatsappToken: whatsappToken || null,
+      whatsappVerifyToken: whatsappVerifyToken || null,
+      stripeSecretKey: stripeSecretKey || null,
+      stripeWebhookSecret: stripeWebhookSecret || null,
+      stripeSuccessUrl: stripeSuccessUrl || null,
+      stripeCancelUrl: stripeCancelUrl || null,
       whatsappAdminGroupId: whatsappAdminGroupId || null,
+      ultramsgInstanceId: ultramsgInstanceId || null,
+      ultramsgToken: ultramsgToken || null,
     };
 
     if (password) {

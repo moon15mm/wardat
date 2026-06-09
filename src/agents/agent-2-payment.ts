@@ -26,9 +26,12 @@ export async function processPayment(payment: PaymentRequest): Promise<void> {
   };
 
   const whatsappConfig: WhatsAppConfig = {
+    whatsappType: shop.whatsappType as 'BUSINESS' | 'NORMAL',
     token: shop.whatsappToken,
     phoneId: shop.whatsappPhoneId,
     adminGroupId: shop.whatsappAdminGroupId,
+    ultramsgInstanceId: shop.ultramsgInstanceId,
+    ultramsgToken: shop.ultramsgToken,
   };
 
   try {

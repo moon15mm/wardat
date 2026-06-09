@@ -637,19 +637,44 @@
             </div>
 
             <!-- WhatsApp Configuration -->
-            <h4 style="margin: 20px 0 10px 0; color: var(--pink-glow); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">إعدادات Meta / WhatsApp Cloud API</h4>
+            <h4 style="margin: 20px 0 10px 0; color: var(--pink-glow); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">نوع وإعدادات اتصال واتساب</h4>
+            
             <div class="form-group">
-              <label for="whatsappPhoneIdInput">WhatsApp Phone Number ID</label>
-              <input type="text" id="whatsappPhoneIdInput">
+              <label for="whatsappTypeInput">نوع اتصال واتساب للمحل</label>
+              <select id="whatsappTypeInput" onchange="toggleShopWhatsappFields()" style="background: rgba(0,0,0,0.3); color: var(--text-main); border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; width: 100%;">
+                <option value="BUSINESS">🏢 واتساب الأعمال الرسمي (Meta Cloud API)</option>
+                <option value="NORMAL">📱 واتساب العادي (Ultramsg Gateway)</option>
+              </select>
             </div>
-            <div class="form-group">
-              <label for="whatsappVerifyTokenInput">Verify Token (رمز التحقق الخاص بالمتجر)</label>
-              <input type="text" id="whatsappVerifyTokenInput">
+
+            <!-- WhatsApp Cloud API Fields -->
+            <div id="metaShopFields">
+              <div class="form-group">
+                <label for="whatsappPhoneIdInput">WhatsApp Phone Number ID</label>
+                <input type="text" id="whatsappPhoneIdInput">
+              </div>
+              <div class="form-group">
+                <label for="whatsappVerifyTokenInput">Verify Token (رمز التحقق الخاص بالمتجر)</label>
+                <input type="text" id="whatsappVerifyTokenInput">
+              </div>
+              <div class="form-group">
+                <label for="whatsappTokenInput">System User Access Token</label>
+                <input type="text" id="whatsappTokenInput">
+              </div>
             </div>
-            <div class="form-group">
-              <label for="whatsappTokenInput">System User Access Token</label>
-              <input type="text" id="whatsappTokenInput">
+
+            <!-- Ultramsg Fields -->
+            <div id="ultramsgShopFields" style="display: none;">
+              <div class="form-group">
+                <label for="ultramsgInstanceIdInput">Ultramsg Instance ID</label>
+                <input type="text" id="ultramsgInstanceIdInput" placeholder="مثال: instance1234">
+              </div>
+              <div class="form-group">
+                <label for="ultramsgTokenInput">Ultramsg Token</label>
+                <input type="text" id="ultramsgTokenInput" placeholder="رمز الوصول الخاص بـ Ultramsg">
+              </div>
             </div>
+
             <div class="form-group">
               <label for="whatsappAdminGroupIdInput">WhatsApp Admin Group ID (جروب الإدارة لإشعار الطلبات)</label>
               <input type="text" id="whatsappAdminGroupIdInput">
@@ -688,20 +713,30 @@
         <!-- Documentation & Guide -->
         <div class="guide-panel">
           <div class="guide-title">
-            <span>⚙️ دليل ربط واتساب الأعمال وبوابة Stripe</span>
+            <span>⚙️ دليل ربط نظام واتساب وبوابة Stripe</span>
           </div>
           
-          <h4 style="color:var(--text-main); margin-bottom: 8px;">1. إعداد Webhook الواتساب في فيسبوك:</h4>
+          <h4 style="color:var(--text-main); margin-bottom: 8px;">1. إعداد واتساب الأعمال الرسمي (Meta):</h4>
           <ul class="guide-steps">
             <li>اذهب إلى لوحة مطوري فيسبوك (Meta for Developers) ثم تطبيق الواتساب الخاص بك.</li>
             <li>في قسم **Webhooks**، الصق رابط الـ Callback التالي:
               <div class="code-box">https://wardat.xyz/webhook/whatsapp</div>
             </li>
-            <li>ضع رمز التحقق (Verify Token) المطابق للرمز المسجل في النموذج على اليمين.</li>
+            <li>ضع رمز التحقق (Verify Token) المطابق للرمز المسجل في الإعدادات.</li>
             <li>اشترك في حقل **messages** في إعدادات التطبيق.</li>
           </ul>
 
-          <h4 style="color:var(--text-main); margin: 15px 0 8px 0;">2. إعداد Webhook الدفع في Stripe:</h4>
+          <h4 style="color:var(--text-main); margin: 15px 0 8px 0;">2. إعداد واتساب العادي (Ultramsg Gateway):</h4>
+          <ul class="guide-steps">
+            <li>قم بإنشاء حساب في موقع [Ultramsg.com](https://ultramsg.com).</li>
+            <li>قم بمسح كود الـ QR لربط رقم واتساب العادي الخاص بك بالمنصة.</li>
+            <li>انسخ **Instance ID** و **Token** وضعهما في نموذج الإعدادات على اليمين.</li>
+            <li>في إعدادات الـ Webhook داخل حساب Ultramsg، ضع الرابط التالي لاستقبال الرسائل:
+              <div class="code-box">https://wardat.xyz/webhook/ultramsg</div>
+            </li>
+          </ul>
+
+          <h4 style="color:var(--text-main); margin: 15px 0 8px 0;">3. إعداد Webhook الدفع في Stripe:</h4>
           <ul class="guide-steps">
             <li>ادخل إلى لوحة تحكم Stripe الخاصة بك ثم توجه لقسم المطورين (Developers) ثم **Webhooks**.</li>
             <li>أضف عنوان إرسال جديد (Add endpoint) والصق الرابط التالي:
@@ -782,6 +817,20 @@
       fetchShopDetails();
     };
 
+    function toggleShopWhatsappFields() {
+      const type = document.getElementById('whatsappTypeInput').value;
+      const meta = document.getElementById('metaShopFields');
+      const ultra = document.getElementById('ultramsgShopFields');
+      
+      if (type === 'BUSINESS') {
+        meta.style.display = 'block';
+        ultra.style.display = 'none';
+      } else {
+        meta.style.display = 'none';
+        ultra.style.display = 'block';
+      }
+    }
+
     function switchTab(tab) {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -828,14 +877,19 @@
 
         // Settings inputs
         document.getElementById('shopNameInput').value = shop.name || '';
+        document.getElementById('whatsappTypeInput').value = shop.whatsappType || 'BUSINESS';
         document.getElementById('whatsappPhoneIdInput').value = shop.whatsappPhoneId || '';
         document.getElementById('whatsappVerifyTokenInput').value = shop.whatsappVerifyToken || '';
         document.getElementById('whatsappTokenInput').value = shop.whatsappToken || '';
+        document.getElementById('ultramsgInstanceIdInput').value = shop.ultramsgInstanceId || '';
+        document.getElementById('ultramsgTokenInput').value = shop.ultramsgToken || '';
         document.getElementById('whatsappAdminGroupIdInput').value = shop.whatsappAdminGroupId || '';
         document.getElementById('stripeSecretKeyInput').value = shop.stripeSecretKey || '';
         document.getElementById('stripeWebhookSecretInput').value = shop.stripeWebhookSecret || '';
         document.getElementById('stripeSuccessUrlInput').value = shop.stripeSuccessUrl || '';
         document.getElementById('stripeCancelUrlInput').value = shop.stripeCancelUrl || '';
+
+        toggleShopWhatsappFields();
 
         // Render Subscription Card Info
         const planNames = {
@@ -886,14 +940,17 @@
       
       const payload = {
         name: document.getElementById('shopNameInput').value.trim(),
-        whatsappPhoneId: document.getElementById('whatsappPhoneIdInput').value.trim(),
-        whatsappVerifyToken: document.getElementById('whatsappVerifyTokenInput').value.trim(),
-        whatsappToken: document.getElementById('whatsappTokenInput').value.trim(),
-        whatsappAdminGroupId: document.getElementById('whatsappAdminGroupIdInput').value.trim(),
-        stripeSecretKey: document.getElementById('stripeSecretKeyInput').value.trim(),
-        stripeWebhookSecret: document.getElementById('stripeWebhookSecretInput').value.trim(),
-        stripeSuccessUrl: document.getElementById('stripeSuccessUrlInput').value.trim(),
-        stripeCancelUrl: document.getElementById('stripeCancelUrlInput').value.trim(),
+        whatsappType: document.getElementById('whatsappTypeInput').value,
+        whatsappPhoneId: document.getElementById('whatsappPhoneIdInput').value.trim() || null,
+        whatsappVerifyToken: document.getElementById('whatsappVerifyTokenInput').value.trim() || null,
+        whatsappToken: document.getElementById('whatsappTokenInput').value.trim() || null,
+        ultramsgInstanceId: document.getElementById('ultramsgInstanceIdInput').value.trim() || null,
+        ultramsgToken: document.getElementById('ultramsgTokenInput').value.trim() || null,
+        whatsappAdminGroupId: document.getElementById('whatsappAdminGroupIdInput').value.trim() || null,
+        stripeSecretKey: document.getElementById('stripeSecretKeyInput').value.trim() || null,
+        stripeWebhookSecret: document.getElementById('stripeWebhookSecretInput').value.trim() || null,
+        stripeSuccessUrl: document.getElementById('stripeSuccessUrlInput').value.trim() || null,
+        stripeCancelUrl: document.getElementById('stripeCancelUrlInput').value.trim() || null,
       };
 
       const newPassword = document.getElementById('shopPasswordInput').value;

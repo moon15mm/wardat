@@ -461,22 +461,46 @@
             </select>
           </div>
 
-          <!-- WhatsApp Cloud API -->
-          <div class="form-group">
-            <label for="whatsappPhoneId">WhatsApp Phone Number ID</label>
-            <input type="text" id="whatsappPhoneId" placeholder="أدخل Phone ID من Meta">
+          <!-- WhatsApp Type Selector -->
+          <div class="form-group full-width" style="grid-column: 1 / -1;">
+            <label for="whatsappType">نوع اتصال واتساب للمتجر</label>
+            <select id="whatsappType" onchange="toggleWhatsappFields()" required>
+              <option value="BUSINESS">🏢 واتساب الأعمال الرسمي (Meta Cloud API)</option>
+              <option value="NORMAL">📱 واتساب العادي (Ultramsg Gateway)</option>
+            </select>
           </div>
-          <div class="form-group">
-            <label for="whatsappVerifyToken">WhatsApp Webhook Verify Token</label>
-            <input type="text" id="whatsappVerifyToken" placeholder="رمز التحقق من اختيارك">
+
+          <!-- WhatsApp Cloud API Fields -->
+          <div id="metaFields" class="form-group-wrapper full-width" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; grid-column: 1 / -1;">
+            <div class="form-group">
+              <label for="whatsappPhoneId">WhatsApp Phone Number ID</label>
+              <input type="text" id="whatsappPhoneId" placeholder="أدخل Phone ID من Meta">
+            </div>
+            <div class="form-group">
+              <label for="whatsappVerifyToken">WhatsApp Webhook Verify Token</label>
+              <input type="text" id="whatsappVerifyToken" placeholder="رمز التحقق من اختيارك">
+            </div>
+            <div class="form-group full-width" style="grid-column: 1 / -1;">
+              <label for="whatsappToken">WhatsApp Permanent Access Token</label>
+              <input type="text" id="whatsappToken" placeholder="أدخل رمز الوصول الدائم للمطور">
+            </div>
           </div>
-          <div class="form-group full-width">
-            <label for="whatsappToken">WhatsApp Permanent Access Token</label>
-            <input type="text" id="whatsappToken" placeholder="أدخل رمز الوصول الدائم للمطور">
+
+          <!-- Ultramsg Fields -->
+          <div id="ultramsgFields" class="form-group-wrapper full-width" style="display: none; grid-template-columns: 1fr 1fr; gap: 15px; grid-column: 1 / -1;">
+            <div class="form-group">
+              <label for="ultramsgInstanceId">Ultramsg Instance ID</label>
+              <input type="text" id="ultramsgInstanceId" placeholder="مثال: instance1234">
+            </div>
+            <div class="form-group">
+              <label for="ultramsgToken">Ultramsg Token</label>
+              <input type="text" id="ultramsgToken" placeholder="أدخل رمز الوصول الخاص بـ Ultramsg">
+            </div>
           </div>
-          <div class="form-group full-width">
-            <label for="whatsappAdminGroupId">WhatsApp Admin Group ID (اختياري)</label>
-            <input type="text" id="whatsappAdminGroupId" placeholder="معرف مجموعة الواتساب لإشعارات الإدارة">
+
+          <div class="form-group full-width" style="grid-column: 1 / -1;">
+            <label for="whatsappAdminGroupId">WhatsApp Admin Group ID (JID أو معرف المجموعة - اختياري)</label>
+            <input type="text" id="whatsappAdminGroupId" placeholder="مثال: 120363294371904723@g.us أو Phone ID">
           </div>
 
           <!-- Stripe -->
@@ -639,9 +663,24 @@
       }
     }
 
+    function toggleWhatsappFields() {
+      const type = document.getElementById('whatsappType').value;
+      const meta = document.getElementById('metaFields');
+      const ultra = document.getElementById('ultramsgFields');
+      
+      if (type === 'BUSINESS') {
+        meta.style.display = 'grid';
+        ultra.style.display = 'none';
+      } else {
+        meta.style.display = 'none';
+        ultra.style.display = 'grid';
+      }
+    }
+
     function openModal() {
       document.getElementById('alertBox').style.display = 'none';
       document.getElementById('shopForm').reset();
+      toggleWhatsappFields();
       document.getElementById('shopModal').style.display = 'flex';
     }
 
@@ -661,9 +700,12 @@
         password: document.getElementById('password').value,
         subscriptionPlan: document.getElementById('subscriptionPlan').value,
         subscriptionDurationMonths: document.getElementById('subscriptionDurationMonths').value,
+        whatsappType: document.getElementById('whatsappType').value,
         whatsappPhoneId: document.getElementById('whatsappPhoneId').value.trim() || null,
         whatsappToken: document.getElementById('whatsappToken').value.trim() || null,
         whatsappVerifyToken: document.getElementById('whatsappVerifyToken').value.trim() || null,
+        ultramsgInstanceId: document.getElementById('ultramsgInstanceId').value.trim() || null,
+        ultramsgToken: document.getElementById('ultramsgToken').value.trim() || null,
         stripeSecretKey: document.getElementById('stripeSecretKey').value.trim() || null,
         stripeWebhookSecret: document.getElementById('stripeWebhookSecret').value.trim() || null,
         stripeSuccessUrl: document.getElementById('stripeSuccessUrl').value.trim() || null,
