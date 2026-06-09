@@ -461,6 +461,19 @@
             </select>
           </div>
 
+          <!-- AI Provider Details -->
+          <div class="form-group">
+            <label for="aiProvider">محرك الذكاء الاصطناعي للمتجر</label>
+            <select id="aiProvider" onchange="toggleAiFields()" required>
+              <option value="OPENAI">🧠 OpenAI (GPT-4o-mini)</option>
+              <option value="GEMINI">♊ Google Gemini (1.5 Flash)</option>
+            </select>
+          </div>
+          <div class="form-group" id="geminiApiKeyGroup" style="display: none;">
+            <label for="geminiApiKey">Gemini API Key (اختياري)</label>
+            <input type="text" id="geminiApiKey" placeholder="أدخل مفتاح Gemini (يبدأ بـ AIza...)">
+          </div>
+
           <!-- WhatsApp Type Selector -->
           <div class="form-group full-width" style="grid-column: 1 / -1;">
             <label for="whatsappType">نوع اتصال واتساب للمتجر</label>
@@ -680,10 +693,21 @@
       }
     }
 
+    function toggleAiFields() {
+      const provider = document.getElementById('aiProvider').value;
+      const geminiGroup = document.getElementById('geminiApiKeyGroup');
+      if (provider === 'GEMINI') {
+        geminiGroup.style.display = 'block';
+      } else {
+        geminiGroup.style.display = 'none';
+      }
+    }
+
     function openModal() {
       document.getElementById('alertBox').style.display = 'none';
       document.getElementById('shopForm').reset();
       toggleWhatsappFields();
+      toggleAiFields();
       document.getElementById('shopModal').style.display = 'flex';
     }
 
@@ -714,6 +738,8 @@
         stripeSuccessUrl: document.getElementById('stripeSuccessUrl').value.trim() || null,
         stripeCancelUrl: document.getElementById('stripeCancelUrl').value.trim() || null,
         whatsappAdminGroupId: document.getElementById('whatsappAdminGroupId').value.trim() || null,
+        aiProvider: document.getElementById('aiProvider').value,
+        geminiApiKey: document.getElementById('geminiApiKey').value.trim() || null,
       };
 
       try {

@@ -706,6 +706,20 @@
               <input type="text" id="stripeCancelUrlInput">
             </div>
 
+            <!-- AI Configuration -->
+            <h4 style="margin: 20px 0 10px 0; color: var(--success); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">إعدادات الذكاء الاصطناعي</h4>
+            <div class="form-group">
+              <label for="aiProviderInput">محرك الذكاء الاصطناعي</label>
+              <select id="aiProviderInput" onchange="toggleShopAiFields()" style="background: rgba(0,0,0,0.3); color: var(--text-main); border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; width: 100%;">
+                <option value="OPENAI">🧠 OpenAI (GPT-4o-mini)</option>
+                <option value="GEMINI">♊ Google Gemini (1.5 Flash)</option>
+              </select>
+            </div>
+            <div class="form-group" id="geminiApiKeyInputGroup" style="display: none;">
+              <label for="geminiApiKeyInput">Gemini API Key (مطلوب عند اختيار Gemini)</label>
+              <input type="text" id="geminiApiKeyInput" placeholder="أدخل مفتاح Gemini (يبدأ بـ AIza...)">
+            </div>
+
             <!-- Change Password -->
             <h4 style="margin: 20px 0 10px 0; color: var(--text-main); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">تغيير كلمة المرور</h4>
             <div class="form-group">
@@ -824,6 +838,16 @@
 
     let waPollInterval = null;
 
+    function toggleShopAiFields() {
+      const provider = document.getElementById('aiProviderInput').value;
+      const geminiGroup = document.getElementById('geminiApiKeyInputGroup');
+      if (provider === 'GEMINI') {
+        geminiGroup.style.display = 'block';
+      } else {
+        geminiGroup.style.display = 'none';
+      }
+    }
+
     function toggleShopWhatsappFields() {
       const type = document.getElementById('whatsappTypeInput').value;
       const meta = document.getElementById('metaShopFields');
@@ -907,8 +931,11 @@
         document.getElementById('stripeWebhookSecretInput').value = shop.stripeWebhookSecret || '';
         document.getElementById('stripeSuccessUrlInput').value = shop.stripeSuccessUrl || '';
         document.getElementById('stripeCancelUrlInput').value = shop.stripeCancelUrl || '';
+        document.getElementById('aiProviderInput').value = shop.aiProvider || 'OPENAI';
+        document.getElementById('geminiApiKeyInput').value = shop.geminiApiKey || '';
 
         toggleShopWhatsappFields();
+        toggleShopAiFields();
 
         // Render Subscription Card Info
         const planNames = {
@@ -1069,6 +1096,8 @@
         stripeWebhookSecret: document.getElementById('stripeWebhookSecretInput').value.trim() || null,
         stripeSuccessUrl: document.getElementById('stripeSuccessUrlInput').value.trim() || null,
         stripeCancelUrl: document.getElementById('stripeCancelUrlInput').value.trim() || null,
+        aiProvider: document.getElementById('aiProviderInput').value,
+        geminiApiKey: document.getElementById('geminiApiKeyInput').value.trim() || null,
       };
 
       const newPassword = document.getElementById('shopPasswordInput').value;

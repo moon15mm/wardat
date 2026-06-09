@@ -60,7 +60,7 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
   // Append user message in-memory
   session.messages.push({ role: 'user', content: userText });
 
-  const intent = await classifyIntent(userText, session.state);
+  const intent = await classifyIntent(userText, session.state, shop);
   logger.info(`[Agent1] Intent: ${intent.intent}`);
 
   switch (session.state) {
@@ -335,8 +335,13 @@ async function handleWithAI(
   whatsappConfig: WhatsAppConfig,
   session: Session
 ): Promise<void> {
+  const shop = await prisma.shop.findUnique({ where: { id: shopId } });
+  if (!shop) {
+    logger.error(`[Agent1] Shop not found in handleWithAI: ${shopId}`);
+    return;
+  }
   const productContext = `المنتجات المتوفرة:\n${await formatProductList(shopId)}`;
-  const reply = await getAIResponse(session.messages, productContext);
+  const reply = await getAIResponse(session.messages, productContext, shop);
   await sendTextMessage(whatsappConfig, phone, reply);
   session.messages.push({ role: 'assistant', content: reply });
 }

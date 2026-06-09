@@ -31,6 +31,10 @@ model Shop {
   ultramsgInstanceId   String?
   ultramsgToken        String?
   
+  // AI settings per shop
+  aiProvider          String     @default("OPENAI") // OPENAI or GEMINI
+  geminiApiKey        String?
+  
   // Stripe settings per shop
   stripeSecretKey     String?
   stripeWebhookSecret String?
