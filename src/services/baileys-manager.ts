@@ -66,6 +66,9 @@ export async function startBaileysSession(shopId: string): Promise<void> {
       auth: state,
       printQRInTerminal: false,
       logger: pino({ level: 'silent' }) as any,
+      browser: ['Mac OS', 'Chrome', '101.0.4951.64'],
+      connectTimeoutMs: 60000,
+      keepAliveIntervalMs: 15000,
     });
 
     activeSockets.set(shopId, sock);
