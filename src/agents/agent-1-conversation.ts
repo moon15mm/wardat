@@ -179,10 +179,19 @@ async function handleProductSelection(
     return;
   }
 
+  // Check product availability and stock
+  if (!selected.available || (selected.stock !== undefined && selected.stock <= 0)) {
+    const outOfStockMsg = `عذراً، هذا المنتج (${selected.name}) غير متوفر حالياً بنفاد الكمية! ❌\n\nيرجى اختيار منتج آخر من القائمة.`;
+    await sendTextMessage(whatsappConfig, phone, outOfStockMsg);
+    session.messages.push({ role: 'assistant', content: outOfStockMsg });
+    return;
+  }
+
   session.selectedProduct = selected;
   session.orderData.product = selected.name;
   session.orderData.price = selected.price;
   session.orderData.productImageUrl = selected.imageUrl;
+  session.orderData.productId = selected.id;
 
   const confirmation = `اختيار ممتاز! ✨\n\n${selected.name}\n${selected.description}\nالسعر: ${formatPrice(selected.price)}\n\nلإتمام الطلب، أحتاج بعض المعلومات.\nما اسمك الكريم؟`;
 
@@ -256,6 +265,13 @@ async function handleLocation(
 ): Promise<void> {
   if (session.state !== 'COLLECTING_LOCATION') return;
 
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+  });
+
+  const startHour = shop?.deliveryStartHour || '09:00';
+  const endHour = shop?.deliveryEndHour || '22:00';
+
   const locationUrl = `https://maps.google.com/maps?q=${location.latitude},${location.longitude}`;
   session.orderData.locationUrl = locationUrl;
 
@@ -265,7 +281,8 @@ async function handleLocation(
     `💰 السعر: ${formatPrice(session.orderData.price || 0)}\n` +
     `👤 الاسم: ${session.orderData.customerName}\n` +
     `🎁 المستلم: ${session.orderData.recipientName}\n` +
-    `📍 الموقع: تم الاستلام\n\n` +
+    `📍 الموقع: تم الاستلام\n` +
+    `🕒 ساعات التوصيل/الاستلام: من ${startHour} إلى ${endHour}\n\n` +
     `هل تؤكد الطلب؟ (نعم / لا)`;
 
   await sendTextMessage(whatsappConfig, phone, summary);
@@ -304,6 +321,7 @@ async function handleConfirmation(
       cardLast4: '',
       productImageUrl: session.orderData.productImageUrl || '',
       notes: '',
+      productId: session.orderData.productId,
     });
 
     await sendTextMessage(whatsappConfig, phone, 'تم تأكيد طلبك! ✅\n\nجاري إعداد رابط الدفع...');

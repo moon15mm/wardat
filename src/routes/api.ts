@@ -350,6 +350,8 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
     geminiApiKey,
     ultramsgInstanceId,
     ultramsgToken,
+    deliveryStartHour,
+    deliveryEndHour,
     password,
   } = req.body;
 
@@ -369,6 +371,8 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
       geminiApiKey: geminiApiKey || null,
       ultramsgInstanceId: ultramsgInstanceId || null,
       ultramsgToken: ultramsgToken || null,
+      deliveryStartHour: deliveryStartHour || '09:00',
+      deliveryEndHour: deliveryEndHour || '22:00',
     };
 
     if (password) {
@@ -534,7 +538,7 @@ router.get('/shop/products', authenticateShop, async (req, res) => {
 
 router.post('/shop/products', authenticateShop, async (req, res) => {
   const shopId = (req as any).shopId;
-  const { name, description, price, imageUrl, category, available } = req.body;
+  const { name, description, price, imageUrl, category, available, stock } = req.body;
 
   if (!name || price === undefined) {
     return res.status(400).json({ error: 'يرجى تقديم اسم المنتج وسعره' });
@@ -550,6 +554,7 @@ router.post('/shop/products', authenticateShop, async (req, res) => {
         imageUrl: imageUrl || '',
         category: category || 'عام',
         available: available !== undefined ? available : true,
+        stock: stock !== undefined ? parseInt(stock) : 10,
       },
     });
     res.status(201).json(product);
@@ -560,7 +565,7 @@ router.post('/shop/products', authenticateShop, async (req, res) => {
 
 router.put('/shop/products/:id', authenticateShop, async (req, res) => {
   const shopId = (req as any).shopId;
-  const { name, description, price, imageUrl, category, available } = req.body;
+  const { name, description, price, imageUrl, category, available, stock } = req.body;
 
   try {
     // Ensure product belongs to this shop
@@ -581,6 +586,7 @@ router.put('/shop/products/:id', authenticateShop, async (req, res) => {
         imageUrl,
         category,
         available,
+        stock: stock !== undefined ? parseInt(stock) : undefined,
       },
     });
 
@@ -620,6 +626,217 @@ router.get('/shop/orders', authenticateShop, async (req, res) => {
       orderBy: { timestamp: 'desc' },
     });
     res.json(orders);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/shop/analytics', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  try {
+    // 1. Fetch orders
+    const orders = await prisma.order.findMany({
+      where: { shopId },
+      orderBy: { timestamp: 'asc' },
+    });
+
+    // 2. Fetch products for restock alerts
+    const products = await prisma.product.findMany({
+      where: { shopId },
+    });
+
+    const confirmedOrders = orders.filter((o) => o.paymentStatus === 'CONFIRMED');
+    const totalOrders = orders.length;
+    const confirmedCount = confirmedOrders.length;
+    const pendingCount = orders.filter((o) => o.paymentStatus === 'PENDING').length;
+    const failedCount = orders.filter((o) => o.paymentStatus === 'FAILED').length;
+
+    const totalRevenue = confirmedOrders.reduce((sum, o) => sum + o.price, 0);
+    const aov = confirmedCount ? parseFloat((totalRevenue / confirmedCount).toFixed(2)) : 0;
+
+    // 3. Group Sales by Product
+    const productSalesMap: Record<string, { count: number; revenue: number }> = {};
+    confirmedOrders.forEach((o) => {
+      if (!productSalesMap[o.productName]) {
+        productSalesMap[o.productName] = { count: 0, revenue: 0 };
+      }
+      productSalesMap[o.productName].count += 1;
+      productSalesMap[o.productName].revenue += o.price;
+    });
+
+    const salesByProduct = Object.keys(productSalesMap).map((name) => ({
+      productName: name,
+      count: productSalesMap[name].count,
+      totalRevenue: productSalesMap[name].revenue,
+    })).sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+    // 4. Daily Sales Trend (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const dailyMap: Record<string, { revenue: number; count: number }> = {};
+    // Pre-populate last 30 days with 0s to avoid empty spots
+    for (let i = 0; i < 30; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      dailyMap[dateStr] = { revenue: 0, count: 0 };
+    }
+
+    confirmedOrders.forEach((o) => {
+      const dateStr = new Date(o.timestamp).toISOString().split('T')[0];
+      if (dailyMap[dateStr] !== undefined) {
+        dailyMap[dateStr].revenue += o.price;
+        dailyMap[dateStr].count += 1;
+      }
+    });
+
+    const dailySales = Object.keys(dailyMap).map((date) => ({
+      date,
+      revenue: dailyMap[date].revenue,
+      count: dailyMap[date].count,
+    })).sort((a, b) => a.date.localeCompare(b.date));
+
+    // 5. Predictive Analytics calculations
+    // Forecast next week based on daily average of the last 30 days
+    const totalRevenueLast30 = dailySales.reduce((sum, d) => sum + d.revenue, 0);
+    const avgDailySalesLast30 = totalRevenueLast30 / 30;
+    const forecastedSalesNextWeek = parseFloat((avgDailySalesLast30 * 7).toFixed(2));
+
+    // Calculate growth rate (sales last 7 days vs previous 7 days)
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    const salesLast7 = confirmedOrders
+      .filter((o) => new Date(o.timestamp) >= sevenDaysAgo)
+      .reduce((sum, o) => sum + o.price, 0);
+
+    const salesPrev7 = confirmedOrders
+      .filter((o) => {
+        const d = new Date(o.timestamp);
+        return d >= fourteenDaysAgo && d < sevenDaysAgo;
+      })
+      .reduce((sum, o) => sum + o.price, 0);
+
+    const growthRate = salesPrev7 > 0 ? parseFloat((((salesLast7 - salesPrev7) / salesPrev7) * 100).toFixed(2)) : 0;
+
+    // Busiest Day of week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+    const dayOfWeekOrdersCount = [0, 0, 0, 0, 0, 0, 0];
+    const dayOfWeekSalesAmount = [0, 0, 0, 0, 0, 0, 0];
+    confirmedOrders.forEach((o) => {
+      const day = new Date(o.timestamp).getDay();
+      dayOfWeekOrdersCount[day] += 1;
+      dayOfWeekSalesAmount[day] += o.price;
+    });
+
+    const arabicDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    let busiestDayIdx = 0;
+    let maxOrders = 0;
+    for (let i = 0; i < 7; i++) {
+      if (dayOfWeekOrdersCount[i] > maxOrders) {
+        maxOrders = dayOfWeekOrdersCount[i];
+        busiestDayIdx = i;
+      }
+    }
+    const busiestDay = maxOrders > 0 ? arabicDays[busiestDayIdx] : 'لا يوجد بيانات كافية';
+    const predictedBusiestDayNextWeek = busiestDay;
+
+    const salesByDayOfWeek = arabicDays.map((dayName, idx) => ({
+      dayName,
+      count: dayOfWeekOrdersCount[idx],
+      revenue: dayOfWeekSalesAmount[idx],
+    }));
+
+    // Hourly Sales distribution (24 hours)
+    const hourlyOrdersCount = Array(24).fill(0);
+    const hourlySalesAmount = Array(24).fill(0);
+    confirmedOrders.forEach((o) => {
+      const hour = new Date(o.timestamp).getHours();
+      hourlyOrdersCount[hour] += 1;
+      hourlySalesAmount[hour] += o.price;
+    });
+
+    const salesByHour = hourlyOrdersCount.map((count, hour) => ({
+      hour: `${hour.toString().padStart(2, '0')}:00`,
+      count,
+      revenue: hourlySalesAmount[hour],
+    }));
+
+    // Customer Loyalty / Retention
+    const customerOrdersMap: Record<string, number> = {};
+    confirmedOrders.forEach((o) => {
+      customerOrdersMap[o.customerPhone] = (customerOrdersMap[o.customerPhone] || 0) + 1;
+    });
+
+    const uniqueCustomers = Object.keys(customerOrdersMap).length;
+    const repeatCustomers = Object.values(customerOrdersMap).filter((count) => count > 1).length;
+    const repeatCustomerRate = uniqueCustomers > 0 ? parseFloat(((repeatCustomers / uniqueCustomers) * 100).toFixed(2)) : 0;
+
+    // Order status percentages
+    const confirmedPercentage = totalOrders > 0 ? parseFloat(((confirmedCount / totalOrders) * 100).toFixed(2)) : 0;
+    const pendingPercentage = totalOrders > 0 ? parseFloat(((pendingCount / totalOrders) * 100).toFixed(2)) : 0;
+    const failedPercentage = totalOrders > 0 ? parseFloat(((failedCount / totalOrders) * 100).toFixed(2)) : 0;
+
+    // Restock alerts and detailed product stock out forecasts
+    const restockAlerts: string[] = [];
+    const productProjections = products.map((p) => {
+      const productOrders = confirmedOrders.filter((o) => o.productName === p.name);
+      const productOrdersLast30 = productOrders.filter((o) => new Date(o.timestamp) >= thirtyDaysAgo).length;
+      const velocity = productOrdersLast30 / 30; // sales per day
+      const daysToStockOut = velocity > 0 ? p.stock / velocity : 999;
+
+      if (p.stock <= 3) {
+        restockAlerts.push(`⚠️ المنتج (${p.name}) مخزونه منخفض جداً: متبقي فقط ${p.stock} حبة في المخزن.`);
+      } else if (daysToStockOut <= 5) {
+        restockAlerts.push(`🔥 تحذير المخزون: مبيعات (${p.name}) متسارعة، ومن المتوقع نفاد الكمية خلال ${Math.ceil(daysToStockOut)} أيام.`);
+      }
+
+      return {
+        id: p.id,
+        name: p.name,
+        stock: p.stock,
+        velocity: parseFloat(velocity.toFixed(2)),
+        daysToStockOut: daysToStockOut === 999 ? 'غير متوقع نفاد الكمية قريباً' : `${Math.ceil(daysToStockOut)} أيام`,
+      };
+    });
+
+    // Forecast next month (30 days) revenue
+    const forecastedSalesNextMonth = parseFloat((avgDailySalesLast30 * 30).toFixed(2));
+
+    res.json({
+      summary: {
+        totalRevenue,
+        totalOrders,
+        aov,
+        ordersStatusBreakdown: {
+          confirmed: confirmedCount,
+          pending: pendingCount,
+          failed: failedCount,
+          confirmedPercentage,
+          pendingPercentage,
+          failedPercentage,
+        },
+        loyalty: {
+          uniqueCustomers,
+          repeatCustomers,
+          repeatCustomerRate,
+        },
+      },
+      salesByProduct,
+      dailySales,
+      salesByDayOfWeek,
+      salesByHour,
+      productProjections,
+      predictiveAnalytics: {
+        forecastedSalesNextWeek,
+        forecastedSalesNextMonth,
+        growthRate,
+        busiestDay,
+        predictedBusiestDayNextWeek,
+        restockAlerts,
+      },
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

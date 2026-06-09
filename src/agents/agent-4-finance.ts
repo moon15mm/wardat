@@ -59,6 +59,22 @@ export async function handlePaymentSuccess(session: Stripe.Checkout.Session): Pr
 
   await updateOrderStatus(orderId, 'CONFIRMED', cardLast4);
 
+  // Decrement product stock if order is linked to a product
+  try {
+    const dbOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+    });
+    if (dbOrder && dbOrder.productId) {
+      await prisma.product.update({
+        where: { id: dbOrder.productId },
+        data: { stock: { decrement: 1 } },
+      });
+      logger.info(`[Agent4] Decremented stock for product ${dbOrder.productId} (Order: ${orderId})`);
+    }
+  } catch (err: any) {
+    logger.error(`[Agent4] Failed to decrement product stock for order ${orderId}: ${err.message}`);
+  }
+
   const amount = (session.amount_total || 0) / 100;
   await addFinanceRecord(orderId, amount, customerName || '');
 

@@ -41,6 +41,9 @@ model Shop {
   stripeSuccessUrl    String?
   stripeCancelUrl    String?
 
+  deliveryStartHour   String    @default("09:00")
+  deliveryEndHour     String    @default("22:00")
+
   createdAt           DateTime  @default(now())
   products            Product[]
   orders              Order[]
@@ -57,6 +60,7 @@ model Product {
   imageUrl    String
   category    String
   available   Boolean  @default(true)
+  stock       Int      @default(10)
 }
 
 model Order {
@@ -73,6 +77,7 @@ model Order {
   locationUrl     String
   stripeSessionId String?
   cardLast4       String?
+  productId       String?
 }
 
 model Session {

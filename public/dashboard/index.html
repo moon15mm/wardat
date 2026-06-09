@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>لوحة التحكم بالمتجر | Wardat SaaS</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
       --bg-gradient: linear-gradient(135deg, #0f0c20 0%, #15102a 50%, #060214 100%);
@@ -553,6 +554,7 @@
     <div class="tabs-nav">
       <button class="tab-btn active" onclick="switchTab('overview')">الرئيسية (Overview)</button>
       <button class="tab-btn" onclick="switchTab('products')">إدارة المنتجات (Products)</button>
+      <button class="tab-btn" onclick="switchTab('analytics')">📈 الإحصائيات والتحليلات</button>
       <button class="tab-btn" onclick="switchTab('settings')">إعدادات الربط والمدفوعات</button>
       <button class="tab-btn" onclick="switchTab('subscription')">💳 تجديد الاشتراك</button>
     </div>
@@ -622,7 +624,152 @@
       </div>
     </div>
 
-    <!-- 3. SETTINGS TAB -->
+    <!-- 3. ANALYTICS & STATS TAB -->
+    <div id="tabAnalytics" class="tab-content">
+      <!-- Sub-tabs nav -->
+      <div style="display: flex; gap: 15px; margin-bottom: 25px; background: rgba(0,0,0,0.15); padding: 8px 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
+        <button class="tab-btn active" id="subTabSalesBtn" onclick="switchSubAnalyticsTab('sales')" style="padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; background: transparent; border: none; color: var(--text-sub); cursor: pointer;">📈 المبيعات والإيرادات</button>
+        <button class="tab-btn" id="subTabPeakBtn" onclick="switchSubAnalyticsTab('peak')" style="padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; background: transparent; border: none; color: var(--text-sub); cursor: pointer;">🕒 أوقات الذروة والعملاء</button>
+        <button class="tab-btn" id="subTabStockBtn" onclick="switchSubAnalyticsTab('stock')" style="padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; background: transparent; border: none; color: var(--text-sub); cursor: pointer;">📦 توقعات المخزون والتوريد</button>
+      </div>
+
+      <!-- Sub-Tab 1: Sales & Revenue -->
+      <div id="subTabSales" class="sub-analytics-content active">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-title">متوسط قيمة الطلب (AOV)</div>
+            <div class="stat-value" id="statAOV" style="color: var(--success);">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">معدل نمو المبيعات (الأسبوعي)</div>
+            <div class="stat-value" id="statGrowth" style="color: var(--pink-glow);">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">اليوم الأكثر نشاطاً</div>
+            <div class="stat-value" id="statBusiestDay" style="color: var(--purple-glow);">-</div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 25px; margin-bottom: 30px;">
+          <!-- Chart -->
+          <div class="card-panel" style="margin-bottom:0;">
+            <h3>📈 منحنى المبيعات اليومية (آخر 30 يوماً)</h3>
+            <div style="width: 100%; height: 280px; position: relative; margin-top: 15px;">
+              <canvas id="salesChart"></canvas>
+            </div>
+          </div>
+          <!-- Projections -->
+          <div class="guide-panel" style="display: flex; flex-direction: column; justify-content: flex-start; gap: 15px;">
+            <div class="guide-title" style="color: var(--pink-glow); margin-bottom: 5px;">
+              <span>🔮 التوقعات المالية الذكية</span>
+            </div>
+            <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; border: 1px solid var(--glass-border);">
+              <p style="font-size:0.85rem; color: var(--text-sub); margin-bottom: 3px;">المبيعات المتوقعة للأسبوع القادم:</p>
+              <h3 id="forecastedRevenue" style="font-size: 1.8rem; font-weight: bold; color: var(--success);">-</h3>
+            </div>
+            <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; border: 1px solid var(--glass-border);">
+              <p style="font-size:0.85rem; color: var(--text-sub); margin-bottom: 3px;">المبيعات المتوقعة للشهر القادم (30 يوماً):</p>
+              <h3 id="forecastedRevenueMonth" style="font-size: 1.8rem; font-weight: bold; color: var(--purple-glow);">-</h3>
+            </div>
+          </div>
+        </div>
+
+        <!-- Popular Products Table -->
+        <div class="card-panel">
+          <h3>📊 أداء مبيعات المنتجات</h3>
+          <div style="overflow-x: auto; margin-top: 15px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>اسم المنتج</th>
+                  <th>عدد الوحدات المباعة</th>
+                  <th>إجمالي الإيرادات (ريال)</th>
+                </tr>
+              </thead>
+              <tbody id="productSalesTableBody">
+                <tr>
+                  <td colspan="3" style="text-align: center; color: var(--text-sub);">جاري تحميل التحليلات...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-Tab 2: Peak Times & Customer Loyalty -->
+      <div id="subTabPeak" class="sub-analytics-content" style="display:none;">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-title">إجمالي العملاء المميزين</div>
+            <div class="stat-value" id="statUniqueCustomers" style="color: var(--success);">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">عدد العملاء المتكررين</div>
+            <div class="stat-value" id="statRepeatCustomers" style="color: var(--pink-glow);">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">نسبة ولاء العملاء (Customer Loyalty)</div>
+            <div class="stat-value" id="statLoyaltyRate" style="color: var(--warning);">-</div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 30px;">
+          <!-- Hourly Chart -->
+          <div class="card-panel" style="margin-bottom:0;">
+            <h3>🕒 توزيع الطلبات بحسب ساعات اليوم</h3>
+            <div style="width: 100%; height: 260px; position: relative; margin-top: 15px;">
+              <canvas id="hourlyChart"></canvas>
+            </div>
+          </div>
+          <!-- Weekday Chart -->
+          <div class="card-panel" style="margin-bottom:0;">
+            <h3>📅 توزيع المبيعات بحسب أيام الأسبوع (ريال)</h3>
+            <div style="width: 100%; height: 260px; position: relative; margin-top: 15px;">
+              <canvas id="weekdayChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-Tab 3: Inventory Forecasts -->
+      <div id="subTabStock" class="sub-analytics-content" style="display:none;">
+        <div style="display: grid; grid-template-columns: 1fr 1.8fr; gap: 25px; margin-bottom: 30px;">
+          <!-- Warnings -->
+          <div class="guide-panel" style="display: flex; flex-direction: column; justify-content: flex-start; gap: 15px; background: rgba(255, 179, 0, 0.03); border-color: rgba(255, 179, 0, 0.15);">
+            <div class="guide-title" style="color: var(--warning);">
+              <span>🚨 تنبيهات المخزون والتوريد العاجلة</span>
+            </div>
+            <ul id="stockAlertsList" style="font-size: 0.85rem; color: var(--text-main); padding-right: 20px; line-height: 1.6; list-style-type: none;">
+              <!-- Loaded via JS -->
+            </ul>
+          </div>
+
+          <!-- Product Projections Table -->
+          <div class="card-panel" style="margin-bottom:0;">
+            <h3>📦 توقعات نفاذ ومعدل بيع المنتجات</h3>
+            <div style="overflow-x: auto; margin-top: 15px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>المنتج</th>
+                    <th>المخزون الحالي</th>
+                    <th>معدل البيع اليومي</th>
+                    <th>توقع وقت نفاد الكمية</th>
+                  </tr>
+                </thead>
+                <tbody id="productStockProjectionsTableBody">
+                  <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-sub);">جاري تحميل التوقعات...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. SETTINGS TAB -->
     <div id="tabSettings" class="tab-content">
       <div class="settings-grid">
         <!-- Settings Form -->
@@ -719,6 +866,19 @@
             <div class="form-group" id="geminiApiKeyInputGroup" style="display: none;">
               <label for="geminiApiKeyInput">Gemini API Key (مطلوب عند اختيار Gemini)</label>
               <input type="text" id="geminiApiKeyInput" placeholder="أدخل مفتاح Gemini (يبدأ بـ AIza...)">
+            </div>
+
+            <!-- Delivery Hours Configuration -->
+            <h4 style="margin: 20px 0 10px 0; color: var(--warning); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">أوقات العمل والتوصيل</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label for="deliveryStartInput">وقت بدء التوصيل/الاستلام</label>
+                <input type="time" id="deliveryStartInput" required>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label for="deliveryEndInput">وقت انتهاء التوصيل/الاستلام</label>
+                <input type="time" id="deliveryEndInput" required>
+              </div>
             </div>
 
             <!-- Change Password -->
@@ -918,6 +1078,10 @@
           <label for="pImageUrl">رابط صورة المنتج (URL)</label>
           <input type="text" id="pImageUrl" placeholder="https://example.com/image.jpg">
         </div>
+        <div class="form-group">
+          <label for="pStock">الكمية المتوفرة في المخزن (المخزون)</label>
+          <input type="number" id="pStock" placeholder="مثال: 10" required min="0" value="10">
+        </div>
         <div class="form-group checkbox-group">
           <label for="pAvailable">المنتج متاح ومتوفر في المتجر</label>
           <input type="checkbox" id="pAvailable" checked>
@@ -1020,6 +1184,9 @@
       } else if (tab === 'settings') {
         document.getElementById('tabSettings').classList.add('active');
         fetchShopDetails();
+      } else if (tab === 'analytics') {
+        document.getElementById('tabAnalytics').classList.add('active');
+        fetchAnalytics();
       } else if (tab === 'subscription') {
         document.getElementById('tabSubscription').classList.add('active');
         fetchShopDetails();
@@ -1064,6 +1231,8 @@
         document.getElementById('stripeCancelUrlInput').value = shop.stripeCancelUrl || '';
         document.getElementById('aiProviderInput').value = shop.aiProvider || 'OPENAI';
         document.getElementById('geminiApiKeyInput').value = shop.geminiApiKey || '';
+        document.getElementById('deliveryStartInput').value = shop.deliveryStartHour || '09:00';
+        document.getElementById('deliveryEndInput').value = shop.deliveryEndHour || '22:00';
 
         toggleShopWhatsappFields();
         toggleShopAiFields();
@@ -1241,6 +1410,8 @@
         stripeCancelUrl: document.getElementById('stripeCancelUrlInput').value.trim() || null,
         aiProvider: document.getElementById('aiProviderInput').value,
         geminiApiKey: document.getElementById('geminiApiKeyInput').value.trim() || null,
+        deliveryStartHour: document.getElementById('deliveryStartInput').value,
+        deliveryEndHour: document.getElementById('deliveryEndInput').value,
       };
 
       const newPassword = document.getElementById('shopPasswordInput').value;
@@ -1327,15 +1498,23 @@
         products.forEach(p => {
           const card = document.createElement('div');
           card.className = 'product-card';
+          
+          const stockText = p.stock !== undefined 
+            ? (p.stock > 0 ? `<span style="font-size:0.75rem; color:var(--success);">متبقي: ${p.stock} حبة</span>` : `<span style="font-size:0.75rem; color:var(--danger); font-weight:bold;">نفدت الكمية ❌</span>`)
+            : '';
+
           card.innerHTML = `
             <img class="product-img" src="${p.imageUrl || 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&q=80&w=400'}" alt="${p.name}">
             <div class="product-details">
-              <div class="product-title">${p.name}</div>
+              <div class="product-title" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>${p.name}</span>
+                ${stockText}
+              </div>
               <div class="product-desc">${p.description || 'لا يوجد تفاصيل إضافية للمنتج.'}</div>
               <div class="product-meta">
                 <span class="product-price">${p.price} ر.س</span>
                 <div class="product-actions">
-                  <button class="btn-edit" onclick="editProduct('${p.id}', '${p.name}', '${p.description}', ${p.price}, '${p.imageUrl}', '${p.category}', ${p.available})">تعديل</button>
+                  <button class="btn-edit" onclick="editProduct('${p.id}', '${p.name}', '${p.description.replace(/'/g, "\\'")}', ${p.price}, '${p.imageUrl}', '${p.category}', ${p.available}, ${p.stock || 0})">تعديل</button>
                   <button class="btn-p-delete" onclick="deleteProduct('${p.id}', '${p.name}')">حذف</button>
                 </div>
               </div>
@@ -1359,7 +1538,7 @@
       document.getElementById('productModal').style.display = 'none';
     }
 
-    function editProduct(id, name, desc, price, img, category, available) {
+    function editProduct(id, name, desc, price, img, category, available, stock) {
       document.getElementById('modalTitle').textContent = 'تعديل منتج المتجر';
       document.getElementById('productId').value = id;
       document.getElementById('pName').value = name;
@@ -1368,6 +1547,7 @@
       document.getElementById('pCategory').value = category === 'undefined' ? '' : category;
       document.getElementById('pImageUrl').value = img === 'undefined' ? '' : img;
       document.getElementById('pAvailable').checked = available;
+      document.getElementById('pStock').value = stock !== undefined ? stock : 10;
       document.getElementById('productModal').style.display = 'flex';
     }
 
@@ -1381,7 +1561,8 @@
         price: parseFloat(document.getElementById('pPrice').value),
         category: document.getElementById('pCategory').value.trim(),
         imageUrl: document.getElementById('pImageUrl').value.trim(),
-        available: document.getElementById('pAvailable').checked
+        available: document.getElementById('pAvailable').checked,
+        stock: parseInt(document.getElementById('pStock').value)
       };
 
       const url = id ? `/api/shop/products/${id}` : '/api/shop/products';
@@ -1512,6 +1693,216 @@
         btn.innerHTML = origText;
       }
     }
+    let salesChartInstance = null;
+    let hourlyChartInstance = null;
+    let weekdayChartInstance = null;
+    let lastAnalyticsData = null;
+
+    function switchSubAnalyticsTab(subTab) {
+      document.querySelectorAll('.sub-analytics-content').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('#tabAnalytics .tab-btn').forEach(btn => btn.classList.remove('active'));
+
+      if (subTab === 'sales') {
+        document.getElementById('subTabSales').style.display = 'block';
+        document.getElementById('subTabSalesBtn').classList.add('active');
+      } else if (subTab === 'peak') {
+        document.getElementById('subTabPeak').style.display = 'block';
+        document.getElementById('subTabPeakBtn').classList.add('active');
+        setTimeout(renderPeakCharts, 50);
+      } else if (subTab === 'stock') {
+        document.getElementById('subTabStock').style.display = 'block';
+        document.getElementById('subTabStockBtn').classList.add('active');
+      }
+    }
+
+    async function fetchAnalytics() {
+      try {
+        const res = await fetch('/api/shop/analytics', { headers });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        lastAnalyticsData = data;
+
+        // 1. Sales Tab metrics
+        document.getElementById('statAOV').textContent = `${data.summary.aov.toLocaleString()} ر.س`;
+        
+        const growth = data.predictiveAnalytics.growthRate;
+        const growthEl = document.getElementById('statGrowth');
+        if (growth > 0) {
+          growthEl.textContent = `+${growth}% 📈`;
+          growthEl.style.color = 'var(--success)';
+        } else if (growth < 0) {
+          growthEl.textContent = `${growth}% 📉`;
+          growthEl.style.color = 'var(--danger)';
+        } else {
+          growthEl.textContent = `0% ➖`;
+          growthEl.style.color = 'var(--text-sub)';
+        }
+
+        document.getElementById('statBusiestDay').textContent = data.predictiveAnalytics.busiestDay;
+        document.getElementById('forecastedRevenue').textContent = `${data.predictiveAnalytics.forecastedSalesNextWeek.toLocaleString()} ر.س`;
+        document.getElementById('forecastedRevenueMonth').textContent = `${data.predictiveAnalytics.forecastedSalesNextMonth.toLocaleString()} ر.س`;
+
+        // Popular products
+        const tbody = document.getElementById('productSalesTableBody');
+        tbody.innerHTML = '';
+        if (data.salesByProduct.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-sub);">لا يوجد مبيعات مسجلة للمنتجات بعد</td></tr>';
+        } else {
+          data.salesByProduct.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td style="font-weight: bold;">${item.productName}</td>
+              <td style="font-family: \'Outfit\';">${item.count}</td>
+              <td style="font-family: \'Outfit\'; color: var(--pink-glow); font-weight: bold;">${item.totalRevenue.toLocaleString()}</td>
+            `;
+            tbody.appendChild(row);
+          });
+        }
+
+        // Daily chart
+        const labels = data.dailySales.map(d => {
+          const date = new Date(d.date);
+          return date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' });
+        });
+        const chartData = data.dailySales.map(d => d.revenue);
+
+        if (salesChartInstance) salesChartInstance.destroy();
+        const ctx = document.getElementById('salesChart').getContext('2d');
+        salesChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'المبيعات اليومية (ريال)',
+              data: chartData,
+              borderColor: '#ff2d81',
+              backgroundColor: 'rgba(255, 45, 129, 0.1)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.3,
+              pointBackgroundColor: '#8e2de2',
+              pointBorderColor: '#fff',
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: '#b1a9c3', font: { family: 'Tajawal' } } },
+              y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#b1a9c3', font: { family: 'Tajawal' } } }
+            }
+          }
+        });
+
+        // 2. Peak & Loyalty metrics
+        document.getElementById('statUniqueCustomers').textContent = data.summary.loyalty.uniqueCustomers;
+        document.getElementById('statRepeatCustomers').textContent = data.summary.loyalty.repeatCustomers;
+        document.getElementById('statLoyaltyRate').textContent = `${data.summary.loyalty.repeatCustomerRate}%`;
+
+        // 3. Stock metrics
+        const alertsList = document.getElementById('stockAlertsList');
+        alertsList.innerHTML = '';
+        if (data.predictiveAnalytics.restockAlerts.length === 0) {
+          alertsList.innerHTML = '<li style="color: var(--success); list-style-type: none; margin-bottom:8px;">جميع مستويات المخزون ممتازة وبحالة مستقرة! ✅</li>';
+        } else {
+          data.predictiveAnalytics.restockAlerts.forEach(alert => {
+            const li = document.createElement('li');
+            li.innerHTML = alert;
+            li.style.marginBottom = '8px';
+            alertsList.appendChild(li);
+          });
+        }
+
+        // Product projections table
+        const stockTbody = document.getElementById('productStockProjectionsTableBody');
+        stockTbody.innerHTML = '';
+        if (data.productProjections.length === 0) {
+          stockTbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-sub);">لا يوجد منتجات مسجلة في المتجر</td></tr>';
+        } else {
+          data.productProjections.forEach(item => {
+            const row = document.createElement('tr');
+            const colorClass = item.stock <= 3 ? 'color: var(--danger); font-weight: bold;' : '';
+            row.innerHTML = `
+              <td style="font-weight: bold;">${item.name}</td>
+              <td style="font-family: \'Outfit\'; ${colorClass}">${item.stock} حبة</td>
+              <td style="font-family: \'Outfit\';">${item.velocity} حبة / يوم</td>
+              <td style="font-weight: 500; color: ${item.stock <= 3 ? 'var(--danger)' : (item.daysToStockOut.includes('أيام') ? 'var(--warning)' : 'var(--success)')};">${item.daysToStockOut}</td>
+            `;
+            stockTbody.appendChild(row);
+          });
+        }
+
+      } catch (err) {
+        console.error('Failed to fetch analytics data');
+      }
+    }
+
+    function renderPeakCharts() {
+      if (!lastAnalyticsData) return;
+      const data = lastAnalyticsData;
+
+      // Hourly Chart
+      const hoursLabels = data.salesByHour.map(h => h.hour);
+      const hoursData = data.salesByHour.map(h => h.count);
+
+      if (hourlyChartInstance) hourlyChartInstance.destroy();
+      const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+      hourlyChartInstance = new Chart(hourlyCtx, {
+        type: 'bar',
+        data: {
+          labels: hoursLabels,
+          datasets: [{
+            label: 'عدد الطلبات',
+            data: hoursData,
+            backgroundColor: 'rgba(142, 45, 226, 0.6)',
+            borderColor: '#8e2de2',
+            borderWidth: 1.5,
+            borderRadius: 5,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#b1a9c3', font: { family: 'Tajawal', size: 9 } } },
+            y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#b1a9c3', stepSize: 1 } }
+          }
+        }
+      });
+
+      // Weekday Chart
+      const weekdayLabels = data.salesByDayOfWeek.map(d => d.dayName);
+      const weekdayData = data.salesByDayOfWeek.map(d => d.revenue);
+
+      if (weekdayChartInstance) weekdayChartInstance.destroy();
+      const weekdayCtx = document.getElementById('weekdayChart').getContext('2d');
+      weekdayChartInstance = new Chart(weekdayCtx, {
+        type: 'bar',
+        data: {
+          labels: weekdayLabels,
+          datasets: [{
+            label: 'إيرادات المبيعات (ريال)',
+            data: weekdayData,
+            backgroundColor: 'rgba(255, 45, 129, 0.6)',
+            borderColor: '#ff2d81',
+            borderWidth: 1.5,
+            borderRadius: 5,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#b1a9c3', font: { family: 'Tajawal' } } },
+            y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#b1a9c3' } }
+          }
+        }
+      });
+    }
+
     function logout() {
       localStorage.clear();
       window.location.href = '/login';

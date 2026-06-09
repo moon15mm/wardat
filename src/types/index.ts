@@ -6,6 +6,7 @@ export interface Product {
   imageUrl: string;
   category: string;
   available: boolean;
+  stock?: number;
 }
 
 export interface Order {
@@ -23,6 +24,7 @@ export interface Order {
   productImageUrl: string;
   notes: string;
   stripeSessionId?: string;
+  productId?: string;
 }
 
 export type ConversationState =

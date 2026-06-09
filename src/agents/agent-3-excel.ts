@@ -18,6 +18,7 @@ export async function addOrder(order: Order): Promise<void> {
         locationUrl: order.locationUrl,
         stripeSessionId: order.stripeSessionId,
         cardLast4: order.cardLast4,
+        productId: order.productId,
       },
     });
     logger.info(`[Database] Order ${order.id} added to PostgreSQL`);
