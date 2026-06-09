@@ -87,7 +87,12 @@ export async function startBaileysSession(shopId: string): Promise<void> {
       latestQrCodes.delete(shopId);
 
       if (shouldReconnect) {
-        startBaileysSession(shopId);
+        logger.info(`[Baileys] Scheduling reconnection in 10 seconds for Shop: ${shopId}...`);
+        setTimeout(() => {
+          startBaileysSession(shopId).catch((err) => {
+            logger.error(`[Baileys] Reconnection failed for Shop ${shopId}: ${err.message}`);
+          });
+        }, 10000);
       } else {
         connectionStatuses.set(shopId, 'DISCONNECTED');
         // Logged out: clean session folder

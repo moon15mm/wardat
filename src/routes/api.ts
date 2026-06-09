@@ -41,6 +41,54 @@ router.post('/auth/login', async (req, res) => {
   return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
 });
 
+router.get('/whatsapp/test-connection', async (req, res) => {
+  const dns = require('dns');
+  const net = require('net');
+  const results: any = {};
+
+  const targets = [
+    { host: 'web.whatsapp.com', port: 443 },
+    { host: 'g.us', port: 443 },
+    { host: 'g.us', port: 5222 },
+  ];
+
+  try {
+    for (const target of targets) {
+      results[target.host + ':' + target.port] = await new Promise((resolve) => {
+        dns.lookup(target.host, { family: 4 }, (dnsErr: any, address: string) => {
+          if (dnsErr) {
+            resolve({ status: 'dns_failed', error: dnsErr.message });
+            return;
+          }
+
+          const socket = new net.Socket();
+          socket.setTimeout(4000);
+
+          socket.on('connect', () => {
+            socket.destroy();
+            resolve({ status: 'connected', ip: address });
+          });
+
+          socket.on('error', (err: any) => {
+            socket.destroy();
+            resolve({ status: 'failed', ip: address, error: err.message });
+          });
+
+          socket.on('timeout', () => {
+            socket.destroy();
+            resolve({ status: 'timeout', ip: address });
+          });
+
+          socket.connect(target.port, address);
+        });
+      });
+    }
+    res.json(results);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // -------------------------------------------------------------
 // 2. SUPER ADMIN ROUTES (Protected)
 // -------------------------------------------------------------
