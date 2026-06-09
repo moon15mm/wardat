@@ -387,6 +387,87 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
 });
 
 // -------------------------------------------------------------
+// Subscription Renewal Payment Route (SaaS Platform Stripe)
+// -------------------------------------------------------------
+router.post('/shop/subscription/checkout', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  const { plan, durationMonths } = req.body;
+
+  if (!plan || !durationMonths) {
+    return res.status(400).json({ error: 'يرجى اختيار الباقة وفترة الاشتراك المطلوبة' });
+  }
+
+  const allowedPlans = ['SILVER', 'GOLD', 'PLATINUM'];
+  if (!allowedPlans.includes(plan)) {
+    return res.status(400).json({ error: 'باقة الاشتراك المحددة غير صالحة' });
+  }
+
+  const duration = parseInt(durationMonths);
+  const allowedDurations = [1, 3, 6, 12];
+  if (!allowedDurations.includes(duration)) {
+    return res.status(400).json({ error: 'فترة الاشتراك المحددة غير صالحة' });
+  }
+
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return res.status(500).json({ error: 'بوابة دفع المنصة (Stripe) غير مهيأة حالياً. يرجى التواصل مع الإدارة للتفعيل.' });
+  }
+
+  try {
+    // 1. Calculate pricing
+    let monthlyPrice = 150; // default GOLD
+    if (plan === 'SILVER') monthlyPrice = 50;
+    else if (plan === 'PLATINUM') monthlyPrice = 300;
+
+    // Apply discounts: 3 months (5%), 6 months (10%), 12 months (20%)
+    let discount = 0;
+    if (duration === 3) discount = 0.05;
+    else if (duration === 6) discount = 0.10;
+    else if (duration === 12) discount = 0.20;
+
+    const totalPrice = Math.round(monthlyPrice * duration * (1 - discount));
+
+    // 2. Create Stripe Checkout session on behalf of the platform
+    const Stripe = require('stripe');
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-04-30.basil' as any,
+    });
+
+    const origin = req.headers.origin || 'https://wardat.xyz';
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'sar',
+            product_data: {
+              name: `تجديد اشتراك المتجر - باقة ${plan === 'SILVER' ? 'الفضية' : plan === 'GOLD' ? 'الذهبية' : 'البلاتينية'}`,
+              description: `المدة: ${duration} أشهر (بسعر شهري ${monthlyPrice} ريال)`,
+            },
+            unit_amount: totalPrice * 100, // in cents
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${origin}/dashboard?payment=success`,
+      cancel_url: `${origin}/dashboard?payment=cancel`,
+      metadata: {
+        type: 'subscription_renewal',
+        shopId: shopId,
+        plan: plan,
+        durationMonths: duration.toString(),
+      },
+    });
+
+    res.json({ url: session.url });
+  } catch (err: any) {
+    logger.error(`[Billing] Failed to create subscription checkout: ${err.message}`);
+    res.status(500).json({ error: 'فشل في إعداد عملية الدفع، يرجى المحاولة لاحقاً.' });
+  }
+});
+
+// -------------------------------------------------------------
 // WhatsApp Built-in Session Management (Free Standard WhatsApp)
 // -------------------------------------------------------------
 router.get('/shop/whatsapp/status', authenticateShop, async (req, res) => {

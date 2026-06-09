@@ -123,3 +123,44 @@ export async function handlePaymentFailed(session: Stripe.Checkout.Session): Pro
     `عذراً، لم يتم الدفع بنجاح. ❌\n\nيمكنك المحاولة مرة أخرى أو التواصل معنا للمساعدة.`
   );
 }
+
+export async function handleSubscriptionRenewalSuccess(session: Stripe.Checkout.Session): Promise<void> {
+  const shopId = session.metadata?.shopId;
+  const plan = session.metadata?.plan;
+  const durationMonths = parseInt(session.metadata?.durationMonths || '1');
+
+  if (!shopId || !plan) {
+    logger.error(`[Agent4] Missing metadata in Stripe subscription renewal session ${session.id}`);
+    return;
+  }
+
+  logger.info(`[Agent4] Subscription renewal succeeded for shop ${shopId}. Plan: ${plan}, Months: ${durationMonths}`);
+
+  // Fetch shop config
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+  });
+
+  if (!shop) {
+    logger.error(`[Agent4] Shop with ID ${shopId} not found for subscription renewal`);
+    return;
+  }
+
+  // Calculate new subscription end date
+  const baseDate = shop.subscriptionEnd && new Date(shop.subscriptionEnd) > new Date()
+    ? new Date(shop.subscriptionEnd)
+    : new Date();
+
+  const newEnd = new Date(baseDate.getTime() + durationMonths * 30 * 24 * 60 * 60 * 1000);
+
+  await prisma.shop.update({
+    where: { id: shopId },
+    data: {
+      subscriptionPlan: plan,
+      subscriptionStatus: 'ACTIVE',
+      subscriptionEnd: newEnd,
+    },
+  });
+
+  logger.info(`[Agent4] Shop ${shop.name} subscription successfully updated/extended to ${newEnd.toISOString()}`);
+}

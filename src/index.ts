@@ -24,9 +24,10 @@ app.post(
     const sig = req.headers['stripe-signature'] as string;
 
     try {
-      // Parse raw body to JSON to identify shopId before signature verification
+      // Parse raw body to JSON to identify shopId and payment type before signature verification
       const payload = JSON.parse(req.body.toString());
       const shopId = payload.data?.object?.metadata?.shopId;
+      const isPlatformRenewal = payload.data?.object?.metadata?.type === 'subscription_renewal';
 
       if (!shopId) {
         logger.error('[Stripe] Missing shopId in webhook metadata');
@@ -34,32 +35,53 @@ app.post(
         return;
       }
 
-      // Fetch the specific shop configuration from database
-      const shop = await prisma.shop.findUnique({
-        where: { id: shopId },
-      });
+      let stripeConfig;
 
-      if (!shop) {
-        logger.error(`[Stripe] Shop with ID ${shopId} not found`);
-        res.status(404).send('Shop not found');
-        return;
+      if (isPlatformRenewal) {
+        // Platform (Super Admin) keys for subscription payments
+        stripeConfig = {
+          secretKey: process.env.STRIPE_SECRET_KEY || '',
+          webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+          successUrl: process.env.STRIPE_SUCCESS_URL || '',
+          cancelUrl: process.env.STRIPE_CANCEL_URL || '',
+        };
+      } else {
+        // Fetch the specific shop configuration from database for customer orders
+        const shop = await prisma.shop.findUnique({
+          where: { id: shopId },
+        });
+
+        if (!shop) {
+          logger.error(`[Stripe] Shop with ID ${shopId} not found`);
+          res.status(404).send('Shop not found');
+          return;
+        }
+
+        stripeConfig = {
+          secretKey: shop.stripeSecretKey || '',
+          webhookSecret: shop.stripeWebhookSecret || '',
+          successUrl: shop.stripeSuccessUrl || '',
+          cancelUrl: shop.stripeCancelUrl || '',
+        };
       }
 
-      const stripeConfig = {
-        secretKey: shop.stripeSecretKey,
-        webhookSecret: shop.stripeWebhookSecret,
-        successUrl: shop.stripeSuccessUrl,
-        cancelUrl: shop.stripeCancelUrl,
-      };
-
-      // Construct and verify event signature using shop-specific webhook secret
+      // Construct and verify event signature using correct webhook secret
       const event = constructWebhookEvent(stripeConfig, req.body, sig);
-      logger.info(`[Stripe] Verified Event: ${event.type} for shop: ${shop.name}`);
+      logger.info(`[Stripe] Verified Event: ${event.type} (Platform Renewal: ${isPlatformRenewal})`);
 
       if (event.type === 'checkout.session.completed') {
-        await handlePaymentSuccess(event.data.object as any);
+        const sessionObj = event.data.object as any;
+        if (isPlatformRenewal) {
+          const { handleSubscriptionRenewalSuccess } = require('./agents/agent-4-finance');
+          await handleSubscriptionRenewalSuccess(sessionObj);
+        } else {
+          await handlePaymentSuccess(sessionObj);
+        }
       } else if (event.type === 'checkout.session.expired') {
-        await handlePaymentFailed(event.data.object as any);
+        const sessionObj = event.data.object as any;
+        if (!isPlatformRenewal) {
+          await handlePaymentFailed(sessionObj);
+        }
       }
 
       res.json({ received: true });

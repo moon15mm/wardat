@@ -554,6 +554,7 @@
       <button class="tab-btn active" onclick="switchTab('overview')">الرئيسية (Overview)</button>
       <button class="tab-btn" onclick="switchTab('products')">إدارة المنتجات (Products)</button>
       <button class="tab-btn" onclick="switchTab('settings')">إعدادات الربط والمدفوعات</button>
+      <button class="tab-btn" onclick="switchTab('subscription')">💳 تجديد الاشتراك</button>
     </div>
 
     <!-- TABS CONTENT -->
@@ -769,6 +770,122 @@
         </div>
       </div>
     </div>
+
+    <!-- 4. SUBSCRIPTION TAB -->
+    <div id="tabSubscription" class="tab-content">
+      <div class="settings-grid">
+        <!-- Subscription Renew Form -->
+        <div class="card-panel" style="margin-bottom:0;">
+          <h3>💳 تجديد وترقية اشتراك المتجر</h3>
+          <p style="color: var(--text-sub); font-size:0.85rem; margin-bottom: 20px;">اختر الباقة المناسبة والمدة، وادفع مباشرة لتفعيل اشتراكك وتمديد البوت تلقائياً.</p>
+
+          <form id="subscriptionForm" onsubmit="checkoutSubscription(event)">
+            <!-- Select Plan -->
+            <div class="form-group">
+              <label style="margin-bottom: 12px;">اختر باقة الاشتراك</label>
+              <div class="plans-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                <!-- Silver Plan -->
+                <div class="plan-card" data-plan="SILVER" onclick="selectPlan('SILVER')" style="border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; cursor: pointer; text-align: center; background: rgba(255,255,255,0.01); transition: all 0.3s ease;">
+                  <div style="font-size: 1.6rem; margin-bottom: 5px;">🥈</div>
+                  <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.95rem;">الفضية</div>
+                  <div style="font-size: 1.1rem; color: var(--pink-glow); font-weight: bold; font-family: 'Outfit';">50 <span style="font-size: 0.8rem; font-family: 'Tajawal';">ر.س</span></div>
+                  <div style="font-size: 0.7rem; color: var(--text-sub); margin-top: 3px;">شهرياً</div>
+                </div>
+                <!-- Gold Plan -->
+                <div class="plan-card active" data-plan="GOLD" onclick="selectPlan('GOLD')" style="border: 1px solid var(--pink-glow); padding: 15px; border-radius: 12px; cursor: pointer; text-align: center; background: rgba(255,45,129,0.05); transition: all 0.3s ease; box-shadow: 0 0 10px rgba(255, 45, 129, 0.2);">
+                  <div style="font-size: 1.6rem; margin-bottom: 5px;">🥇</div>
+                  <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.95rem;">الذهبية</div>
+                  <div style="font-size: 1.1rem; color: var(--pink-glow); font-weight: bold; font-family: 'Outfit';">150 <span style="font-size: 0.8rem; font-family: 'Tajawal';">ر.س</span></div>
+                  <div style="font-size: 0.7rem; color: var(--text-sub); margin-top: 3px;">شهرياً</div>
+                </div>
+                <!-- Platinum Plan -->
+                <div class="plan-card" data-plan="PLATINUM" onclick="selectPlan('PLATINUM')" style="border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; cursor: pointer; text-align: center; background: rgba(255,255,255,0.01); transition: all 0.3s ease;">
+                  <div style="font-size: 1.6rem; margin-bottom: 5px;">💎</div>
+                  <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.95rem;">البلاتينية</div>
+                  <div style="font-size: 1.1rem; color: var(--pink-glow); font-weight: bold; font-family: 'Outfit';">300 <span style="font-size: 0.8rem; font-family: 'Tajawal';">ر.س</span></div>
+                  <div style="font-size: 0.7rem; color: var(--text-sub); margin-top: 3px;">شهرياً</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Select Duration -->
+            <div class="form-group">
+              <label style="margin-bottom: 12px;">مدة تمديد الاشتراك</label>
+              <div class="duration-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px;">
+                <div class="duration-pill active" data-months="1" onclick="selectDuration(1)" style="border: 1px solid var(--pink-glow); padding: 12px; border-radius: 10px; cursor: pointer; text-align: center; background: rgba(255,45,129,0.05); font-size: 0.9rem; transition: all 0.3s ease; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                  <span style="font-weight: bold;">📅 1 شهر</span>
+                  <span style="font-size: 0.75rem; color: var(--text-sub); margin-top: 2px;">السعر الكامل</span>
+                </div>
+                <div class="duration-pill" data-months="3" onclick="selectDuration(3)" style="border: 1px solid var(--glass-border); padding: 12px; border-radius: 10px; cursor: pointer; text-align: center; background: rgba(255,255,255,0.01); font-size: 0.9rem; transition: all 0.3s ease; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                  <span style="font-weight: bold;">📅 3 أشهر</span>
+                  <span style="font-size: 0.75rem; color: var(--success); margin-top: 2px; font-weight: 600;">خصم 5%</span>
+                </div>
+                <div class="duration-pill" data-months="6" onclick="selectDuration(6)" style="border: 1px solid var(--glass-border); padding: 12px; border-radius: 10px; cursor: pointer; text-align: center; background: rgba(255,255,255,0.01); font-size: 0.9rem; transition: all 0.3s ease; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                  <span style="font-weight: bold;">📅 6 أشهر</span>
+                  <span style="font-size: 0.75rem; color: var(--success); margin-top: 2px; font-weight: 600;">خصم 10%</span>
+                </div>
+                <div class="duration-pill" data-months="12" onclick="selectDuration(12)" style="border: 1px solid var(--glass-border); padding: 12px; border-radius: 10px; cursor: pointer; text-align: center; background: rgba(255,255,255,0.01); font-size: 0.9rem; transition: all 0.3s ease; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                  <span style="font-weight: bold;">📅 12 شهر</span>
+                  <span style="font-size: 0.75rem; color: var(--warning); margin-top: 2px; font-weight: 600;">خصم 20% 🔥</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pricing Summary Card -->
+            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 20px; border-radius: 12px; margin: 20px 0; text-align: center;">
+              <h4 style="color: var(--text-sub); margin-bottom: 10px; font-weight: normal;">المبلغ الإجمالي المطلوب</h4>
+              <div id="subTotalPriceText" style="font-size: 2.2rem; font-weight: bold; color: var(--success);">150 ريال</div>
+              <p id="subPriceBreakdown" style="font-size: 0.8rem; color: var(--text-sub); margin-top: 5px;">الباقة الذهبية لمدة 1 شهر</p>
+            </div>
+
+            <button type="submit" class="btn-save" style="width:100%; padding: 14px; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; gap: 10px; background: linear-gradient(to right, var(--pink-glow), var(--purple-glow)); box-shadow: 0 4px 20px rgba(255, 45, 129, 0.3); border:none; border-radius:8px; color:white; font-weight:bold; cursor:pointer;">
+              <span>دفع وتفعيل الاشتراك الآن</span>
+              <span>💳</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Current Status & Features -->
+        <div class="guide-panel" style="display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div class="guide-title">
+              <span>📊 حالة اشتراكك الحالي</span>
+            </div>
+            
+            <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid var(--glass-border);">
+              <table style="width: 100%; text-align: right; border-collapse: collapse;">
+                <tr>
+                  <td style="color: var(--text-sub); border:none; padding: 8px 0;">الباقة الحالية:</td>
+                  <td id="infoCurrentPlan" style="font-weight: bold; border:none; padding: 8px 0;">-</td>
+                </tr>
+                <tr>
+                  <td style="color: var(--text-sub); border:none; padding: 8px 0;">تاريخ الانتهاء:</td>
+                  <td id="infoExpiryDate" style="border:none; padding: 8px 0;">-</td>
+                </tr>
+                <tr>
+                  <td style="color: var(--text-sub); border:none; padding: 8px 0;">حالة البوت:</td>
+                  <td id="infoStatus" style="font-weight: bold; border:none; padding: 8px 0;">-</td>
+                </tr>
+              </table>
+            </div>
+
+            <div class="guide-title">
+              <span>🌟 مميزات الباقات المتاحة</span>
+            </div>
+            <ul class="guide-steps" style="font-size: 0.85rem; list-style-type: none; padding:0;">
+              <li style="margin-bottom:10px;">🥈 **الباقة الفضية**: لغاية 500 طلب شهرياً، دفع Stripe افتراضي وبوت الرد الآلي.</li>
+              <li style="margin-bottom:10px;">🥇 **الباقة الذهبية**: طلبات مبيعات غير محدودة، مفاتيح Stripe وواتساب خاصة، جروب إشعارات الإدارة.</li>
+              <li style="margin-bottom:10px;">💎 **الباقة البلاتينية**: كل الميزات السابقة، دعم وتخصيص الذكاء الاصطناعي بالكامل، لوحات تحليلات مالية متقدمة.</li>
+            </ul>
+          </div>
+
+          <div style="font-size:0.8rem; color: var(--text-sub); border-top: 1px solid var(--glass-border); padding-top: 15px; margin-top: 20px;">
+            ℹ️ الدفع آمن بالكامل عبر بوابة Stripe العالمية. سيتم تفعيل حسابك تلقائياً وبشكل فوري بمجرد إتمام الدفع.
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- PRODUCT EDIT/ADD MODAL -->
@@ -834,6 +951,16 @@
       fetchOrders();
       fetchProducts();
       fetchShopDetails();
+
+      // Check for Stripe redirect query params
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('payment') === 'success') {
+        alert('🎉 تم تجديد وترقية اشتراك متجرك تلقائياً وتفعيل البوت بنجاح! شكراً لك.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (urlParams.get('payment') === 'cancel') {
+        alert('⚠️ تم إلغاء عملية الدفع، لم يتم تمديد الاشتراك.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     };
 
     let waPollInterval = null;
@@ -893,6 +1020,10 @@
       } else if (tab === 'settings') {
         document.getElementById('tabSettings').classList.add('active');
         fetchShopDetails();
+      } else if (tab === 'subscription') {
+        document.getElementById('tabSubscription').classList.add('active');
+        fetchShopDetails();
+        calculateSubPrice();
       }
     }
 
@@ -945,6 +1076,13 @@
         };
         const planText = planNames[shop.subscriptionPlan] || shop.subscriptionPlan;
         
+        // Populate the subscription tab info
+        document.getElementById('infoCurrentPlan').textContent = planText;
+        document.getElementById('infoExpiryDate').textContent = shop.subscriptionEnd ? new Date(shop.subscriptionEnd).toLocaleDateString('ar-SA') : 'غير محدد';
+        document.getElementById('infoStatus').innerHTML = shop.isExpired 
+          ? '<span style="color: var(--danger); font-weight: bold;">موقوف (منتهي) ❌</span>' 
+          : '<span style="color: var(--success); font-weight: bold;">نشط ومفعّل ✅</span>';
+
         let subDetailsHtml = '';
         if (shop.isExpired) {
           subDetailsHtml = `<span style="color: var(--danger); font-weight: bold;">${planText}</span><br><span style="font-size: 0.95rem; color: var(--text-sub);">الاشتراك منتهٍ</span>`;
@@ -953,6 +1091,11 @@
         }
         document.getElementById('statSubscription').innerHTML = subDetailsHtml;
 
+        // Pre-select the current plan in the billing tab
+        if (shop.subscriptionPlan) {
+          selectPlan(shop.subscriptionPlan);
+        }
+      } catch (err) {
         // Handle Alert Banners
         const banner = document.getElementById('subscriptionBanner');
         if (shop.isExpired) {
@@ -1274,7 +1417,101 @@
         alert('فشل في حذف المنتج');
       }
     }
+    let selectedPlan = 'GOLD';
+    let selectedDuration = 1;
 
+    function selectPlan(plan) {
+      selectedPlan = plan;
+      document.querySelectorAll('.plan-card').forEach(card => {
+        if (card.dataset.plan === plan) {
+          card.style.borderColor = 'var(--pink-glow)';
+          card.style.background = 'rgba(255,45,129,0.05)';
+          card.style.boxShadow = '0 0 10px rgba(255, 45, 129, 0.2)';
+        } else {
+          card.style.borderColor = 'var(--glass-border)';
+          card.style.background = 'rgba(255,255,255,0.01)';
+          card.style.boxShadow = 'none';
+        }
+      });
+      calculateSubPrice();
+    }
+
+    function selectDuration(duration) {
+      selectedDuration = parseInt(duration);
+      document.querySelectorAll('.duration-pill').forEach(pill => {
+        if (parseInt(pill.dataset.months) === selectedDuration) {
+          pill.style.borderColor = 'var(--pink-glow)';
+          pill.style.background = 'rgba(255,45,129,0.05)';
+        } else {
+          pill.style.borderColor = 'var(--glass-border)';
+          pill.style.background = 'rgba(255,255,255,0.01)';
+        }
+      });
+      calculateSubPrice();
+    }
+
+    function calculateSubPrice() {
+      const plan = selectedPlan;
+      const duration = selectedDuration;
+      
+      let monthlyPrice = 150;
+      let planText = 'الباقة الذهبية';
+      if (plan === 'SILVER') {
+        monthlyPrice = 50;
+        planText = 'الباقة الفضية';
+      } else if (plan === 'PLATINUM') {
+        monthlyPrice = 300;
+        planText = 'الباقة البلاتينية';
+      }
+      
+      let discount = 0;
+      let discountText = '';
+      if (duration === 3) {
+        discount = 0.05;
+        discountText = ' (خصم 5%)';
+      } else if (duration === 6) {
+        discount = 0.10;
+        discountText = ' (خصم 10%)';
+      } else if (duration === 12) {
+        discount = 0.20;
+        discountText = ' (خصم 20% 🔥)';
+      }
+      
+      const totalPrice = Math.round(monthlyPrice * duration * (1 - discount));
+      document.getElementById('subTotalPriceText').textContent = `${totalPrice} ريال`;
+      document.getElementById('subPriceBreakdown').textContent = `${planText} لمدة ${duration} أشهر${discountText}`;
+    }
+
+    async function checkoutSubscription(e) {
+      e.preventDefault();
+      
+      const plan = selectedPlan;
+      const durationMonths = selectedDuration;
+      
+      const btn = e.target.querySelector('button[type="submit"]');
+      const origText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = 'جاري التوجيه للدفع... ⏳';
+
+      try {
+        const res = await fetch('/api/shop/subscription/checkout', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ plan, durationMonths })
+        });
+        
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'فشل في الانتقال للدفع');
+        
+        if (data.url) {
+          window.location.href = data.url;
+        }
+      } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+        btn.innerHTML = origText;
+      }
+    }
     function logout() {
       localStorage.clear();
       window.location.href = '/login';
