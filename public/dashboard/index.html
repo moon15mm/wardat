@@ -499,6 +499,38 @@
       margin: 10px 0;
       user-select: all;
     }
+
+    /* Subscription alert banners */
+    .alert-banner {
+      margin-bottom: 20px;
+      padding: 15px 20px;
+      border-radius: 12px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      animation: pulse 2s infinite alternate;
+    }
+
+    .alert-banner.expired {
+      background: rgba(255, 75, 75, 0.12);
+      border: 1px solid rgba(255, 75, 75, 0.3);
+      color: #ff6b6b;
+      box-shadow: 0 0 15px rgba(255, 75, 75, 0.15);
+    }
+
+    .alert-banner.warning {
+      background: rgba(255, 179, 0, 0.12);
+      border: 1px solid rgba(255, 179, 0, 0.3);
+      color: var(--warning);
+      box-shadow: 0 0 15px rgba(255, 179, 0, 0.15);
+    }
+
+    @keyframes pulse {
+      from { box-shadow: 0 0 10px rgba(255, 45, 129, 0.1); }
+      to { box-shadow: 0 0 20px rgba(255, 45, 129, 0.2); }
+    }
   </style>
 </head>
 <body>
@@ -513,6 +545,9 @@
         <button class="btn-logout" onclick="logout()">خروج</button>
       </div>
     </header>
+
+    <!-- Subscription Alert Banner -->
+    <div id="subscriptionBanner" style="display: none;"></div>
 
     <!-- Tab navigation -->
     <div class="tabs-nav">
@@ -537,6 +572,10 @@
         <div class="stat-card">
           <div class="stat-title">إجمالي الطلبات المستلمة</div>
           <div class="stat-value" id="statOrders" style="color: var(--purple-glow);">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">باقة الاشتراك والمدة المتبقية</div>
+          <div class="stat-value" id="statSubscription" style="font-size: 1.35rem; line-height: 1.5; color: #a29bfe; min-height: 52px; display: flex; flex-direction: column; justify-content: center; align-items: center;">-</div>
         </div>
       </div>
 
@@ -601,15 +640,15 @@
             <h4 style="margin: 20px 0 10px 0; color: var(--pink-glow); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">إعدادات Meta / WhatsApp Cloud API</h4>
             <div class="form-group">
               <label for="whatsappPhoneIdInput">WhatsApp Phone Number ID</label>
-              <input type="text" id="whatsappPhoneIdInput" required>
+              <input type="text" id="whatsappPhoneIdInput">
             </div>
             <div class="form-group">
               <label for="whatsappVerifyTokenInput">Verify Token (رمز التحقق الخاص بالمتجر)</label>
-              <input type="text" id="whatsappVerifyTokenInput" required>
+              <input type="text" id="whatsappVerifyTokenInput">
             </div>
             <div class="form-group">
               <label for="whatsappTokenInput">System User Access Token</label>
-              <input type="text" id="whatsappTokenInput" required>
+              <input type="text" id="whatsappTokenInput">
             </div>
             <div class="form-group">
               <label for="whatsappAdminGroupIdInput">WhatsApp Admin Group ID (جروب الإدارة لإشعار الطلبات)</label>
@@ -620,19 +659,19 @@
             <h4 style="margin: 20px 0 10px 0; color: var(--purple-glow); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">إعدادات بوابة الدفع (Stripe)</h4>
             <div class="form-group">
               <label for="stripeSecretKeyInput">Stripe Secret Key (sk_test_... / sk_live_...)</label>
-              <input type="text" id="stripeSecretKeyInput" required>
+              <input type="text" id="stripeSecretKeyInput">
             </div>
             <div class="form-group">
               <label for="stripeWebhookSecretInput">Stripe Webhook Secret (whsec_...)</label>
-              <input type="text" id="stripeWebhookSecretInput" required>
+              <input type="text" id="stripeWebhookSecretInput">
             </div>
             <div class="form-group">
               <label for="stripeSuccessUrlInput">Redirect Success URL (بعد نجاح الدفع)</label>
-              <input type="text" id="stripeSuccessUrlInput" required>
+              <input type="text" id="stripeSuccessUrlInput">
             </div>
             <div class="form-group">
               <label for="stripeCancelUrlInput">Redirect Cancel URL (في حال إلغاء الدفع)</label>
-              <input type="text" id="stripeCancelUrlInput" required>
+              <input type="text" id="stripeCancelUrlInput">
             </div>
 
             <!-- Change Password -->
@@ -753,6 +792,7 @@
         document.getElementById('tabOverview').classList.add('active');
         fetchStats();
         fetchOrders();
+        fetchShopDetails();
       } else if (tab === 'products') {
         document.getElementById('tabProducts').classList.add('active');
         fetchProducts();
@@ -787,15 +827,55 @@
         document.getElementById('shopDomain').textContent = `${shop.subdomain}.wardat.xyz`;
 
         // Settings inputs
-        document.getElementById('shopNameInput').value = shop.name;
-        document.getElementById('whatsappPhoneIdInput').value = shop.whatsappPhoneId;
-        document.getElementById('whatsappVerifyTokenInput').value = shop.whatsappVerifyToken;
-        document.getElementById('whatsappTokenInput').value = shop.whatsappToken;
+        document.getElementById('shopNameInput').value = shop.name || '';
+        document.getElementById('whatsappPhoneIdInput').value = shop.whatsappPhoneId || '';
+        document.getElementById('whatsappVerifyTokenInput').value = shop.whatsappVerifyToken || '';
+        document.getElementById('whatsappTokenInput').value = shop.whatsappToken || '';
         document.getElementById('whatsappAdminGroupIdInput').value = shop.whatsappAdminGroupId || '';
-        document.getElementById('stripeSecretKeyInput').value = shop.stripeSecretKey;
-        document.getElementById('stripeWebhookSecretInput').value = shop.stripeWebhookSecret;
-        document.getElementById('stripeSuccessUrlInput').value = shop.stripeSuccessUrl;
-        document.getElementById('stripeCancelUrlInput').value = shop.stripeCancelUrl;
+        document.getElementById('stripeSecretKeyInput').value = shop.stripeSecretKey || '';
+        document.getElementById('stripeWebhookSecretInput').value = shop.stripeWebhookSecret || '';
+        document.getElementById('stripeSuccessUrlInput').value = shop.stripeSuccessUrl || '';
+        document.getElementById('stripeCancelUrlInput').value = shop.stripeCancelUrl || '';
+
+        // Render Subscription Card Info
+        const planNames = {
+          'SILVER': '🥈 الباقة الفضية (Silver)',
+          'GOLD': '🥇 الباقة الذهبية (Gold)',
+          'PLATINUM': '💎 الباقة البلاتينية (Platinum)'
+        };
+        const planText = planNames[shop.subscriptionPlan] || shop.subscriptionPlan;
+        
+        let subDetailsHtml = '';
+        if (shop.isExpired) {
+          subDetailsHtml = `<span style="color: var(--danger); font-weight: bold;">${planText}</span><br><span style="font-size: 0.95rem; color: var(--text-sub);">الاشتراك منتهٍ</span>`;
+        } else {
+          subDetailsHtml = `<span style="color: var(--success); font-weight: bold;">${planText}</span><br><span style="font-size: 0.95rem; color: var(--text-sub);">متبقي ${shop.daysRemaining} يوم</span>`;
+        }
+        document.getElementById('statSubscription').innerHTML = subDetailsHtml;
+
+        // Handle Alert Banners
+        const banner = document.getElementById('subscriptionBanner');
+        if (shop.isExpired) {
+          banner.className = 'alert-banner expired';
+          banner.style.display = 'flex';
+          banner.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span>⚠️</span>
+              <span><strong>تنبيه هام:</strong> اشتراكك منتهٍ أو موقوف! تم إيقاف ردود البوت وتلقي الطلبات تلقائياً. يرجى التواصل مع الإدارة للتجديد.</span>
+            </div>
+          `;
+        } else if (shop.daysRemaining <= 7) {
+          banner.className = 'alert-banner warning';
+          banner.style.display = 'flex';
+          banner.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span>⚠️</span>
+              <span><strong>تنبيه:</strong> اشتراكك ينتهي قريباً! متبقي <strong>${shop.daysRemaining}</strong> أيام على انتهاء اشتراكك. يرجى التجديد لتفادي توقف الخدمة.</span>
+            </div>
+          `;
+        } else {
+          banner.style.display = 'none';
+        }
       } catch (err) {
         console.error('Failed to fetch shop details');
       }

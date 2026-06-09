@@ -312,6 +312,41 @@
       margin-bottom: 20px;
       display: none;
     }
+
+    .status-tag {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      display: inline-block;
+    }
+
+    .status-tag.confirmed {
+      background: rgba(0, 230, 118, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(0, 230, 118, 0.25);
+    }
+
+    .status-tag.failed {
+      background: rgba(255, 75, 75, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(255, 75, 75, 0.25);
+    }
+
+    select {
+      width: 100%;
+      padding: 12px 15px;
+      border-radius: 8px;
+      border: 1px solid var(--glass-border);
+      background: rgba(0,0,0,0.3);
+      color: var(--text-main);
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    select:focus {
+      border-color: var(--pink-glow);
+    }
   </style>
 </head>
 <body>
@@ -360,16 +395,17 @@
             <th>اسم المتجر</th>
             <th>النطاق الفرعي (Subdomain)</th>
             <th>اسم المستخدم</th>
-            <th>معرف الواتساب (Phone ID)</th>
+            <th>باقة الاشتراك</th>
+            <th>حالة الاشتراك</th>
+            <th>تاريخ الانتهاء</th>
             <th>المنتجات</th>
             <th>الطلبات</th>
-            <th>تاريخ التسجيل</th>
             <th>الإجراءات</th>
           </tr>
         </thead>
         <tbody id="shopTableBody">
           <tr>
-            <td colspan="8" style="text-align:center; color: var(--text-sub);">جاري تحميل المتاجر...</td>
+            <td colspan="9" style="text-align:center; color: var(--text-sub);">جاري تحميل المتاجر...</td>
           </tr>
         </tbody>
       </table>
@@ -404,6 +440,25 @@
           <div class="form-group">
             <label for="password">كلمة المرور</label>
             <input type="password" id="password" placeholder="أدخل كلمة مرور قوية" required>
+          </div>
+
+          <!-- Subscription Details -->
+          <div class="form-group">
+            <label for="subscriptionPlan">خطة الاشتراك</label>
+            <select id="subscriptionPlan" required>
+              <option value="SILVER">🥈 الباقة الفضية (Silver)</option>
+              <option value="GOLD">🥇 الباقة الذهبية (Gold)</option>
+              <option value="PLATINUM">💎 الباقة البلاتينية (Platinum)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="subscriptionDurationMonths">فترة الاشتراك الأولى</label>
+            <select id="subscriptionDurationMonths" required>
+              <option value="1">1 شهر (1 Month)</option>
+              <option value="3">3 أشهر (3 Months)</option>
+              <option value="6">6 أشهر (6 Months)</option>
+              <option value="12">سنة كاملة (12 Months)</option>
+            </select>
           </div>
 
           <!-- WhatsApp Cloud API -->
@@ -446,6 +501,51 @@
         <div class="modal-actions">
           <button type="button" class="btn-cancel" onclick="closeModal()">إلغاء</button>
           <button type="submit" class="btn-save">تسجيل وتفعيل المتجر</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal for Managing/Renewing Shop Subscription -->
+  <div id="renewModal" class="modal">
+    <div class="modal-content" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3>تجديد وإدارة اشتراك المتجر</h3>
+        <span class="modal-close" onclick="closeRenewModal()">&times;</span>
+      </div>
+      <form id="renewForm" onsubmit="saveRenew(event)">
+        <input type="hidden" id="renewShopId">
+        <div class="form-group" style="text-align: right;">
+          <label id="renewShopName" style="font-weight: bold; font-size: 1.1rem; margin-bottom: 20px;"></label>
+        </div>
+        <div class="form-group">
+          <label for="renewPlan">تغيير باقة الاشتراك</label>
+          <select id="renewPlan" required>
+            <option value="SILVER">🥈 الباقة الفضية (Silver)</option>
+            <option value="GOLD">🥇 الباقة الذهبية (Gold)</option>
+            <option value="PLATINUM">💎 الباقة البلاتينية (Platinum)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="renewDuration">تمديد الاشتراك بـ</label>
+          <select id="renewDuration" required>
+            <option value="0">بدون تمديد (تغيير الخطة فقط)</option>
+            <option value="1">تمديد 1 شهر (1 Month)</option>
+            <option value="3">تمديد 3 أشهر (3 Months)</option>
+            <option value="6">تمديد 6 أشهر (6 Months)</option>
+            <option value="12">تمديد سنة كاملة (12 Months)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="renewStatus">حالة الاشتراك</label>
+          <select id="renewStatus" required>
+            <option value="ACTIVE">نشط (Active)</option>
+            <option value="SUSPENDED">موقوف مؤقتاً (Suspended)</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="closeRenewModal()">إلغاء</button>
+          <button type="submit" class="btn-save">حفظ التغييرات</button>
         </div>
       </form>
     </div>
@@ -496,28 +596,46 @@
         tbody.innerHTML = '';
 
         if (shops.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color: var(--text-sub);">لا يوجد متاجر مسجلة حالياً</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color: var(--text-sub);">لا يوجد متاجر مسجلة حالياً</td></tr>`;
           return;
         }
 
         shops.forEach(shop => {
+          let statusClass = 'confirmed';
+          let statusLabel = 'نشط';
+
+          const now = Date.now();
+          const end = shop.subscriptionEnd ? new Date(shop.subscriptionEnd).getTime() : 0;
+          const isExpired = end ? now > end : true;
+
+          if (isExpired || shop.subscriptionStatus !== 'ACTIVE') {
+            statusClass = 'failed';
+            statusLabel = shop.subscriptionStatus === 'SUSPENDED' ? 'موقوف' : 'منتهي';
+          }
+
+          let planName = '🥈 فضية';
+          if (shop.subscriptionPlan === 'GOLD') planName = '🥇 ذهبية';
+          if (shop.subscriptionPlan === 'PLATINUM') planName = '💎 بلاتينية';
+
           const row = document.createElement('tr');
           row.innerHTML = `
             <td style="font-weight: 500;">${shop.name}</td>
             <td style="font-family: 'Outfit';">${shop.subdomain}.wardat.xyz</td>
             <td>${shop.username}</td>
-            <td style="font-family: 'Outfit'; font-size: 0.85rem; color: var(--text-sub);">${shop.whatsappPhoneId}</td>
+            <td><strong>${planName}</strong></td>
+            <td><span class="status-tag ${statusClass}">${statusLabel}</span></td>
+            <td style="font-size: 0.85rem; color: var(--text-sub);">${shop.subscriptionEnd ? new Date(shop.subscriptionEnd).toLocaleDateString('ar-SA') : 'غير محدد'}</td>
             <td>${shop.productsCount}</td>
             <td>${shop.ordersCount}</td>
-            <td style="font-size: 0.85rem; color: var(--text-sub);">${new Date(shop.createdAt).toLocaleDateString('ar-SA')}</td>
             <td>
+              <button class="btn-edit" onclick="openRenewModal('${shop.id}', '${shop.name}', '${shop.subscriptionPlan}', '${shop.subscriptionStatus}')" style="margin-left: 5px;">إدارة / تجديد</button>
               <button class="btn-delete" onclick="deleteShop('${shop.id}', '${shop.name}')">حذف</button>
             </td>
           `;
           tbody.appendChild(row);
         });
       } catch (err) {
-        document.getElementById('shopTableBody').innerHTML = `<tr><td colspan="8" style="text-align:center; color: var(--danger);">فشل تحميل المتاجر</td></tr>`;
+        document.getElementById('shopTableBody').innerHTML = `<tr><td colspan="9" style="text-align:center; color: var(--danger);">فشل تحميل المتاجر</td></tr>`;
       }
     }
 
@@ -541,14 +659,16 @@
         subdomain: document.getElementById('subdomain').value.trim().toLowerCase(),
         username: document.getElementById('username').value.trim(),
         password: document.getElementById('password').value,
-        whatsappPhoneId: document.getElementById('whatsappPhoneId').value.trim(),
-        whatsappToken: document.getElementById('whatsappToken').value.trim(),
-        whatsappVerifyToken: document.getElementById('whatsappVerifyToken').value.trim(),
-        stripeSecretKey: document.getElementById('stripeSecretKey').value.trim(),
-        stripeWebhookSecret: document.getElementById('stripeWebhookSecret').value.trim(),
-        stripeSuccessUrl: document.getElementById('stripeSuccessUrl').value.trim(),
-        stripeCancelUrl: document.getElementById('stripeCancelUrl').value.trim(),
-        whatsappAdminGroupId: document.getElementById('whatsappAdminGroupId').value.trim(),
+        subscriptionPlan: document.getElementById('subscriptionPlan').value,
+        subscriptionDurationMonths: document.getElementById('subscriptionDurationMonths').value,
+        whatsappPhoneId: document.getElementById('whatsappPhoneId').value.trim() || null,
+        whatsappToken: document.getElementById('whatsappToken').value.trim() || null,
+        whatsappVerifyToken: document.getElementById('whatsappVerifyToken').value.trim() || null,
+        stripeSecretKey: document.getElementById('stripeSecretKey').value.trim() || null,
+        stripeWebhookSecret: document.getElementById('stripeWebhookSecret').value.trim() || null,
+        stripeSuccessUrl: document.getElementById('stripeSuccessUrl').value.trim() || null,
+        stripeCancelUrl: document.getElementById('stripeCancelUrl').value.trim() || null,
+        whatsappAdminGroupId: document.getElementById('whatsappAdminGroupId').value.trim() || null,
       };
 
       try {
@@ -586,6 +706,50 @@
           throw new Error(data.error || 'فشل في حذف المتجر');
         }
 
+        fetchStats();
+        fetchShops();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function openRenewModal(id, name, currentPlan, currentStatus) {
+      document.getElementById('renewShopId').value = id;
+      document.getElementById('renewShopName').textContent = `متجر: ${name}`;
+      document.getElementById('renewPlan').value = currentPlan;
+      document.getElementById('renewStatus').value = currentStatus;
+      document.getElementById('renewDuration').value = '0';
+      document.getElementById('renewModal').style.display = 'flex';
+    }
+
+    function closeRenewModal() {
+      document.getElementById('renewModal').style.display = 'none';
+    }
+
+    async function saveRenew(e) {
+      e.preventDefault();
+      const shopId = document.getElementById('renewShopId').value;
+      const payload = {
+        subscriptionPlan: document.getElementById('renewPlan').value,
+        subscriptionStatus: document.getElementById('renewStatus').value,
+      };
+
+      const duration = document.getElementById('renewDuration').value;
+      if (duration !== '0') {
+        payload.subscriptionDurationMonths = duration;
+      }
+
+      try {
+        const res = await fetch(`/api/admin/shops/${shopId}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'فشل في تحديث الاشتراك');
+
+        closeRenewModal();
         fetchStats();
         fetchShops();
       } catch (err) {

@@ -87,6 +87,9 @@ router.get('/admin/shops', authenticateSuperAdmin, async (req, res) => {
         createdAt: s.createdAt,
         productsCount: s._count.products,
         ordersCount: s._count.orders,
+        subscriptionPlan: s.subscriptionPlan,
+        subscriptionEnd: s.subscriptionEnd,
+        subscriptionStatus: s.subscriptionStatus,
       }))
     );
   } catch (err: any) {
@@ -108,6 +111,8 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
     stripeSuccessUrl,
     stripeCancelUrl,
     whatsappAdminGroupId,
+    subscriptionPlan,
+    subscriptionDurationMonths,
   } = req.body;
 
   if (!name || !subdomain || !username || !password) {
@@ -138,6 +143,9 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
       }
     }
 
+    const months = subscriptionDurationMonths ? parseInt(subscriptionDurationMonths) : 1;
+    const subscriptionEnd = new Date(Date.now() + months * 30 * 24 * 60 * 60 * 1000);
+
     const shop = await prisma.shop.create({
       data: {
         name,
@@ -152,6 +160,9 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
         stripeSuccessUrl: stripeSuccessUrl || null,
         stripeCancelUrl: stripeCancelUrl || null,
         whatsappAdminGroupId: whatsappAdminGroupId || null,
+        subscriptionPlan: subscriptionPlan || 'SILVER',
+        subscriptionStatus: 'ACTIVE',
+        subscriptionEnd: subscriptionEnd,
       },
     });
 
@@ -167,6 +178,43 @@ router.delete('/admin/shops/:id', authenticateSuperAdmin, async (req, res) => {
       where: { id: req.params.id as string },
     });
     res.json({ message: 'تم حذف المتجر وبياناته بنجاح' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/admin/shops/:id', authenticateSuperAdmin, async (req, res) => {
+  const { subscriptionPlan, subscriptionDurationMonths, subscriptionStatus } = req.body;
+
+  try {
+    const shop = await prisma.shop.findUnique({
+      where: { id: req.params.id as string },
+    });
+
+    if (!shop) {
+      return res.status(404).json({ error: 'المتجر غير موجود' });
+    }
+
+    const updateData: any = {};
+    if (subscriptionPlan) updateData.subscriptionPlan = subscriptionPlan;
+    if (subscriptionStatus) updateData.subscriptionStatus = subscriptionStatus;
+
+    if (subscriptionDurationMonths) {
+      const months = parseInt(subscriptionDurationMonths);
+      const baseDate = shop.subscriptionEnd && new Date(shop.subscriptionEnd) > new Date()
+        ? new Date(shop.subscriptionEnd)
+        : new Date();
+
+      updateData.subscriptionEnd = new Date(baseDate.getTime() + months * 30 * 24 * 60 * 60 * 1000);
+      updateData.subscriptionStatus = 'ACTIVE';
+    }
+
+    const updated = await prisma.shop.update({
+      where: { id: req.params.id as string },
+      data: updateData,
+    });
+
+    res.json({ message: 'تم تحديث خطة اشتراك المتجر بنجاح', shop: updated });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -205,7 +253,18 @@ router.get('/shop/details', authenticateShop, async (req, res) => {
 
     // Do not return hashed password
     const { password, ...details } = shop;
-    res.json(details);
+
+    const now = Date.now();
+    const end = shop.subscriptionEnd ? new Date(shop.subscriptionEnd).getTime() : 0;
+    const diffTime = end - now;
+    const daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    const isExpired = end ? now > end : true;
+
+    res.json({
+      ...details,
+      daysRemaining,
+      isExpired: isExpired || shop.subscriptionStatus !== 'ACTIVE',
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

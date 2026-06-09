@@ -23,10 +23,21 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
   }
 
   const whatsappConfig: WhatsAppConfig = {
-    token: shop.whatsappToken,
-    phoneId: shop.whatsappPhoneId,
+    token: shop.whatsappToken || '',
+    phoneId: shop.whatsappPhoneId || '',
     adminGroupId: shop.whatsappAdminGroupId,
   };
+
+  // 1.1 Check if subscription is expired or suspended
+  const isExpired = shop.subscriptionEnd && new Date() > new Date(shop.subscriptionEnd);
+  if (isExpired || shop.subscriptionStatus === 'EXPIRED' || shop.subscriptionStatus === 'SUSPENDED') {
+    // Only reply if it was a text message (avoid infinite loops on status changes)
+    if (msg.type === 'text' && msg.text?.body) {
+      await sendTextMessage(whatsappConfig, phone, "نعتذر منك، خدمة الرد الآلي متوقفة حالياً للتجديد. سيتواصل معك فريق الدعم قريباً.");
+    }
+    logger.warn(`[Agent1] Message blocked. Subscription expired or suspended for shop: ${shop.name} (${shop.id})`);
+    return;
+  }
 
   // 2. Fetch session from DB
   const session = await getSession(phone, shopId);
