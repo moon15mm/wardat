@@ -1,8 +1,8 @@
 import { WhatsAppMessage, Product, Session } from '../types';
 import { getSession } from '../services/session';
 import { getAIResponse, classifyIntent } from '../services/openai';
-import { sendTextMessage, sendLocationRequest, WhatsAppConfig } from '../services/whatsapp';
-import { getAllProducts, getProductByName, formatProductList } from '../products';
+import { sendTextMessage, sendImageMessage, sendLocationRequest, WhatsAppConfig } from '../services/whatsapp';
+import { getAllProducts, getProductByName, formatProductList, sendProductCatalog } from '../products';
 import { generateOrderId, formatPrice } from '../utils/helpers';
 import { processPayment } from './agent-2-payment';
 import { addOrder } from './agent-3-excel';
@@ -144,15 +144,14 @@ async function handleGreeting(
   intent: string,
   session: Session
 ): Promise<void> {
-  const greeting = 'أهلاً وسهلاً بك في متجرنا! 🌹\n\nيسعدنا خدمتك. هل تود الاطلاع على منتجاتنا؟';
+  const greeting = 'أهلاً وسهلاً بك في متجرنا! 🌹\n\nيسعدنا خدمتك. دعنا نعرض لك منتجاتنا 🛒';
 
   await sendTextMessage(whatsappConfig, phone, greeting);
   session.messages.push({ role: 'assistant', content: greeting });
   session.state = 'BROWSING';
 
-  const productList = await formatProductList(shopId);
-  await sendTextMessage(whatsappConfig, phone, productList);
-  session.messages.push({ role: 'assistant', content: productList });
+  const catalogResult = await sendProductCatalog(shopId, whatsappConfig, phone, sendTextMessage, sendImageMessage);
+  session.messages.push({ role: 'assistant', content: catalogResult });
   session.state = 'SELECTING_PRODUCT';
 }
 
@@ -164,9 +163,8 @@ async function handleBrowsing(
   intent: { intent: string; extractedData?: Record<string, string> },
   session: Session
 ): Promise<void> {
-  const productList = await formatProductList(shopId);
-  await sendTextMessage(whatsappConfig, phone, productList);
-  session.messages.push({ role: 'assistant', content: productList });
+  const catalogResult = await sendProductCatalog(shopId, whatsappConfig, phone, sendTextMessage, sendImageMessage);
+  session.messages.push({ role: 'assistant', content: catalogResult });
   session.state = 'SELECTING_PRODUCT';
 }
 
@@ -207,9 +205,24 @@ async function handleProductSelection(
   session.orderData.productImageUrl = selected.imageUrl;
   session.orderData.productId = selected.id;
 
-  const confirmation = `اختيار ممتاز! ✨\n\n${selected.name}\n${selected.description}\nالسعر: ${formatPrice(selected.price)}\n\nلإتمام الطلب، أحتاج بعض المعلومات.\nما اسمك الكريم؟`;
+  const confirmation = `✨ *اختيار ممتاز!* ✨\n` +
+    `━━━━━━━━━━━━━━\n` +
+    `🌹 *${selected.name}*\n` +
+    (selected.description ? `📝 ${selected.description}\n` : '') +
+    `💰 *السعر: ${formatPrice(selected.price)}*\n` +
+    `━━━━━━━━━━━━━━\n\n` +
+    `لإتمام الطلب، أحتاج بعض المعلومات.\n` +
+    `ما اسمك الكريم؟ 🙏`;
 
-  await sendTextMessage(whatsappConfig, phone, confirmation);
+  if (selected.imageUrl && selected.imageUrl.trim() !== '') {
+    try {
+      await sendImageMessage(whatsappConfig, phone, selected.imageUrl, confirmation);
+    } catch (err) {
+      await sendTextMessage(whatsappConfig, phone, confirmation);
+    }
+  } else {
+    await sendTextMessage(whatsappConfig, phone, confirmation);
+  }
   session.messages.push({ role: 'assistant', content: confirmation });
   session.state = 'COLLECTING_NAME';
 }
