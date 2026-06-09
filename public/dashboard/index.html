@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة التحكم بالمتجر | Wardat SaaS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f0c20 0%, #15102a 50%, #060214 100%);
+      --pink-glow: #ff2d81;
+      --purple-glow: #8e2de2;
+      --text-main: #f5f3f7;
+      --text-sub: #b1a9c3;
+      --glass-bg: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.07);
+      --glass-hover: rgba(255, 255, 255, 0.06);
+      --danger: #ff4b4b;
+      --success: #00e676;
+      --warning: #ffb300;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Tajawal', 'Outfit', sans-serif;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      color: var(--text-main);
+      overflow-x: hidden;
+      padding: 20px;
+    }
+
+    .dashboard-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header styling */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border-radius: 18px;
+      padding: 15px 30px;
+      margin-bottom: 25px;
+    }
+
+    .logo-container h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .shop-info {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .btn-logout {
+      background: rgba(255, 75, 75, 0.1);
+      border: 1px solid rgba(255, 75, 75, 0.2);
+      color: #ff6b6b;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+
+    .btn-logout:hover {
+      background: rgba(255, 75, 75, 0.2);
+    }
+
+    /* Tab navigation bar */
+    .tabs-nav {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 25px;
+      border-bottom: 1px solid var(--glass-border);
+      padding-bottom: 10px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-sub);
+      padding: 10px 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: var(--glass-hover);
+    }
+
+    .tab-btn.active {
+      color: white;
+      background: linear-gradient(to right, var(--pink-glow), var(--purple-glow));
+      box-shadow: 0 4px 15px rgba(255, 45, 129, 0.2);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 25px 20px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    .stat-title {
+      font-size: 0.9rem;
+      color: var(--text-sub);
+      margin-bottom: 10px;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    /* Table & Card styles */
+    .card-panel {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 25px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      margin-bottom: 30px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: right;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    th {
+      color: var(--text-sub);
+      font-weight: 500;
+    }
+
+    tr:hover td {
+      background: var(--glass-hover);
+    }
+
+    /* Status Tags */
+    .status-tag {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      display: inline-block;
+    }
+
+    .status-tag.pending {
+      background: rgba(255, 179, 0, 0.15);
+      color: var(--warning);
+      border: 1px solid rgba(255, 179, 0, 0.25);
+    }
+
+    .status-tag.confirmed {
+      background: rgba(0, 230, 118, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(0, 230, 118, 0.25);
+    }
+
+    .status-tag.failed {
+      background: rgba(255, 75, 75, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(255, 75, 75, 0.25);
+    }
+
+    /* Products Section Styling */
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 25px;
+    }
+
+    .product-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.3s ease;
+    }
+
+    .product-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .product-img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      background: rgba(0,0,0,0.2);
+    }
+
+    .product-details {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+    }
+
+    .product-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .product-desc {
+      color: var(--text-sub);
+      font-size: 0.85rem;
+      margin-bottom: 15px;
+      line-height: 1.4;
+      flex-grow: 1;
+    }
+
+    .product-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: auto;
+      border-top: 1px solid var(--glass-border);
+      padding-top: 15px;
+    }
+
+    .product-price {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--pink-glow);
+    }
+
+    .product-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-edit, .btn-p-delete {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s ease;
+    }
+
+    .btn-edit {
+      background: transparent;
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+    }
+
+    .btn-edit:hover {
+      background: var(--glass-hover);
+    }
+
+    .btn-p-delete {
+      background: transparent;
+      border: 1px solid rgba(255, 75, 75, 0.3);
+      color: #ff6b6b;
+    }
+
+    .btn-p-delete:hover {
+      background: rgba(255, 75, 75, 0.15);
+    }
+
+    .btn-add-product {
+      background: linear-gradient(to right, var(--pink-glow), var(--purple-glow));
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: #120d24;
+      border: 1px solid var(--glass-border);
+      width: 100%;
+      max-width: 500px;
+      border-radius: 20px;
+      padding: 25px;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--glass-border);
+      padding-bottom: 12px;
+    }
+
+    .modal-close {
+      cursor: pointer;
+      font-size: 1.5rem;
+      color: var(--text-sub);
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+      text-align: right;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      margin-bottom: 8px;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 12px 15px;
+      border-radius: 8px;
+      border: 1px solid var(--glass-border);
+      background: rgba(0,0,0,0.3);
+      color: var(--text-main);
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--pink-glow);
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-direction: row-reverse;
+      justify-content: flex-end;
+    }
+
+    .checkbox-group input {
+      width: auto;
+      cursor: pointer;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 15px;
+      margin-top: 25px;
+      border-top: 1px solid var(--glass-border);
+      padding-top: 20px;
+    }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .btn-save {
+      background: linear-gradient(to right, var(--pink-glow), var(--purple-glow));
+      border: none;
+      color: white;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Settings section styles */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 30px;
+    }
+
+    @media (max-width: 900px) {
+      .settings-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .guide-panel {
+      background: rgba(142, 45, 226, 0.05);
+      border: 1px solid rgba(142, 45, 226, 0.15);
+      border-radius: 16px;
+      padding: 25px;
+      color: var(--text-main);
+    }
+
+    .guide-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+      color: #9d4edd;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .guide-steps {
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--text-sub);
+      padding-right: 20px;
+    }
+
+    .guide-steps li {
+      margin-bottom: 12px;
+    }
+
+    .code-box {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--glass-border);
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-family: 'Outfit', monospace;
+      font-size: 0.85rem;
+      color: var(--pink-glow);
+      word-break: break-all;
+      margin: 10px 0;
+      user-select: all;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="dashboard-container">
+    <header>
+      <div class="logo-container">
+        <h1 id="shopTitleName">لوحة تحكم المتجر | WARDAT</h1>
+      </div>
+      <div class="shop-info">
+        <span id="shopDomain" style="color: var(--text-sub); font-family: 'Outfit'; font-size: 0.95rem;">-</span>
+        <button class="btn-logout" onclick="logout()">خروج</button>
+      </div>
+    </header>
+
+    <!-- Tab navigation -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" onclick="switchTab('overview')">الرئيسية (Overview)</button>
+      <button class="tab-btn" onclick="switchTab('products')">إدارة المنتجات (Products)</button>
+      <button class="tab-btn" onclick="switchTab('settings')">إعدادات الربط والمدفوعات</button>
+    </div>
+
+    <!-- TABS CONTENT -->
+
+    <!-- 1. OVERVIEW TAB -->
+    <div id="tabOverview" class="tab-content active">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-title">المنتجات المتوفرة</div>
+          <div class="stat-value" id="statProducts" style="color: var(--success);">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">إجمالي المبيعات المؤكدة</div>
+          <div class="stat-value" id="statSales" style="color: var(--pink-glow);">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">إجمالي الطلبات المستلمة</div>
+          <div class="stat-value" id="statOrders" style="color: var(--purple-glow);">-</div>
+        </div>
+      </div>
+
+      <div class="card-panel">
+        <div class="panel-header">
+          <h3>سجل المبيعات والطلبات الأخيرة</h3>
+        </div>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>رقم الطلب</th>
+                <th>اسم العميل</th>
+                <th>رقم الجوال</th>
+                <th>اسم المستلم</th>
+                <th>المنتج المطلوب</th>
+                <th>المبلغ (ريال)</th>
+                <th>حالة الدفع</th>
+                <th>رقم العملية والبطاقة</th>
+                <th>رابط خرائط جوجل</th>
+                <th>تاريخ الطلب</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+              <tr>
+                <td colspan="10" style="text-align: center; color: var(--text-sub);">جاري تحميل سجل الطلبات...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. PRODUCTS TAB -->
+    <div id="tabProducts" class="tab-content">
+      <div class="panel-header">
+        <h2>إدارة منتجات المحل</h2>
+        <button class="btn-add-product" onclick="openProductModal()">إضافة منتج جديد +</button>
+      </div>
+
+      <div class="product-grid" id="productGrid">
+        <!-- Loaded via JS -->
+      </div>
+    </div>
+
+    <!-- 3. SETTINGS TAB -->
+    <div id="tabSettings" class="tab-content">
+      <div class="settings-grid">
+        <!-- Settings Form -->
+        <div class="card-panel" style="margin-bottom:0;">
+          <h3>إعدادات الربط والدفع الخاصة بالمتجر</h3>
+          <p style="color: var(--text-sub); font-size:0.85rem; margin-bottom: 20px;">قم بوضع مفاتيح Stripe وواتساب الحقيقية لتفعيل البوت واستلام المدفوعات.</p>
+
+          <form id="settingsForm" onsubmit="saveSettings(event)">
+            <!-- Basic Config -->
+            <div class="form-group">
+              <label for="shopNameInput">اسم المتجر المعروض</label>
+              <input type="text" id="shopNameInput" required>
+            </div>
+
+            <!-- WhatsApp Configuration -->
+            <h4 style="margin: 20px 0 10px 0; color: var(--pink-glow); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">إعدادات Meta / WhatsApp Cloud API</h4>
+            <div class="form-group">
+              <label for="whatsappPhoneIdInput">WhatsApp Phone Number ID</label>
+              <input type="text" id="whatsappPhoneIdInput" required>
+            </div>
+            <div class="form-group">
+              <label for="whatsappVerifyTokenInput">Verify Token (رمز التحقق الخاص بالمتجر)</label>
+              <input type="text" id="whatsappVerifyTokenInput" required>
+            </div>
+            <div class="form-group">
+              <label for="whatsappTokenInput">System User Access Token</label>
+              <input type="text" id="whatsappTokenInput" required>
+            </div>
+            <div class="form-group">
+              <label for="whatsappAdminGroupIdInput">WhatsApp Admin Group ID (جروب الإدارة لإشعار الطلبات)</label>
+              <input type="text" id="whatsappAdminGroupIdInput">
+            </div>
+
+            <!-- Stripe Configuration -->
+            <h4 style="margin: 20px 0 10px 0; color: var(--purple-glow); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">إعدادات بوابة الدفع (Stripe)</h4>
+            <div class="form-group">
+              <label for="stripeSecretKeyInput">Stripe Secret Key (sk_test_... / sk_live_...)</label>
+              <input type="text" id="stripeSecretKeyInput" required>
+            </div>
+            <div class="form-group">
+              <label for="stripeWebhookSecretInput">Stripe Webhook Secret (whsec_...)</label>
+              <input type="text" id="stripeWebhookSecretInput" required>
+            </div>
+            <div class="form-group">
+              <label for="stripeSuccessUrlInput">Redirect Success URL (بعد نجاح الدفع)</label>
+              <input type="text" id="stripeSuccessUrlInput" required>
+            </div>
+            <div class="form-group">
+              <label for="stripeCancelUrlInput">Redirect Cancel URL (في حال إلغاء الدفع)</label>
+              <input type="text" id="stripeCancelUrlInput" required>
+            </div>
+
+            <!-- Change Password -->
+            <h4 style="margin: 20px 0 10px 0; color: var(--text-main); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">تغيير كلمة المرور</h4>
+            <div class="form-group">
+              <label for="shopPasswordInput">كلمة المرور الجديدة (اتركها فارغة إذا لم ترغب في التغيير)</label>
+              <input type="password" id="shopPasswordInput" placeholder="أدخل كلمة مرور جديدة للوحة">
+            </div>
+
+            <button type="submit" class="btn-save" style="width:100%; margin-top:20px; padding: 12px;">حفظ وتحديث الإعدادات</button>
+          </form>
+        </div>
+
+        <!-- Documentation & Guide -->
+        <div class="guide-panel">
+          <div class="guide-title">
+            <span>⚙️ دليل ربط واتساب الأعمال وبوابة Stripe</span>
+          </div>
+          
+          <h4 style="color:var(--text-main); margin-bottom: 8px;">1. إعداد Webhook الواتساب في فيسبوك:</h4>
+          <ul class="guide-steps">
+            <li>اذهب إلى لوحة مطوري فيسبوك (Meta for Developers) ثم تطبيق الواتساب الخاص بك.</li>
+            <li>في قسم **Webhooks**، الصق رابط الـ Callback التالي:
+              <div class="code-box">https://wardat.xyz/webhook/whatsapp</div>
+            </li>
+            <li>ضع رمز التحقق (Verify Token) المطابق للرمز المسجل في النموذج على اليمين.</li>
+            <li>اشترك في حقل **messages** في إعدادات التطبيق.</li>
+          </ul>
+
+          <h4 style="color:var(--text-main); margin: 15px 0 8px 0;">2. إعداد Webhook الدفع في Stripe:</h4>
+          <ul class="guide-steps">
+            <li>ادخل إلى لوحة تحكم Stripe الخاصة بك ثم توجه لقسم المطورين (Developers) ثم **Webhooks**.</li>
+            <li>أضف عنوان إرسال جديد (Add endpoint) والصق الرابط التالي:
+              <div class="code-box">https://wardat.xyz/webhook/stripe</div>
+            </li>
+            <li>اختر إرسال الأحداث التالية فقط:
+              <br>`checkout.session.completed` و `checkout.session.expired`.
+            </li>
+            <li>انسخ المفتاح السري المسمى **Signing secret** (يبدأ بـ `whsec_`) وضعها في الحقل المخصص في الإعدادات على اليمين.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRODUCT EDIT/ADD MODAL -->
+  <div id="productModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">إضافة منتج جديد للمتجر</h3>
+        <span class="modal-close" onclick="closeProductModal()">&times;</span>
+      </div>
+
+      <form id="productForm" onsubmit="saveProduct(event)">
+        <input type="hidden" id="productId">
+        <div class="form-group">
+          <label for="pName">اسم المنتج/الباقة</label>
+          <input type="text" id="pName" placeholder="مثال: باقة ورود حمراء فاخرة" required>
+        </div>
+        <div class="form-group">
+          <label for="pDescription">تفاصيل المنتج</label>
+          <textarea id="pDescription" placeholder="أدخل تفاصيل ومكونات الباقة وميزاتها" rows="3" style="resize:none; padding:10px;"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="pPrice">السعر (ريال سعودي)</label>
+          <input type="number" id="pPrice" placeholder="مثال: 199" required min="1">
+        </div>
+        <div class="form-group">
+          <label for="pCategory">التصنيف</label>
+          <input type="text" id="pCategory" placeholder="مثال: ورد طبيعي، صناديق، هدايا">
+        </div>
+        <div class="form-group">
+          <label for="pImageUrl">رابط صورة المنتج (URL)</label>
+          <input type="text" id="pImageUrl" placeholder="https://example.com/image.jpg">
+        </div>
+        <div class="form-group checkbox-group">
+          <label for="pAvailable">المنتج متاح ومتوفر في المتجر</label>
+          <input type="checkbox" id="pAvailable" checked>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="closeProductModal()">إلغاء</button>
+          <button type="submit" class="btn-save">حفظ المنتج</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('wardat_token');
+    const role = localStorage.getItem('wardat_role');
+
+    // Authentication Guard
+    if (!token || role !== 'shop') {
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+
+    window.onload = () => {
+      fetchStats();
+      fetchOrders();
+      fetchProducts();
+      fetchShopDetails();
+    };
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+      event.target.classList.add('active');
+      
+      if (tab === 'overview') {
+        document.getElementById('tabOverview').classList.add('active');
+        fetchStats();
+        fetchOrders();
+      } else if (tab === 'products') {
+        document.getElementById('tabProducts').classList.add('active');
+        fetchProducts();
+      } else if (tab === 'settings') {
+        document.getElementById('tabSettings').classList.add('active');
+        fetchShopDetails();
+      }
+    }
+
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/shop/stats', { headers });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        
+        document.getElementById('statProducts').textContent = data.totalProducts;
+        document.getElementById('statSales').textContent = `${data.totalRevenue.toLocaleString()} ريال`;
+        document.getElementById('statOrders').textContent = data.totalOrders;
+      } catch (err) {
+        console.error('Failed to fetch stats');
+      }
+    }
+
+    async function fetchShopDetails() {
+      try {
+        const res = await fetch('/api/shop/details', { headers });
+        if (!res.ok) throw new Error();
+        const shop = await res.json();
+
+        // Header info
+        document.getElementById('shopTitleName').textContent = `لوحة تحكم | ${shop.name}`;
+        document.getElementById('shopDomain').textContent = `${shop.subdomain}.wardat.xyz`;
+
+        // Settings inputs
+        document.getElementById('shopNameInput').value = shop.name;
+        document.getElementById('whatsappPhoneIdInput').value = shop.whatsappPhoneId;
+        document.getElementById('whatsappVerifyTokenInput').value = shop.whatsappVerifyToken;
+        document.getElementById('whatsappTokenInput').value = shop.whatsappToken;
+        document.getElementById('whatsappAdminGroupIdInput').value = shop.whatsappAdminGroupId || '';
+        document.getElementById('stripeSecretKeyInput').value = shop.stripeSecretKey;
+        document.getElementById('stripeWebhookSecretInput').value = shop.stripeWebhookSecret;
+        document.getElementById('stripeSuccessUrlInput').value = shop.stripeSuccessUrl;
+        document.getElementById('stripeCancelUrlInput').value = shop.stripeCancelUrl;
+      } catch (err) {
+        console.error('Failed to fetch shop details');
+      }
+    }
+
+    async function saveSettings(e) {
+      e.preventDefault();
+      
+      const payload = {
+        name: document.getElementById('shopNameInput').value.trim(),
+        whatsappPhoneId: document.getElementById('whatsappPhoneIdInput').value.trim(),
+        whatsappVerifyToken: document.getElementById('whatsappVerifyTokenInput').value.trim(),
+        whatsappToken: document.getElementById('whatsappTokenInput').value.trim(),
+        whatsappAdminGroupId: document.getElementById('whatsappAdminGroupIdInput').value.trim(),
+        stripeSecretKey: document.getElementById('stripeSecretKeyInput').value.trim(),
+        stripeWebhookSecret: document.getElementById('stripeWebhookSecretInput').value.trim(),
+        stripeSuccessUrl: document.getElementById('stripeSuccessUrlInput').value.trim(),
+        stripeCancelUrl: document.getElementById('stripeCancelUrlInput').value.trim(),
+      };
+
+      const newPassword = document.getElementById('shopPasswordInput').value;
+      if (newPassword) {
+        payload.password = newPassword;
+      }
+
+      try {
+        const res = await fetch('/api/shop/details', {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error();
+        alert('تم تحديث إعدادات متجرك بنجاح! ✅');
+        document.getElementById('shopPasswordInput').value = '';
+        fetchShopDetails();
+      } catch (err) {
+        alert('عذراً، فشل تحديث الإعدادات');
+      }
+    }
+
+    async function fetchOrders() {
+      try {
+        const res = await fetch('/api/shop/orders', { headers });
+        if (!res.ok) throw new Error();
+        const orders = await res.json();
+
+        const tbody = document.getElementById('ordersTableBody');
+        tbody.innerHTML = '';
+
+        if (orders.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-sub);">لا يوجد طلبات مسجلة للمحل حالياً</td></tr>`;
+          return;
+        }
+
+        orders.forEach(order => {
+          let statusClass = 'pending';
+          let statusLabel = 'معلّق بالدفع';
+
+          if (order.paymentStatus === 'CONFIRMED') {
+            statusClass = 'confirmed';
+            statusLabel = 'مدفوع ومؤكد';
+          } else if (order.paymentStatus === 'FAILED') {
+            statusClass = 'failed';
+            statusLabel = 'دفع فاشل';
+          }
+
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td style="font-family: 'Outfit'; font-weight:bold;">${order.id}</td>
+            <td>${order.customerName}</td>
+            <td style="font-family: 'Outfit';">${order.customerPhone}</td>
+            <td>${order.recipientName}</td>
+            <td style="font-weight: 500;">${order.productName}</td>
+            <td style="font-family: 'Outfit'; color: var(--pink-glow); font-weight: bold;">${order.price}</td>
+            <td><span class="status-tag ${statusClass}">${statusLabel}</span></td>
+            <td style="font-family: 'Outfit'; font-size: 0.8rem; color: var(--text-sub);">${order.cardLast4 ? 'بطاقة: ' + order.cardLast4 : 'لا يوجد'}</td>
+            <td><a href="${order.locationUrl}" target="_blank" style="color:var(--purple-glow); font-size: 0.85rem; font-weight:bold;">عرض الخريطة 📍</a></td>
+            <td style="font-size: 0.85rem; color: var(--text-sub);">${new Date(order.timestamp).toLocaleString('ar-SA')}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (err) {
+        document.getElementById('ordersTableBody').innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger);">فشل تحميل سجل الطلبات</td></tr>`;
+      }
+    }
+
+    async function fetchProducts() {
+      try {
+        const res = await fetch('/api/shop/products', { headers });
+        if (!res.ok) throw new Error();
+        const products = await res.json();
+
+        const grid = document.getElementById('productGrid');
+        grid.innerHTML = '';
+
+        if (products.length === 0) {
+          grid.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color: var(--text-sub); padding:40px;">لا يوجد منتجات معروضة حالياً. اضغط على "إضافة منتج جديد" للبدء!</p>`;
+          return;
+        }
+
+        products.forEach(p => {
+          const card = document.createElement('div');
+          card.className = 'product-card';
+          card.innerHTML = `
+            <img class="product-img" src="${p.imageUrl || 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&q=80&w=400'}" alt="${p.name}">
+            <div class="product-details">
+              <div class="product-title">${p.name}</div>
+              <div class="product-desc">${p.description || 'لا يوجد تفاصيل إضافية للمنتج.'}</div>
+              <div class="product-meta">
+                <span class="product-price">${p.price} ر.س</span>
+                <div class="product-actions">
+                  <button class="btn-edit" onclick="editProduct('${p.id}', '${p.name}', '${p.description}', ${p.price}, '${p.imageUrl}', '${p.category}', ${p.available})">تعديل</button>
+                  <button class="btn-p-delete" onclick="deleteProduct('${p.id}', '${p.name}')">حذف</button>
+                </div>
+              </div>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      } catch (err) {
+        console.error('Failed to fetch products');
+      }
+    }
+
+    function openProductModal() {
+      document.getElementById('modalTitle').textContent = 'إضافة منتج جديد للمتجر';
+      document.getElementById('productId').value = '';
+      document.getElementById('productForm').reset();
+      document.getElementById('productModal').style.display = 'flex';
+    }
+
+    function closeProductModal() {
+      document.getElementById('productModal').style.display = 'none';
+    }
+
+    function editProduct(id, name, desc, price, img, category, available) {
+      document.getElementById('modalTitle').textContent = 'تعديل منتج المتجر';
+      document.getElementById('productId').value = id;
+      document.getElementById('pName').value = name;
+      document.getElementById('pDescription').value = desc === 'undefined' ? '' : desc;
+      document.getElementById('pPrice').value = price;
+      document.getElementById('pCategory').value = category === 'undefined' ? '' : category;
+      document.getElementById('pImageUrl').value = img === 'undefined' ? '' : img;
+      document.getElementById('pAvailable').checked = available;
+      document.getElementById('productModal').style.display = 'flex';
+    }
+
+    async function saveProduct(e) {
+      e.preventDefault();
+
+      const id = document.getElementById('productId').value;
+      const payload = {
+        name: document.getElementById('pName').value.trim(),
+        description: document.getElementById('pDescription').value.trim(),
+        price: parseFloat(document.getElementById('pPrice').value),
+        category: document.getElementById('pCategory').value.trim(),
+        imageUrl: document.getElementById('pImageUrl').value.trim(),
+        available: document.getElementById('pAvailable').checked
+      };
+
+      const url = id ? `/api/shop/products/${id}` : '/api/shop/products';
+      const method = id ? 'PUT' : 'POST';
+
+      try {
+        const res = await fetch(url, {
+          method,
+          headers,
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error();
+        closeProductModal();
+        fetchProducts();
+      } catch (err) {
+        alert('فشل في حفظ بيانات المنتج');
+      }
+    }
+
+    async function deleteProduct(id, name) {
+      if (!confirm(`هل أنت متأكد من رغبتك في حذف المنتج "${name}"؟`)) return;
+
+      try {
+        const res = await fetch(`/api/shop/products/${id}`, {
+          method: 'DELETE',
+          headers
+        });
+
+        if (!res.ok) throw new Error();
+        fetchProducts();
+      } catch (err) {
+        alert('فشل في حذف المنتج');
+      }
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+  </script>
+</body>
+</html>

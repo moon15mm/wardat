@@ -1,4 +1,5 @@
 import prisma from './services/db';
+import { hashPassword } from './utils/auth';
 
 async function main() {
   console.log('Seeding database...');
@@ -10,13 +11,15 @@ async function main() {
     create: {
       name: 'متجر ورود ديمو',
       subdomain: 'demo',
+      username: 'demo_admin',
+      password: hashPassword('demo123'),
       whatsappPhoneId: 'YOUR_WHATSAPP_PHONE_ID', // استبدله بمعرف رقم الواتساب الخاص بك
       whatsappToken: 'YOUR_WHATSAPP_ACCESS_TOKEN', // استبدله برمز الوصول الخاص بك
       whatsappVerifyToken: 'my_universal_token_123',
       stripeSecretKey: 'sk_test_your_key', // استبدله بمفتاح Stripe الخاص بك
       stripeWebhookSecret: 'whsec_your_webhook_secret',
-      stripeSuccessUrl: 'http://localhost:3000/success',
-      stripeCancelUrl: 'http://localhost:3000/cancel',
+      stripeSuccessUrl: 'https://demo.wardat.xyz/success',
+      stripeCancelUrl: 'https://demo.wardat.xyz/cancel',
       whatsappAdminGroupId: 'YOUR_ADMIN_GROUP_ID', // اختياري: معرف جروب الإدارة للتبليغ
     },
   });

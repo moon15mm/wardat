@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول | منصة وردات SaaS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f0c20 0%, #15102a 50%, #060214 100%);
+      --pink-glow: #ff2d81;
+      --purple-glow: #8e2de2;
+      --text-main: #f5f3f7;
+      --text-sub: #b1a9c3;
+      --glass-bg: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.07);
+      --glass-hover: rgba(255, 255, 255, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Tajawal', 'Outfit', sans-serif;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: var(--text-main);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Ambient background glows */
+    body::before, body::after {
+      content: '';
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      filter: blur(120px);
+      z-index: 0;
+      opacity: 0.4;
+    }
+    body::before {
+      background: var(--pink-glow);
+      top: 15%;
+      left: 15%;
+    }
+    body::after {
+      background: var(--purple-glow);
+      bottom: 15%;
+      right: 15%;
+    }
+
+    .container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 440px;
+      padding: 20px;
+    }
+
+    .login-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 24px;
+      padding: 40px 30px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+      text-align: center;
+      transition: transform 0.3s ease;
+    }
+
+    .logo {
+      font-size: 2.2rem;
+      font-weight: 700;
+      background: linear-gradient(to left, var(--pink-glow), var(--purple-glow));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+    }
+
+    .subtitle {
+      color: var(--text-sub);
+      font-size: 0.95rem;
+      margin-bottom: 35px;
+    }
+
+    .form-group {
+      margin-bottom: 22px;
+      text-align: right;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      margin-bottom: 8px;
+      padding-right: 4px;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+      background: rgba(0, 0, 0, 0.2);
+      color: var(--text-main);
+      font-size: 0.95rem;
+      outline: none;
+      transition: all 0.3s ease;
+      text-align: right;
+    }
+
+    input:focus {
+      border-color: var(--pink-glow);
+      box-shadow: 0 0 12px rgba(255, 45, 129, 0.2);
+      background: rgba(0, 0, 0, 0.35);
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(to right, var(--pink-glow), var(--purple-glow));
+      color: white;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 15px;
+      box-shadow: 0 4px 15px rgba(255, 45, 129, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(255, 45, 129, 0.5);
+    }
+
+    .btn-login:active {
+      transform: translateY(1px);
+    }
+
+    .error-msg {
+      background: rgba(255, 75, 75, 0.1);
+      border: 1px solid rgba(255, 75, 75, 0.25);
+      color: #ff6b6b;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+      display: none;
+      text-align: center;
+      animation: shake 0.4s ease;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      75% { transform: translateX(6px); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="login-card">
+      <div class="logo">وردات | WARDAT</div>
+      <div class="subtitle">منصة أتمتة وإدارة محلات الورد الذكية</div>
+
+      <div id="errorBox" class="error-msg"></div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="username">اسم المستخدم</label>
+          <div class="input-wrapper">
+            <input type="text" id="username" placeholder="أدخل اسم المستخدم" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="password">كلمة المرور</label>
+          <div class="input-wrapper">
+            <input type="password" id="password" placeholder="أدخل كلمة المرور" required>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-login">دخول للوحة التحكم</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Redirect if already logged in
+    window.onload = () => {
+      const token = localStorage.getItem('wardat_token');
+      const role = localStorage.getItem('wardat_role');
+      if (token && role) {
+        if (role === 'superadmin') {
+          window.location.href = '/superadmin';
+        } else if (role === 'shop') {
+          window.location.href = '/dashboard';
+        }
+      }
+    };
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const errorBox = document.getElementById('errorBox');
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      errorBox.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'خطأ في عملية تسجيل الدخول');
+        }
+
+        // Store auth data
+        localStorage.setItem('wardat_token', data.token);
+        localStorage.setItem('wardat_role', data.role);
+        if (data.shopId) localStorage.setItem('wardat_shop_id', data.shopId);
+        localStorage.setItem('wardat_name', data.name);
+
+        // Redirect based on role
+        if (data.role === 'superadmin') {
+          window.location.href = '/superadmin';
+        } else {
+          window.location.href = '/dashboard';
+        }
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة المشرف العام | Wardat SaaS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f0c20 0%, #15102a 50%, #060214 100%);
+      --pink-glow: #ff2d81;
+      --purple-glow: #8e2de2;
+      --text-main: #f5f3f7;
+      --text-sub: #b1a9c3;
+      --glass-bg: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.07);
+      --glass-hover: rgba(255, 255, 255, 0.06);
+      --danger: #ff4b4b;
+      --success: #00e676;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Tajawal', 'Outfit', sans-serif;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      color: var(--text-main);
+      overflow-x: hidden;
+      padding: 20px;
+    }
+
+    .dashboard-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header styling */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border-radius: 18px;
+      padding: 15px 30px;
+      margin-bottom: 30px;
+    }
+
+    .logo-container h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      background: linear-gradient(to left, var(--pink-glow), var(--purple-glow));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .admin-info {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .btn-logout {
+      background: rgba(255, 75, 75, 0.1);
+      border: 1px solid rgba(255, 75, 75, 0.2);
+      color: #ff6b6b;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+
+    .btn-logout:hover {
+      background: rgba(255, 75, 75, 0.2);
+      box-shadow: 0 0 10px rgba(255, 75, 75, 0.2);
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+
+    .stat-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 25px 20px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    .stat-title {
+      font-size: 0.9rem;
+      color: var(--text-sub);
+      margin-bottom: 10px;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    /* Shop management section */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .btn-add {
+      background: linear-gradient(to right, var(--pink-glow), var(--purple-glow));
+      border: none;
+      color: white;
+      padding: 10px 22px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+      box-shadow: 0 4px 15px rgba(255, 45, 129, 0.2);
+      transition: all 0.3s ease;
+    }
+
+    .btn-add:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(255, 45, 129, 0.4);
+    }
+
+    .table-container {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      overflow-x: auto;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: right;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    th {
+      color: var(--text-sub);
+      font-weight: 500;
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    tr:hover td {
+      background: var(--glass-hover);
+    }
+
+    .btn-delete {
+      background: transparent;
+      border: 1px solid rgba(255, 75, 75, 0.3);
+      color: #ff6b6b;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.3s ease;
+    }
+
+    .btn-delete:hover {
+      background: rgba(255, 75, 75, 0.15);
+    }
+
+    /* Modal styling */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: #120d24;
+      border: 1px solid var(--glass-border);
+      width: 100%;
+      max-width: 680px;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+      animation: zoomIn 0.3s ease;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    @keyframes zoomIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+      border-bottom: 1px solid var(--glass-border);
+      padding-bottom: 15px;
+    }
+
+    .modal-close {
+      cursor: pointer;
+      font-size: 1.5rem;
+      color: var(--text-sub);
+    }
+
+    /* Form within modal */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+      text-align: right;
+    }
+
+    .form-group.full-width {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      margin-bottom: 8px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 15px;
+      border-radius: 8px;
+      border: 1px solid var(--glass-border);
+      background: rgba(0,0,0,0.3);
+      color: var(--text-main);
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    input:focus {
+      border-color: var(--pink-glow);
+      box-shadow: 0 0 10px rgba(255, 45, 129, 0.2);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 15px;
+      margin-top: 25px;
+      border-top: 1px solid var(--glass-border);
+      padding-top: 20px;
+    }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .btn-save {
+      background: linear-gradient(to right, var(--pink-glow), var(--purple-glow));
+      border: none;
+      color: white;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .alert-box {
+      background: rgba(255, 75, 75, 0.1);
+      border: 1px solid rgba(255, 75, 75, 0.25);
+      color: #ff6b6b;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="dashboard-container">
+    <header>
+      <div class="logo-container">
+        <h1>لوحة المشرف العام للمنصة | WARDAT SaaS</h1>
+      </div>
+      <div class="admin-info">
+        <span id="adminName">مرحباً، مدير النظام</span>
+        <button class="btn-logout" onclick="logout()">خروج</button>
+      </div>
+    </header>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-title">المتاجر النشطة</div>
+        <div class="stat-value" id="statShops">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">إجمالي المبيعات المؤكدة</div>
+        <div class="stat-value" id="statRevenue">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">إجمالي الطلبات</div>
+        <div class="stat-value" id="statOrders">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">محادثات العملاء النشطة</div>
+        <div class="stat-value" id="statSessions">-</div>
+      </div>
+    </div>
+
+    <!-- Shop Listing -->
+    <div class="section-header">
+      <h2>إدارة المحلات والمشتركين</h2>
+      <button class="btn-add" onclick="openModal()">إضافة متجر جديد +</button>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>اسم المتجر</th>
+            <th>النطاق الفرعي (Subdomain)</th>
+            <th>اسم المستخدم</th>
+            <th>معرف الواتساب (Phone ID)</th>
+            <th>المنتجات</th>
+            <th>الطلبات</th>
+            <th>تاريخ التسجيل</th>
+            <th>الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody id="shopTableBody">
+          <tr>
+            <td colspan="8" style="text-align:center; color: var(--text-sub);">جاري تحميل المتاجر...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal for Creating New Shop -->
+  <div id="shopModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>تسجيل متجر جديد في المنصة</h3>
+        <span class="modal-close" onclick="closeModal()">&times;</span>
+      </div>
+
+      <div id="alertBox" class="alert-box"></div>
+
+      <form id="shopForm" onsubmit="saveShop(event)">
+        <div class="form-grid">
+          <!-- Basic Info -->
+          <div class="form-group">
+            <label for="name">اسم المتجر</label>
+            <input type="text" id="name" placeholder="مثال: متجر الياسمين" required>
+          </div>
+          <div class="form-group">
+            <label for="subdomain">النطاق الفرعي (Subdomain)</label>
+            <input type="text" id="subdomain" placeholder="مثال: jasmine" required>
+          </div>
+          <div class="form-group">
+            <label for="username">اسم مستخدم لوحة التحكم</label>
+            <input type="text" id="username" placeholder="مثال: jasmine_admin" required>
+          </div>
+          <div class="form-group">
+            <label for="password">كلمة المرور</label>
+            <input type="password" id="password" placeholder="أدخل كلمة مرور قوية" required>
+          </div>
+
+          <!-- WhatsApp Cloud API -->
+          <div class="form-group">
+            <label for="whatsappPhoneId">WhatsApp Phone Number ID</label>
+            <input type="text" id="whatsappPhoneId" placeholder="أدخل Phone ID من Meta" required>
+          </div>
+          <div class="form-group">
+            <label for="whatsappVerifyToken">WhatsApp Webhook Verify Token</label>
+            <input type="text" id="whatsappVerifyToken" placeholder="رمز التحقق من اختيارك" required>
+          </div>
+          <div class="form-group full-width">
+            <label for="whatsappToken">WhatsApp Permanent Access Token</label>
+            <input type="text" id="whatsappToken" placeholder="أدخل رمز الوصول الدائم للمطور" required>
+          </div>
+          <div class="form-group full-width">
+            <label for="whatsappAdminGroupId">WhatsApp Admin Group ID (اختياري)</label>
+            <input type="text" id="whatsappAdminGroupId" placeholder="معرف مجموعة الواتساب لإشعارات الإدارة">
+          </div>
+
+          <!-- Stripe -->
+          <div class="form-group">
+            <label for="stripeSecretKey">Stripe Secret Key (sk_test_...)</label>
+            <input type="text" id="stripeSecretKey" placeholder="المفتاح السري من Stripe" required>
+          </div>
+          <div class="form-group">
+            <label for="stripeWebhookSecret">Stripe Webhook Secret (whsec_...)</label>
+            <input type="text" id="stripeWebhookSecret" placeholder="مفتاح تحقق الويب هوك" required>
+          </div>
+          <div class="form-group">
+            <label for="stripeSuccessUrl">Stripe Success Redirect URL</label>
+            <input type="text" id="stripeSuccessUrl" placeholder="رابط النجاح بعد الدفع" value="https://wardat.xyz/success" required>
+          </div>
+          <div class="form-group">
+            <label for="stripeCancelUrl">Stripe Cancel Redirect URL</label>
+            <input type="text" id="stripeCancelUrl" placeholder="رابط الإلغاء في حال الفشل" value="https://wardat.xyz/cancel" required>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="closeModal()">إلغاء</button>
+          <button type="submit" class="btn-save">تسجيل وتفعيل المتجر</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('wardat_token');
+    const role = localStorage.getItem('wardat_role');
+
+    // Authentication Guard
+    if (!token || role !== 'superadmin') {
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+
+    window.onload = () => {
+      fetchStats();
+      fetchShops();
+    };
+
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/admin/stats', { headers });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        
+        document.getElementById('statShops').textContent = data.activeShops;
+        document.getElementById('statRevenue').textContent = `${data.totalRevenue.toLocaleString()} ريال`;
+        document.getElementById('statOrders').textContent = data.totalOrders;
+        document.getElementById('statSessions').textContent = data.totalSessions;
+      } catch (err) {
+        console.error('Failed to fetch stats');
+      }
+    }
+
+    async function fetchShops() {
+      try {
+        const res = await fetch('/api/admin/shops', { headers });
+        if (!res.ok) throw new Error();
+        const shops = await res.json();
+
+        const tbody = document.getElementById('shopTableBody');
+        tbody.innerHTML = '';
+
+        if (shops.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color: var(--text-sub);">لا يوجد متاجر مسجلة حالياً</td></tr>`;
+          return;
+        }
+
+        shops.forEach(shop => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td style="font-weight: 500;">${shop.name}</td>
+            <td style="font-family: 'Outfit';">${shop.subdomain}.wardat.xyz</td>
+            <td>${shop.username}</td>
+            <td style="font-family: 'Outfit'; font-size: 0.85rem; color: var(--text-sub);">${shop.whatsappPhoneId}</td>
+            <td>${shop.productsCount}</td>
+            <td>${shop.ordersCount}</td>
+            <td style="font-size: 0.85rem; color: var(--text-sub);">${new Date(shop.createdAt).toLocaleDateString('ar-SA')}</td>
+            <td>
+              <button class="btn-delete" onclick="deleteShop('${shop.id}', '${shop.name}')">حذف</button>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (err) {
+        document.getElementById('shopTableBody').innerHTML = `<tr><td colspan="8" style="text-align:center; color: var(--danger);">فشل تحميل المتاجر</td></tr>`;
+      }
+    }
+
+    function openModal() {
+      document.getElementById('alertBox').style.display = 'none';
+      document.getElementById('shopForm').reset();
+      document.getElementById('shopModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('shopModal').style.display = 'none';
+    }
+
+    async function saveShop(e) {
+      e.preventDefault();
+      const alertBox = document.getElementById('alertBox');
+      alertBox.style.display = 'none';
+
+      const shopData = {
+        name: document.getElementById('name').value.trim(),
+        subdomain: document.getElementById('subdomain').value.trim().toLowerCase(),
+        username: document.getElementById('username').value.trim(),
+        password: document.getElementById('password').value,
+        whatsappPhoneId: document.getElementById('whatsappPhoneId').value.trim(),
+        whatsappToken: document.getElementById('whatsappToken').value.trim(),
+        whatsappVerifyToken: document.getElementById('whatsappVerifyToken').value.trim(),
+        stripeSecretKey: document.getElementById('stripeSecretKey').value.trim(),
+        stripeWebhookSecret: document.getElementById('stripeWebhookSecret').value.trim(),
+        stripeSuccessUrl: document.getElementById('stripeSuccessUrl').value.trim(),
+        stripeCancelUrl: document.getElementById('stripeCancelUrl').value.trim(),
+        whatsappAdminGroupId: document.getElementById('whatsappAdminGroupId').value.trim(),
+      };
+
+      try {
+        const res = await fetch('/api/admin/shops', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(shopData)
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'فشل في حفظ المتجر الجديد');
+
+        closeModal();
+        fetchStats();
+        fetchShops();
+      } catch (err) {
+        alertBox.textContent = err.message;
+        alertBox.style.display = 'block';
+      }
+    }
+
+    async function deleteShop(id, name) {
+      if (!confirm(`هل أنت متأكد من رغبتك في حذف متجر "${name}"؟ سيؤدي ذلك لحذف المنتجات والطلبات التابعة له نهائياً!`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/admin/shops/${id}`, {
+          method: 'DELETE',
+          headers
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'فشل في حذف المتجر');
+        }
+
+        fetchStats();
+        fetchShops();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+  </script>
+</body>
+</html>

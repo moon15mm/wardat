@@ -11,6 +11,8 @@ model Shop {
   id                  String    @id @default(uuid())
   name                String
   subdomain           String    @unique
+  username            String    @unique
+  password            String    // Hashed password
   
   // WhatsApp settings per shop
   whatsappPhoneId      String    @unique

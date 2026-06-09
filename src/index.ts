@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
+import path from 'path';
+import apiRoutes from './routes/api';
 import { handleMessage } from './agents/agent-1-conversation';
 import { handlePaymentSuccess, handlePaymentFailed } from './agents/agent-4-finance';
 import { constructWebhookEvent } from './services/stripe-service';
@@ -65,6 +67,25 @@ app.post(
 );
 
 app.use(express.json());
+
+// API routes
+app.use(apiRoutes);
+
+// Static files serving
+app.use(express.static(path.join(__dirname, '../public')));
+
+// HTML redirects/routes for clean URLs
+app.get('/superadmin', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/superadmin/index.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/dashboard/index.html'));
+});
+
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/login.html'));
+});
 
 // WhatsApp webhook verification (universal platform verification token)
 app.get('/webhook/whatsapp', (req, res) => {

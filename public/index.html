@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>منصة وردات | أتمتة مبيعات محلات الورد عبر الذكاء الاصطناعي</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f0c20 0%, #15102a 50%, #060214 100%);
+      --pink-glow: #ff2d81;
+      --purple-glow: #8e2de2;
+      --text-main: #f5f3f7;
+      --text-sub: #b1a9c3;
+      --glass-bg: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.07);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Tajawal', 'Outfit', sans-serif;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      color: var(--text-main);
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    body::before, body::after {
+      content: '';
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      border-radius: 50%;
+      filter: blur(150px);
+      z-index: 0;
+      opacity: 0.3;
+    }
+    body::before {
+      background: var(--pink-glow);
+      top: 10%;
+      left: 10%;
+    }
+    body::after {
+      background: var(--purple-glow);
+      bottom: 10%;
+      right: 10%;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 20px;
+      position: relative;
+      z-index: 10;
+    }
+
+    /* Navbar */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 30px 0;
+    }
+
+    .logo {
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(to left, var(--pink-glow), var(--purple-glow));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 1px;
+    }
+
+    .btn-nav-login {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+      padding: 10px 24px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.3s ease;
+    }
+
+    .btn-nav-login:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      padding: 100px 0 60px 0;
+    }
+
+    .hero h2 {
+      font-size: 3.2rem;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 25px;
+      background: linear-gradient(to bottom right, #ffffff, #dcd2fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      color: var(--text-sub);
+      font-size: 1.2rem;
+      max-width: 700px;
+      margin: 0 auto 40px auto;
+      line-height: 1.7;
+    }
+
+    .btn-cta {
+      background: linear-gradient(to right, var(--pink-glow), var(--purple-glow));
+      color: white;
+      padding: 16px 36px;
+      border-radius: 14px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 8px 30px rgba(255, 45, 129, 0.4);
+      transition: all 0.3s ease;
+      display: inline-block;
+    }
+
+    .btn-cta:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 40px rgba(255, 45, 129, 0.6);
+    }
+
+    /* Features Section */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      margin: 80px 0;
+    }
+
+    .feature-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 35px 25px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      text-align: center;
+      transition: transform 0.3s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .feature-icon {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+    }
+
+    .feature-card h3 {
+      font-size: 1.3rem;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+
+    .feature-card p {
+      color: var(--text-sub);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <nav>
+      <div class="logo">وردات | WARDAT</div>
+      <a href="/login" class="btn-nav-login">تسجيل الدخول</a>
+    </nav>
+
+    <div class="hero">
+      <h2>حوّل متجر الورد الخاص بك<br>إلى آلة مبيعات ذكية على واتساب</h2>
+      <p>منصة "وردات" تتيح لمحلات الورد أتمتة استقبال الطلبات وتجميع بيانات المشتري والمستلم والموقع الجغرافي، مع توفير روابط دفع إلكتروني فورية ومباشرة لحسابك عبر الذكاء الاصطناعي.</p>
+      <a href="/login" class="btn-cta">ابدأ إدارة متجرك الآن</a>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <h3>مساعد مبيعات ذكي</h3>
+        <p>محادثات ذكية مع العملاء، تصفح كتالوج المنتجات، وفهم نية الشراء بدقة عالية بالاعتماد على ذكاء GPT الاصطناعي.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📍</div>
+        <h3>تجميع ذكي للبيانات</h3>
+        <p>تلقي المواقع الجغرافية وحفظ إحداثيات خرائط جوجل بشكل فوري لتسهيل توصيل الطلبات للمستلمين دون عناء.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💳</div>
+        <h3>مدفوعات مباشرة</h3>
+        <p>توليد روابط دفع إلكتروني Stripe مباشرة لحساب متجرك البنكي لتصلك الأموال فور تأكيد الطلب من العميل.</p>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
