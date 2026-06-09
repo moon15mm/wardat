@@ -69,7 +69,7 @@ app.post(
 app.use(express.json());
 
 // API routes
-app.use(apiRoutes);
+app.use('/api', apiRoutes);
 
 // Static files serving
 app.use(express.static(path.join(__dirname, '../public')));
