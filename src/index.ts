@@ -1,4 +1,7 @@
 import 'dotenv/config';
+import dns from 'dns';
+// Force IPv4 first to prevent Baileys/WhatsApp connection hanging on VPS with unrouted IPv6
+dns.setDefaultResultOrder('ipv4first');
 import express from 'express';
 import path from 'path';
 import apiRoutes from './routes/api';
