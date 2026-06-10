@@ -1804,9 +1804,42 @@
     </div>
   </div>
 
+  <!-- Stripe Guide Styles (Dark/Light Support) -->
+  <style>
+    .stripe-mock-panel {
+      background: #1a1533;
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #2a244d;
+      margin-bottom: 15px;
+    }
+    .stripe-mock-label { color: #8f8ba3; font-size: 0.8rem; margin-bottom: 5px; }
+    .stripe-mock-value { color: #fff; font-family: monospace; font-size: 1rem; letter-spacing: 1px; }
+    .stripe-mock-code-box {
+      background: #000;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px dashed var(--success);
+      text-align: left;
+      direction: ltr;
+    }
+    .stripe-mock-check-text { color: #fff; font-size: 0.9rem; }
+    
+    /* Light Mode Overrides for Stripe Mockup */
+    body.light-mode .stripe-mock-panel {
+      background: #ffffff;
+      border: 1px solid #e3e8ee;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    body.light-mode .stripe-mock-label { color: #4f566b; }
+    body.light-mode .stripe-mock-value { color: #1a1f36; }
+    body.light-mode .stripe-mock-code-box { background: #f7f9fc; }
+    body.light-mode .stripe-mock-check-text { color: #3c4257; }
+  </style>
+
   <!-- Stripe Guide Modal (Enhanced Visual Version) -->
   <div id="stripeGuideModal" class="modal">
-    <div class="modal-content" style="max-width: 750px; background: #0f0c20;">
+    <div class="modal-content" style="max-width: 750px; background: var(--glass-bg);">
       <div class="modal-header" style="border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
         <h3 style="color: var(--text-main); font-size: 1.4rem;">💡 دليل إعداد بوابة الدفع (Stripe)</h3>
         <span class="modal-close" onclick="closeStripeGuideModal()" style="font-size: 1.8rem;">&times;</span>
@@ -1819,10 +1852,10 @@
           <h4 style="color: var(--pink-glow); font-size: 1.15rem; margin-bottom: 10px;">الخطوة 1: استخراج المفتاح السري (Secret Key)</h4>
           <p style="color: var(--text-sub); font-size: 0.95rem; line-height: 1.6; margin-bottom: 15px;">سجل دخولك إلى حسابك في Stripe وتأكد من تفعيل وضع (Test Mode) للتجربة. في الصفحة الرئيسية على اليمين، ستجد قسم <strong>API keys</strong>.</p>
           
-          <div style="background: #1a1533; padding: 15px; border-radius: 8px; border: 1px solid #2a244d; display: flex; align-items: center; justify-content: space-between;">
+          <div class="stripe-mock-panel" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0;">
             <div>
-              <div style="color: #8f8ba3; font-size: 0.8rem; margin-bottom: 5px;">Secret key</div>
-              <div style="color: #fff; font-family: monospace; font-size: 1rem; letter-spacing: 1px;">sk_test_••••••••••••••</div>
+              <div class="stripe-mock-label">Secret key</div>
+              <div class="stripe-mock-value">sk_test_••••••••••••••</div>
             </div>
             <div style="background: #635bff; color: white; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; cursor: not-allowed;">Reveal test key</div>
           </div>
@@ -1834,20 +1867,20 @@
           <h4 style="color: var(--purple-glow); font-size: 1.15rem; margin-bottom: 10px;">الخطوة 2: إنشاء الويب هوك (للتأكيد التلقائي للطلبات)</h4>
           <p style="color: var(--text-sub); font-size: 0.95rem; line-height: 1.6; margin-bottom: 15px;">في شريط البحث العلوي في Stripe، اكتب <strong>Webhooks</strong>. ثم اضغط على زر <strong>Add endpoint</strong>.</p>
           
-          <div style="background: #1a1533; padding: 15px; border-radius: 8px; border: 1px solid #2a244d; margin-bottom: 15px;">
-            <div style="color: #8f8ba3; font-size: 0.85rem; margin-bottom: 8px;">1. في حقل <strong>Endpoint URL</strong> قم بلصق هذا الرابط بالضبط:</div>
-            <div style="background: #000; padding: 10px; border-radius: 6px; border: 1px dashed var(--success); text-align: left; direction: ltr;">
+          <div class="stripe-mock-panel">
+            <div class="stripe-mock-label" style="font-size: 0.85rem; margin-bottom: 8px;">1. في حقل <strong>Endpoint URL</strong> قم بلصق هذا الرابط بالضبط:</div>
+            <div class="stripe-mock-code-box">
               <code style="color: var(--success); font-size: 0.95rem;">https://demo.wardat.xyz/webhook/stripe</code>
             </div>
           </div>
 
-          <div style="background: #1a1533; padding: 15px; border-radius: 8px; border: 1px solid #2a244d;">
-            <div style="color: #8f8ba3; font-size: 0.85rem; margin-bottom: 8px;">2. في قسم <strong>Select events to listen to</strong> ابحث عن <code>checkout.session</code> وحدد:</div>
+          <div class="stripe-mock-panel" style="margin-bottom: 0;">
+            <div class="stripe-mock-label" style="font-size: 0.85rem; margin-bottom: 8px;">2. في قسم <strong>Select events to listen to</strong> ابحث عن <code>checkout.session</code> وحدد:</div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
-              <div style="display: flex; align-items: center; gap: 10px; color: #fff; font-size: 0.9rem;">
+              <div style="display: flex; align-items: center; gap: 10px;" class="stripe-mock-check-text">
                 <span style="background: #635bff; color: white; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 12px;">✓</span> checkout.session.completed
               </div>
-              <div style="display: flex; align-items: center; gap: 10px; color: #fff; font-size: 0.9rem;">
+              <div style="display: flex; align-items: center; gap: 10px;" class="stripe-mock-check-text">
                 <span style="background: #635bff; color: white; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 12px;">✓</span> checkout.session.expired
               </div>
             </div>
@@ -1863,13 +1896,13 @@
           <h4 style="color: var(--success); font-size: 1.15rem; margin-bottom: 10px;">الخطوة 3: نسخ مفتاح الـ Webhook Secret</h4>
           <p style="color: var(--text-sub); font-size: 0.95rem; line-height: 1.6; margin-bottom: 15px;">بمجرد حفظ الخطوة السابقة، ستظهر لك صفحة تفاصيل الويب هوك الذي أنشأته. انظر للجهة اليمنى.</p>
           
-          <div style="background: #1a1533; padding: 15px; border-radius: 8px; border: 1px solid #2a244d; display: flex; align-items: center; justify-content: space-between;">
+          <div class="stripe-mock-panel" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0;">
             <div>
-              <div style="color: #8f8ba3; font-size: 0.8rem; margin-bottom: 5px; display: flex; align-items: center; gap: 5px;">
+              <div class="stripe-mock-label" style="display: flex; align-items: center; gap: 5px;">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M12 6V5a4 4 0 10-8 0v1H3v8h10V6h-1zm-2 0H6V5a2 2 0 114 0v1z"></path></svg>
                 Signing secret
               </div>
-              <div style="color: #fff; font-family: monospace; font-size: 1rem; letter-spacing: 1px;">whsec_••••••••••••••</div>
+              <div class="stripe-mock-value">whsec_••••••••••••••</div>
             </div>
             <div style="color: #635bff; font-size: 0.9rem; font-weight: bold; cursor: not-allowed; display: flex; align-items: center; gap: 5px;">
               👁️ Reveal
