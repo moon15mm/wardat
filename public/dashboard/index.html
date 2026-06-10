@@ -1487,7 +1487,10 @@
             </div>
 
             <!-- Stripe Configuration -->
-            <h4 style="margin: 20px 0 10px 0; color: var(--purple-glow); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">إعدادات بوابة الدفع (Stripe)</h4>
+            <h4 style="margin: 20px 0 10px 0; color: var(--purple-glow); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+              إعدادات بوابة الدفع (Stripe)
+              <button type="button" onclick="openStripeGuideModal()" style="background: rgba(142, 45, 226, 0.2); color: #a29bfe; border: 1px solid rgba(142, 45, 226, 0.5); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s;">كيف أحصل على المفاتيح؟ ℹ️</button>
+            </h4>
             <div class="form-group">
               <label for="stripeSecretKeyInput">Stripe Secret Key (sk_test_... / sk_live_...)</label>
               <input type="text" id="stripeSecretKeyInput">
@@ -1798,6 +1801,39 @@
           <button type="submit" class="btn-save">حفظ المنتج</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Stripe Guide Modal -->
+  <div id="stripeGuideModal" class="modal">
+    <div class="modal-content" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3>كيف أحصل على مفاتيح Stripe؟</h3>
+        <span class="modal-close" onclick="closeStripeGuideModal()">&times;</span>
+      </div>
+      <div style="line-height: 1.8; color: var(--text-main); font-size: 0.95rem;">
+        <div style="margin-bottom: 25px;">
+          <strong style="color: var(--pink-glow); font-size: 1.1rem;">1. المفتاح السري (Secret Key)</strong>
+          <p style="color: var(--text-sub); margin-top: 5px;">من الصفحة الرئيسية في لوحة Stripe (قسم المطورين)، ابحث عن <strong>Secret key</strong> وانسخ الرمز الذي يبدأ بـ <code style="color:#fff;">sk_test_</code> أو <code style="color:#fff;">sk_live_</code> وضعه في الحقل الأول.</p>
+        </div>
+        
+        <div style="margin-bottom: 25px;">
+          <strong style="color: var(--purple-glow); font-size: 1.1rem;">2. إنشاء رابط الـ Webhook (للتأكيد التلقائي)</strong>
+          <ul style="color: var(--text-sub); margin-top: 5px; padding-right: 20px;">
+            <li>من شريط البحث العلوي في Stripe ابحث عن <strong>Webhooks</strong>.</li>
+            <li>في قسم البحث عن الأحداث (Events)، اكتب <code style="color:#fff;">checkout.session</code> وحدد خياري: <br>✅ <strong>checkout.session.completed</strong><br>✅ <strong>checkout.session.expired</strong></li>
+            <li>اختر <strong>Webhook endpoint</strong> وضع رابط النظام المخصص لمتجرك وهو:</li>
+          </ul>
+          <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; margin: 10px 0; border: 1px dashed var(--glass-border); text-align: center;">
+            <code style="color: var(--success); font-size: 1.05rem;">https://demo.wardat.xyz/webhook/stripe</code>
+          </div>
+        </div>
+
+        <div>
+          <strong style="color: var(--purple-glow); font-size: 1.1rem;">3. نسخ مفتاح الـ Webhook Secret</strong>
+          <p style="color: var(--text-sub); margin-top: 5px;">بعد حفظ رابط الويب هوك، ابحث في صفحة تفاصيله عن <strong>Signing secret</strong>، واضغط على زر 👁️ (Reveal) لنسخ الرمز الذي يبدأ بـ <code style="color:#fff;">whsec_...</code> وضعه في الحقل الثاني باللوحة.</p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2877,6 +2913,14 @@
         sendBtn.disabled = false;
         input.focus();
       }
+    }
+
+    function openStripeGuideModal() {
+      document.getElementById('stripeGuideModal').style.display = 'flex';
+    }
+
+    function closeStripeGuideModal() {
+      document.getElementById('stripeGuideModal').style.display = 'none';
     }
 
     function logout() {
