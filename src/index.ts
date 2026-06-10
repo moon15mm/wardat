@@ -13,6 +13,7 @@ import { WhatsAppMessage } from './types';
 import prisma from './services/db';
 import logger from './utils/logger';
 import { initAllSessions } from './services/baileys-manager';
+import cron from 'node-cron';
 
 const app = express();
 
@@ -305,4 +306,25 @@ app.listen(PORT, async () => {
   logger.info(`Stripe webhook: /webhook/stripe`);
   
   await initAllSessions();
+
+  // Daily Cron Job to expire shops past their subscription end date
+  cron.schedule('0 0 * * *', async () => {
+    logger.info('[Cron] Running daily subscription check...');
+    try {
+      const result = await prisma.shop.updateMany({
+        where: {
+          subscriptionStatus: 'ACTIVE',
+          subscriptionEnd: {
+            lt: new Date()
+          }
+        },
+        data: {
+          subscriptionStatus: 'EXPIRED'
+        }
+      });
+      logger.info(`[Cron] Expired ${result.count} shops with ended subscriptions.`);
+    } catch (err: any) {
+      logger.error(`[Cron] Error checking subscriptions: ${err.message}`);
+    }
+  });
 });
