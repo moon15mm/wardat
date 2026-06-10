@@ -114,6 +114,14 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/login.html'));
 });
 
+app.get('/success', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/success.html'));
+});
+
+app.get('/cancel', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/cancel.html'));
+});
+
 // WhatsApp webhook verification (universal platform verification token)
 app.get('/webhook/whatsapp', (req, res) => {
   const mode = req.query['hub.mode'];

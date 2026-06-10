@@ -2154,8 +2154,10 @@
         document.getElementById('whatsappAdminGroupIdInput').value = shop.whatsappAdminGroupId || '';
         document.getElementById('stripeSecretKeyInput').value = shop.stripeSecretKey || '';
         document.getElementById('stripeWebhookSecretInput').value = shop.stripeWebhookSecret || '';
-        document.getElementById('stripeSuccessUrlInput').value = shop.stripeSuccessUrl || '';
-        document.getElementById('stripeCancelUrlInput').value = shop.stripeCancelUrl || '';
+        // Auto-fill success/cancel URLs with the site origin if not already set
+        const siteOrigin = window.location.origin;
+        document.getElementById('stripeSuccessUrlInput').value = shop.stripeSuccessUrl || `${siteOrigin}/success`;
+        document.getElementById('stripeCancelUrlInput').value = shop.stripeCancelUrl || `${siteOrigin}/cancel`;
         document.getElementById('aiProviderInput').value = shop.aiProvider || 'OPENAI';
         document.getElementById('geminiApiKeyInput').value = shop.geminiApiKey || '';
         document.getElementById('deliveryStartInput').value = shop.deliveryStartHour || '09:00';
