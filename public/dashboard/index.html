@@ -1448,6 +1448,11 @@
 
             <!-- WhatsApp Cloud API Fields -->
             <div id="metaShopFields">
+              <h4 style="margin: 20px 0 10px 0; color: #25D366; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+                إعدادات واتساب الأعمال الرسمي (Meta)
+                <button type="button" onclick="openWaGuideModal()" style="background: rgba(37, 211, 102, 0.15); color: #25D366; border: 1px solid rgba(37, 211, 102, 0.4); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s;">كيف أحصل على المفاتيح؟ ℹ️</button>
+              </h4>
+            <div id="metaShopFields">
               <div class="form-group">
                 <label for="whatsappPhoneIdInput">WhatsApp Phone Number ID</label>
                 <input type="text" id="whatsappPhoneIdInput">
@@ -1909,6 +1914,73 @@
             </div>
           </div>
           <p style="color: var(--success); font-size: 0.85rem; margin-top: 10px;">👉 اضغط على Reveal (رمز العين) لنسخ الرمز، والصقه في حقل <strong>Stripe Webhook Secret</strong> في لوحة المتجر.</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- WhatsApp Meta Guide Modal -->
+  <div id="waGuideModal" class="modal">
+    <div class="modal-content" style="max-width: 750px; background: var(--glass-bg);">
+      <div class="modal-header" style="border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
+        <h3 style="color: #25D366; font-size: 1.4rem;">💬 دليل إعداد واتساب الأعمال (Meta)</h3>
+        <span class="modal-close" onclick="closeWaGuideModal()" style="font-size: 1.8rem;">&times;</span>
+      </div>
+      
+      <div style="max-height: 70vh; overflow-y: auto; padding-right: 10px; margin-top: 15px;">
+        
+        <!-- Step 1 -->
+        <div style="background: rgba(37, 211, 102, 0.05); border: 1px solid rgba(37, 211, 102, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+          <h4 style="color: #25D366; font-size: 1.15rem; margin-bottom: 10px;">الخطوة 1: معرف رقم الهاتف (Phone Number ID)</h4>
+          <p style="color: var(--text-sub); font-size: 0.95rem; line-height: 1.6; margin-bottom: 15px;">ادخل إلى منصة <strong>Meta for Developers</strong>، واختر تطبيقك. من القائمة الجانبية افتح <strong>WhatsApp</strong> ثم <strong>API Setup</strong>.</p>
+          
+          <div class="stripe-mock-panel" style="margin-bottom: 0;">
+            <div class="stripe-mock-label" style="font-size: 0.85rem; margin-bottom: 8px;">ستجد في منتصف الصفحة قسم <strong>Send and receive messages</strong>:</div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px;">
+                <span class="stripe-mock-label" style="margin: 0;">Phone number ID</span>
+                <span class="stripe-mock-value" style="color: #fff;">1054321689...</span>
+              </div>
+            </div>
+          </div>
+          <p style="color: var(--success); font-size: 0.85rem; margin-top: 10px;">👉 قم بنسخ الأرقام (Phone number ID) والصقه في الحقل الأول بلوحة المتجر.</p>
+        </div>
+
+        <!-- Step 2 -->
+        <div style="background: rgba(142, 45, 226, 0.05); border: 1px solid rgba(142, 45, 226, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+          <h4 style="color: var(--purple-glow); font-size: 1.15rem; margin-bottom: 10px;">الخطوة 2: إعداد الـ Webhook وكلمة المرور (Verify Token)</h4>
+          <p style="color: var(--text-sub); font-size: 0.95rem; line-height: 1.6; margin-bottom: 15px;">من القائمة الجانبية في Meta، اختر <strong>WhatsApp</strong> ثم <strong>Configuration</strong>. واضغط على زر Edit بجوار Webhook.</p>
+          
+          <div class="stripe-mock-panel" style="margin-bottom: 15px;">
+            <div class="stripe-mock-label" style="font-size: 0.85rem; margin-bottom: 8px;">1. في الحقل الأول (Callback URL) ضع هذا الرابط:</div>
+            <div class="stripe-mock-code-box">
+              <code style="color: var(--success); font-size: 0.95rem;">https://demo.wardat.xyz/webhook/whatsapp</code>
+            </div>
+          </div>
+
+          <div class="stripe-mock-panel" style="margin-bottom: 0;">
+            <div class="stripe-mock-label" style="font-size: 0.85rem; margin-bottom: 8px;">2. في الحقل الثاني (Verify token):</div>
+            <p style="color: #fff; font-size: 0.9rem; line-height: 1.5; margin-bottom: 10px;">اكتب هنا <strong>أي كلمة سرية</strong> تختارها أنت (مثلاً: <code>WardatBot2026</code>).</p>
+            <div style="display: flex; justify-content: flex-end;">
+              <span style="background: #1877F2; color: white; padding: 6px 15px; border-radius: 6px; font-size: 0.85rem;">Verify and save</span>
+            </div>
+          </div>
+          <p style="color: var(--success); font-size: 0.85rem; margin-top: 10px;">👉 خذ الكلمة السرية التي كتبتها، وضعها في حقل <strong>Verify Token</strong> في لوحة المتجر. (ثم لا تنس الاشتراك في حدث <code>messages</code> في ميتا).</p>
+        </div>
+
+        <!-- Step 3 -->
+        <div style="background: rgba(0, 230, 118, 0.05); border: 1px solid rgba(0, 230, 118, 0.2); border-radius: 12px; padding: 20px;">
+          <h4 style="color: var(--pink-glow); font-size: 1.15rem; margin-bottom: 10px;">الخطوة 3: توكن النظام (System User Access Token)</h4>
+          <p style="color: var(--text-sub); font-size: 0.95rem; line-height: 1.6; margin-bottom: 15px;">هذا الرمز الطويل ضروري لكي يتمكن البوت من إرسال الرسائل. ادخل إلى <strong>Business Settings</strong> في ميتا، ثم <strong>System Users</strong>.</p>
+          
+          <ul style="color: var(--text-sub); margin-top: 5px; padding-right: 20px; font-size: 0.9rem;">
+            <li>قم بإضافة مستخدم نظام جديد (Admin).</li>
+            <li>اضغط على <strong>Generate New Token</strong>.</li>
+            <li>اختر التطبيق، وحدد الصلاحيات التالية: <code>whatsapp_business_messaging</code> و <code>whatsapp_business_management</code>.</li>
+            <li>اضغط Generate، وانسخ الرمز الطويل الذي يبدأ بـ <code>EAAX...</code></li>
+          </ul>
+          <p style="color: var(--success); font-size: 0.85rem; margin-top: 15px;">👉 الصق هذا الرمز الطويل في الحقل الأخير <strong>System User Access Token</strong> في لوحة المتجر.</p>
         </div>
 
       </div>
@@ -2999,6 +3071,14 @@
 
     function closeStripeGuideModal() {
       document.getElementById('stripeGuideModal').style.display = 'none';
+    }
+
+    function openWaGuideModal() {
+      document.getElementById('waGuideModal').style.display = 'flex';
+    }
+
+    function closeWaGuideModal() {
+      document.getElementById('waGuideModal').style.display = 'none';
     }
 
     function logout() {
