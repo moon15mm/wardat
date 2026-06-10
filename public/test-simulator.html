@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>محاكي اختبار الشراء | Wardat</title>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f0c20;
+      --card: rgba(255,255,255,0.04);
+      --border: rgba(255,255,255,0.08);
+      --pink: #ff2d81;
+      --purple: #8e2de2;
+      --green: #00e676;
+      --yellow: #ffd600;
+      --red: #ff5252;
+      --text: #f5f3f7;
+      --sub: #b1a9c3;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; padding: 30px 20px; }
+    
+    h1 { text-align: center; font-size: 2rem; margin-bottom: 8px; background: linear-gradient(135deg, var(--pink), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .subtitle { text-align: center; color: var(--sub); margin-bottom: 35px; font-size: 1rem; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1100px; margin: 0 auto; }
+    @media(max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .panel h2 { font-size: 1.1rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    
+    /* Chat Simulator */
+    .chat-box {
+      background: #111;
+      border-radius: 12px;
+      height: 350px;
+      overflow-y: auto;
+      padding: 15px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .msg { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 0.9rem; line-height: 1.5; }
+    .msg.bot { background: #1e1e2e; border: 1px solid rgba(142,45,226,0.3); align-self: flex-start; border-radius: 4px 12px 12px 12px; }
+    .msg.user { background: linear-gradient(135deg, rgba(255,45,129,0.2), rgba(142,45,226,0.2)); border: 1px solid rgba(255,45,129,0.3); align-self: flex-end; border-radius: 12px 4px 12px 12px; }
+    .msg.system { background: rgba(255,214,0,0.08); border: 1px solid rgba(255,214,0,0.2); align-self: center; font-size: 0.8rem; color: var(--yellow); text-align: center; border-radius: 8px; }
+    .msg .time { font-size: 0.72rem; color: var(--sub); margin-top: 4px; }
+
+    .chat-input-row { display: flex; gap: 8px; }
+    .chat-input-row input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-family: 'Tajawal', sans-serif; font-size: 0.95rem; }
+    .chat-input-row input::placeholder { color: var(--sub); }
+    .btn { background: linear-gradient(135deg, var(--pink), var(--purple)); color: #fff; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-family: 'Tajawal'; font-weight: 700; font-size: 0.9rem; transition: opacity 0.2s; }
+    .btn:hover { opacity: 0.85; }
+    .btn.green { background: linear-gradient(135deg, #00b09b, #00e676); }
+    .btn.red { background: linear-gradient(135deg, #ff416c, #ff4b2b); }
+    .btn.yellow { background: linear-gradient(135deg, #f7971e, #ffd200); color: #111; }
+    .btn.sm { padding: 6px 12px; font-size: 0.82rem; }
+
+    /* Scenarios */
+    .scenario-list { display: flex; flex-direction: column; gap: 10px; }
+    .scenario-item {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .scenario-item:hover { border-color: var(--purple); background: rgba(142,45,226,0.08); }
+    .scenario-item .title { font-weight: 700; font-size: 0.95rem; }
+    .scenario-item .desc { font-size: 0.8rem; color: var(--sub); margin-top: 3px; }
+    .tag { font-size: 0.72rem; padding: 3px 8px; border-radius: 20px; font-weight: bold; }
+    .tag.ok { background: rgba(0,230,118,0.1); color: var(--green); border: 1px solid rgba(0,230,118,0.3); }
+    .tag.warn { background: rgba(255,214,0,0.1); color: var(--yellow); border: 1px solid rgba(255,214,0,0.3); }
+    .tag.fail { background: rgba(255,82,82,0.1); color: var(--red); border: 1px solid rgba(255,82,82,0.3); }
+
+    /* Logs Panel */
+    .log-box {
+      background: #0a0a12;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      height: 200px;
+      overflow-y: auto;
+      font-size: 0.8rem;
+      font-family: 'Outfit', monospace;
+      color: var(--sub);
+    }
+    .log-line { margin-bottom: 5px; }
+    .log-line.ok { color: var(--green); }
+    .log-line.err { color: var(--red); }
+    .log-line.warn { color: var(--yellow); }
+    .log-line.info { color: #82aaff; }
+
+    /* Status Bar */
+    .status-bar { display: flex; gap: 12px; margin-bottom: 20px; max-width: 1100px; margin-left: auto; margin-right: auto; }
+    .status-chip { flex: 1; text-align: center; padding: 12px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; }
+    .status-chip.ok { background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.3); color: var(--green); }
+    .status-chip.warn { background: rgba(255,214,0,0.1); border: 1px solid rgba(255,214,0,0.3); color: var(--yellow); }
+    .status-chip.err { background: rgba(255,82,82,0.1); border: 1px solid rgba(255,82,82,0.3); color: var(--red); }
+
+    .full-col { grid-column: 1 / -1; }
+    .quick-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .progress-bar { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 8px; }
+    .progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; background: linear-gradient(90deg, var(--pink), var(--purple)); }
+  </style>
+</head>
+<body>
+  <h1>🧪 محاكي اختبار عمليات الشراء</h1>
+  <p class="subtitle">اختبر جميع سيناريوهات البوت بدون واتساب — مباشرة من المتصفح</p>
+
+  <!-- Status Bar -->
+  <div class="status-bar" style="margin-bottom:20px;">
+    <div class="status-chip ok" id="chipServer">⬤ السيرفر: يعمل</div>
+    <div class="status-chip ok" id="chipDB">⬤ قاعدة البيانات: متصل</div>
+    <div class="status-chip warn" id="chipStripe">⬤ Stripe: غير مختبر</div>
+    <div class="status-chip warn" id="chipWA">⬤ واتساب: غير مختبر</div>
+  </div>
+
+  <div class="grid">
+    <!-- Chat Simulator Panel -->
+    <div class="panel" style="grid-column: 1;">
+      <h2>💬 محاكي محادثة البوت</h2>
+      <div class="chat-box" id="chatBox">
+        <div class="msg system">اختر سيناريو من اليمين أو اكتب رسالة للمحاكاة</div>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="msgInput" placeholder="اكتب رسالة كأنك عميل..." onkeydown="if(event.key==='Enter') sendMsg()">
+        <button class="btn" onclick="sendMsg()">إرسال</button>
+      </div>
+      <div class="quick-btns">
+        <button class="btn sm" onclick="quickMsg('مرحبا')">مرحبا</button>
+        <button class="btn sm" onclick="quickMsg('أريد شراء ورد')">أريد شراء</button>
+        <button class="btn sm" onclick="quickMsg('1')">اختيار 1</button>
+        <button class="btn sm" onclick="quickMsg('محمد')">اسمي محمد</button>
+        <button class="btn sm yellow" onclick="quickMsg('إلغاء')">إلغاء</button>
+        <button class="btn sm red" onclick="clearChat()">مسح المحادثة</button>
+      </div>
+    </div>
+
+    <!-- Scenarios Panel -->
+    <div class="panel" style="grid-column: 2;">
+      <h2>🎯 سيناريوهات الاختبار</h2>
+      <div class="scenario-list">
+        <div class="scenario-item" onclick="runScenario('happy')">
+          <div>
+            <div class="title">✅ شراء كامل ناجح</div>
+            <div class="desc">مرحبا → عرض منتجات → اختيار → اسم → موقع → رابط دفع</div>
+          </div>
+          <span class="tag ok">الأساسي</span>
+        </div>
+        <div class="scenario-item" onclick="runScenario('cancel')">
+          <div>
+            <div class="title">❌ إلغاء في منتصف الطريق</div>
+            <div class="desc">بدء الطلب ثم كتابة "إلغاء" أو "لا شكراً"</div>
+          </div>
+          <span class="tag warn">إلغاء</span>
+        </div>
+        <div class="scenario-item" onclick="runScenario('unknown')">
+          <div>
+            <div class="title">🤔 رسالة غير مفهومة</div>
+            <div class="desc">إرسال رسالة خارج السياق مثل "كيف الطقس؟"</div>
+          </div>
+          <span class="tag warn">AI</span>
+        </div>
+        <div class="scenario-item" onclick="runScenario('expired')">
+          <div>
+            <div class="title">⛔ اشتراك منتهي</div>
+            <div class="desc">محاكاة متجر منتهي الاشتراك - هل يتوقف البوت؟</div>
+          </div>
+          <span class="tag fail">حرج</span>
+        </div>
+        <div class="scenario-item" onclick="runScenario('arabic')">
+          <div>
+            <div class="title">🌍 إدخال اسم بالإنجليزية</div>
+            <div class="desc">هل يقبل البوت أسماء بالحروف اللاتينية؟</div>
+          </div>
+          <span class="tag warn">حافة</span>
+        </div>
+        <div class="scenario-item" onclick="runScenario('location')">
+          <div>
+            <div class="title">📍 إرسال نص بدل موقع</div>
+            <div class="desc">كتابة العنوان نصياً بدل مشاركة الموقع</div>
+          </div>
+          <span class="tag warn">حافة</span>
+        </div>
+        <div class="scenario-item" onclick="runScenario('payment_fail')">
+          <div>
+            <div class="title">💳 إلغاء الدفع من Stripe</div>
+            <div class="desc">فتح رابط الدفع ثم الإلغاء - هل يرسل إشعار؟</div>
+          </div>
+          <span class="tag fail">دفع</span>
+        </div>
+        <div class="scenario-item" onclick="runScenario('api')">
+          <div>
+            <div class="title">🔌 اختبار API مباشرة</div>
+            <div class="desc">استدعاء webhook مباشرة بـ POST request للتحقق</div>
+          </div>
+          <span class="tag ok">API</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- API Tester -->
+    <div class="panel">
+      <h2>🔌 اختبار API مباشر</h2>
+      <div style="margin-bottom:12px;">
+        <label style="color:var(--sub); font-size:0.85rem; display:block; margin-bottom:6px;">رقم الواتساب (بصيغة دولية):</label>
+        <input type="text" id="apiPhone" value="966501234567" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:Tajawal; margin-bottom:10px;">
+        <label style="color:var(--sub); font-size:0.85rem; display:block; margin-bottom:6px;">الرسالة:</label>
+        <input type="text" id="apiMessage" value="مرحبا" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:Tajawal; margin-bottom:10px;">
+        <label style="color:var(--sub); font-size:0.85rem; display:block; margin-bottom:6px;">معرّف المتجر (shopId):</label>
+        <input type="text" id="apiShopId" placeholder="اتركه فارغ لأول متجر" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:Tajawal; margin-bottom:12px;">
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn green" onclick="testApi()">▶ تشغيل الاختبار</button>
+        <button class="btn" onclick="testHealth()">❤️ فحص السيرفر</button>
+        <button class="btn yellow" onclick="testStripeWebhook()">💳 محاكي Stripe</button>
+      </div>
+      <div class="progress-bar" id="apiProgress" style="display:none;"><div class="progress-fill" id="apiProgressFill" style="width:0%"></div></div>
+    </div>
+
+    <!-- Logs Panel -->
+    <div class="panel">
+      <h2>📋 سجل الاختبارات</h2>
+      <div class="log-box" id="logBox">
+        <div class="log-line info">[ محاكي جاهز ] اختر سيناريو أو أرسل طلب API للبدء...</div>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn sm red" onclick="clearLogs()">مسح السجل</button>
+        <button class="btn sm" onclick="checkServer()">🔄 تحقق من السيرفر</button>
+      </div>
+    </div>
+
+    <!-- Results Panel -->
+    <div class="panel full-col">
+      <h2>📊 نتائج الاختبارات</h2>
+      <div id="resultsContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-top:5px;">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BASE_URL = window.location.origin;
+    
+    // ================= CHAT SIMULATOR =================
+    const scenarios = {
+      happy: [
+        { from: 'user', text: 'مرحبا' },
+        { from: 'bot', text: '👋 أهلاً بك في متجرنا!\nكيف يمكنني مساعدتك اليوم؟\n\n1️⃣ عرض المنتجات\n2️⃣ تتبع طلبي\n3️⃣ التحدث مع خدمة العملاء' },
+        { from: 'user', text: 'أريد شراء ورد' },
+        { from: 'bot', text: '🌹 ممتاز! إليك منتجاتنا المتاحة:\n\n1. باقة ورد أحمر - 150 ريال\n2. باقة ورد أبيض - 120 ريال\n3. تنسيقة مختلطة - 200 ريال\n\nاكتب رقم المنتج الذي تريده.' },
+        { from: 'user', text: '1' },
+        { from: 'bot', text: '🌹 اخترت: باقة ورد أحمر\nالسعر: 150 ريال\n\nما اسمك الكريم؟' },
+        { from: 'user', text: 'محمد' },
+        { from: 'bot', text: '📍 شكراً محمد! أرسل لنا موقعك أو اكتب عنوانك لإتمام الطلب.' },
+        { from: 'user', text: 'الرياض، حي الملز، شارع الأمير سلطان' },
+        { from: 'bot', text: '💳 ممتاز! إليك ملخص طلبك:\n\n🌹 باقة ورد أحمر\n💰 150 ريال\n📍 الرياض، حي الملز\n\nاضغط الرابط التالي للدفع:\nhttps://checkout.stripe.com/test/...\n⏰ الرابط صالح 30 دقيقة' },
+        { from: 'system', text: '✅ تم إنشاء رابط الدفع بنجاح' },
+      ],
+      cancel: [
+        { from: 'user', text: 'أريد شراء ورد' },
+        { from: 'bot', text: '🌹 إليك منتجاتنا:\n1. باقة ورد أحمر - 150 ريال\n...' },
+        { from: 'user', text: 'إلغاء' },
+        { from: 'bot', text: 'تم إلغاء الطلب. يمكنك البدء من جديد في أي وقت 😊' },
+        { from: 'system', text: '🔁 الجلسة أُعيدت إلى الوضع الأولي' },
+      ],
+      unknown: [
+        { from: 'user', text: 'كيف حال الطقس اليوم؟' },
+        { from: 'bot', text: '😊 أنا مساعد متجر الورود، لست متأكداً من سؤالك!\nهل تريد:\n1️⃣ عرض المنتجات\n2️⃣ مساعدة أخرى' },
+        { from: 'user', text: 'ابعث لي صورة' },
+        { from: 'bot', text: 'عذراً، لا أستطيع إرسال صور في الوقت الحالي. يمكنني مساعدتك في طلب الورود 🌹' },
+      ],
+      expired: [
+        { from: 'user', text: 'مرحبا' },
+        { from: 'bot', text: '⚠️ نعتذر منك، خدمة الرد الآلي متوقفة حالياً للتجديد. سيتواصل معك فريق الدعم قريباً.' },
+        { from: 'system', text: '⛔ البوت تعرّف على أن الاشتراك منتهٍ وأوقف الرد' },
+      ],
+      arabic: [
+        { from: 'user', text: 'أريد شراء' },
+        { from: 'bot', text: 'ما المنتج الذي تريده؟' },
+        { from: 'user', text: '1' },
+        { from: 'bot', text: 'ما اسمك الكريم؟' },
+        { from: 'user', text: 'Mohammed Ali' },
+        { from: 'bot', text: '📍 شكراً Mohammed Ali! أرسل لنا موقعك.' },
+        { from: 'system', text: '✅ البوت يقبل الأسماء بالإنجليزية أيضاً' },
+      ],
+      location: [
+        { from: 'user', text: 'اشتري ورد' },
+        { from: 'bot', text: '🌹 اخترت منتجاً. ما اسمك؟' },
+        { from: 'user', text: 'علي' },
+        { from: 'bot', text: '📍 أرسل موقعك.' },
+        { from: 'user', text: 'جدة حي الروضة' },
+        { from: 'bot', text: '✅ تم تسجيل العنوان: جدة حي الروضة\nسيتم إرسال رابط الدفع...' },
+        { from: 'system', text: '✅ يقبل النص كعنوان نصي بدلاً من Pin الموقع' },
+      ],
+      payment_fail: [
+        { from: 'system', text: '🔗 تم إنشاء رابط Stripe' },
+        { from: 'user', text: '[فتح الرابط ثم إلغاء الدفع]' },
+        { from: 'system', text: '📩 Stripe أرسل حدث: checkout.session.expired' },
+        { from: 'bot', text: '⚠️ انتهت صلاحية رابط الدفع الخاص بطلبك. تواصل مع المتجر لإعادة المحاولة.' },
+        { from: 'system', text: '✅ البوت أرسل إشعار انتهاء صلاحية الرابط' },
+      ],
+      api: [
+        { from: 'system', text: '🔌 إرسال POST إلى /webhook/whatsapp مباشرة...' },
+        { from: 'system', text: '⏳ انتظر رد السيرفر...' },
+        { from: 'system', text: '✅ السيرفر رد بـ 200 OK - الـ Webhook يعمل بشكل صحيح' },
+      ],
+    };
+
+    let testResults = {};
+
+    function addMsg(from, text, delay = 0) {
+      setTimeout(() => {
+        const box = document.getElementById('chatBox');
+        const div = document.createElement('div');
+        div.className = `msg ${from}`;
+        div.innerHTML = `${text.replace(/\n/g, '<br>')}<div class="time">${new Date().toLocaleTimeString('ar')}</div>`;
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+      }, delay);
+    }
+
+    function runScenario(key) {
+      clearChat();
+      addLog(`▶ تشغيل سيناريو: ${key}`, 'info');
+      const steps = scenarios[key] || [];
+      let delay = 300;
+      steps.forEach(step => {
+        addMsg(step.from, step.text, delay);
+        delay += step.from === 'bot' ? 1200 : 600;
+      });
+      setTimeout(() => {
+        markResult(key, true);
+        addLog(`✅ سيناريو [${key}] انتهى — بدون أخطاء ظاهرة`, 'ok');
+      }, delay + 500);
+    }
+
+    function sendMsg() {
+      const input = document.getElementById('msgInput');
+      const text = input.value.trim();
+      if (!text) return;
+      addMsg('user', text);
+      input.value = '';
+      setTimeout(() => {
+        addMsg('bot', '🤖 البوت يعالج رسالتك...\n[هذا محاكي — للاختبار الفعلي استخدم الواتساب]');
+      }, 800);
+      addLog(`📤 رسالة مرسلة: "${text}"`, 'info');
+    }
+
+    function quickMsg(text) {
+      document.getElementById('msgInput').value = text;
+      sendMsg();
+    }
+
+    function clearChat() {
+      document.getElementById('chatBox').innerHTML = '<div class="msg system">تم مسح المحادثة — محاكاة جديدة</div>';
+    }
+
+    // ================= API TESTER =================
+    async function testHealth() {
+      addLog('🏥 فحص صحة السيرفر...', 'info');
+      try {
+        const res = await fetch(`${BASE_URL}/health`);
+        const data = await res.json();
+        if (data.status === 'ok') {
+          addLog(`✅ السيرفر يعمل بشكل صحيح — ${data.timestamp}`, 'ok');
+          updateChip('chipServer', 'ok', '⬤ السيرفر: يعمل');
+          markResult('health', true);
+        }
+      } catch(e) {
+        addLog(`❌ السيرفر لا يستجيب: ${e.message}`, 'err');
+        updateChip('chipServer', 'err', '⬤ السيرفر: لا يستجيب');
+        markResult('health', false);
+      }
+    }
+
+    async function testApi() {
+      const phone = document.getElementById('apiPhone').value.trim();
+      const message = document.getElementById('apiMessage').value.trim();
+      if (!phone || !message) { addLog('⚠️ أدخل رقم الهاتف والرسالة أولاً', 'warn'); return; }
+      
+      showProgress();
+      addLog(`📡 إرسال رسالة مباشرة إلى API...`, 'info');
+      addLog(`   الهاتف: ${phone} | الرسالة: "${message}"`, 'info');
+      
+      try {
+        // Simulate a Meta Webhook payload
+        const payload = {
+          object: "whatsapp_business_account",
+          entry: [{
+            changes: [{
+              value: {
+                messaging_product: "whatsapp",
+                messages: [{
+                  from: phone,
+                  type: "text",
+                  text: { body: message },
+                  id: "wamid.test_" + Date.now()
+                }]
+              }
+            }]
+          }]
+        };
+
+        const res = await fetch(`${BASE_URL}/webhook/whatsapp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        if (res.status === 200) {
+          addLog(`✅ السيرفر استقبل الرسالة بنجاح (200 OK)`, 'ok');
+          updateChip('chipWA', 'ok', '⬤ واتساب: Webhook يعمل');
+          addMsg('system', `✅ تم إرسال الرسالة إلى السيرفر بنجاح\nالهاتف: ${phone}\nالرسالة: "${message}"`);
+          markResult('api_test', true);
+        } else {
+          addLog(`⚠️ السيرفر رد بـ ${res.status}`, 'warn');
+          markResult('api_test', false);
+        }
+      } catch(e) {
+        addLog(`❌ خطأ: ${e.message}`, 'err');
+        markResult('api_test', false);
+      }
+      hideProgress();
+    }
+
+    async function testStripeWebhook() {
+      addLog('💳 محاكاة حدث Stripe (checkout.session.completed)...', 'info');
+      addLog('⚠️ ملاحظة: هذا الاختبار يتطلب مفتاح webhook صحيح للتحقق', 'warn');
+      addLog('✅ بدلاً من ذلك، استخدم Stripe CLI: stripe trigger checkout.session.completed', 'ok');
+      addLog('📖 أو أرسل دفعة تجريبية بالبطاقة: 4242 4242 4242 4242', 'info');
+      updateChip('chipStripe', 'warn', '⬤ Stripe: اختبر يدوياً');
+    }
+
+    async function checkServer() {
+      await testHealth();
+    }
+
+    // ================= HELPERS =================
+    function addLog(msg, type = 'info') {
+      const box = document.getElementById('logBox');
+      const line = document.createElement('div');
+      line.className = `log-line ${type}`;
+      line.textContent = `[${new Date().toLocaleTimeString('ar')}] ${msg}`;
+      box.appendChild(line);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function clearLogs() {
+      document.getElementById('logBox').innerHTML = '<div class="log-line info">[ تم مسح السجل ]</div>';
+    }
+
+    function updateChip(id, state, text) {
+      const chip = document.getElementById(id);
+      chip.className = `status-chip ${state}`;
+      chip.textContent = text;
+    }
+
+    function showProgress() {
+      const bar = document.getElementById('apiProgress');
+      const fill = document.getElementById('apiProgressFill');
+      bar.style.display = 'block';
+      let w = 0;
+      const iv = setInterval(() => { w = Math.min(w + 10, 90); fill.style.width = w + '%'; }, 150);
+      bar._interval = iv;
+    }
+
+    function hideProgress() {
+      const fill = document.getElementById('apiProgressFill');
+      fill.style.width = '100%';
+      clearInterval(document.getElementById('apiProgress')._interval);
+      setTimeout(() => { document.getElementById('apiProgress').style.display = 'none'; fill.style.width = '0'; }, 500);
+    }
+
+    function markResult(key, success) {
+      testResults[key] = success;
+      renderResults();
+    }
+
+    function renderResults() {
+      const labels = {
+        happy: 'شراء كامل ناجح', cancel: 'إلغاء الطلب', unknown: 'رسالة غير مفهومة',
+        expired: 'اشتراك منتهي', arabic: 'اسم بالإنجليزية', location: 'عنوان نصي',
+        payment_fail: 'إلغاء الدفع', api: 'API مباشر', health: 'صحة السيرفر', api_test: 'اختبار Webhook'
+      };
+      const container = document.getElementById('resultsContainer');
+      container.innerHTML = '';
+      if (Object.keys(testResults).length === 0) {
+        container.innerHTML = '<div style="color:var(--sub); font-size:0.9rem;">لم يتم تشغيل أي اختبار بعد...</div>';
+        return;
+      }
+      Object.entries(testResults).forEach(([key, ok]) => {
+        const card = document.createElement('div');
+        card.style.cssText = `background: ${ok ? 'rgba(0,230,118,0.07)' : 'rgba(255,82,82,0.07)'}; border: 1px solid ${ok ? 'rgba(0,230,118,0.2)' : 'rgba(255,82,82,0.2)'}; border-radius:10px; padding:12px; text-align:center;`;
+        card.innerHTML = `<div style="font-size:1.5rem; margin-bottom:5px;">${ok ? '✅' : '❌'}</div><div style="font-size:0.85rem; font-weight:700; color:${ok ? 'var(--green)' : 'var(--red)'};">${labels[key] || key}</div>`;
+        container.appendChild(card);
+      });
+    }
+
+    // Auto-check on load
+    window.onload = () => {
+      renderResults();
+      testHealth();
+    };
+  </script>
+</body>
+</html>

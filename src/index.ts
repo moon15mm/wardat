@@ -122,6 +122,11 @@ app.get('/cancel', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/cancel.html'));
 });
 
+// Internal test simulator (remove before going fully public)
+app.get('/test-simulator', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/test-simulator.html'));
+});
+
 // WhatsApp webhook verification (universal platform verification token)
 app.get('/webhook/whatsapp', (req, res) => {
   const mode = req.query['hub.mode'];
