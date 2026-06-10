@@ -1452,7 +1452,6 @@
                 إعدادات واتساب الأعمال الرسمي (Meta)
                 <button type="button" onclick="openWaGuideModal()" style="background: rgba(37, 211, 102, 0.15); color: #25D366; border: 1px solid rgba(37, 211, 102, 0.4); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s;">كيف أحصل على المفاتيح؟ ℹ️</button>
               </h4>
-            <div id="metaShopFields">
               <div class="form-group">
                 <label for="whatsappPhoneIdInput">WhatsApp Phone Number ID</label>
                 <input type="text" id="whatsappPhoneIdInput">
@@ -1551,8 +1550,8 @@
           </form>
         </div>
 
-        <!-- Documentation & Guide -->
-        <div class="guide-panel">
+        <!-- Documentation & Guide: Only shown for Meta Business mode -->
+        <div class="guide-panel" id="metaGuidePanel" style="display:none;">
           <div class="guide-title">
             <span>⚙️ دليل ربط نظام واتساب وبوابة Stripe</span>
           </div>
@@ -1561,30 +1560,20 @@
           <ul class="guide-steps">
             <li>اذهب إلى لوحة مطوري فيسبوك (Meta for Developers) ثم تطبيق الواتساب الخاص بك.</li>
             <li>في قسم **Webhooks**، الصق رابط الـ Callback التالي:
-              <div class="code-box">https://wardat.xyz/webhook/whatsapp</div>
+              <div class="code-box">https://demo.wardat.xyz/webhook/whatsapp</div>
             </li>
             <li>ضع رمز التحقق (Verify Token) المطابق للرمز المسجل في الإعدادات.</li>
             <li>اشترك في حقل **messages** في إعدادات التطبيق.</li>
           </ul>
 
-          <h4 style="color:var(--text-main); margin: 15px 0 8px 0;">2. إعداد واتساب العادي (QR Code مجاناً):</h4>
+          <h4 style="color:var(--text-main); margin: 15px 0 8px 0;">2. إعداد Webhook الدفع في Stripe:</h4>
           <ul class="guide-steps">
-            <li>اختر "واتساب العادي" من خيارات نوع الاتصال على اليمين.</li>
-            <li>اضغط على زر **توليد كود QR**؛ انتظر ثواني ليظهر الكود.</li>
-            <li>افتح تطبيق واتساب على هاتفك، ثم اذهب إلى **الأجهزة المرتبطة** -> **ربط جهاز**.</li>
-            <li>وجه كاميرا الهاتف نحو الشاشة وامسح كود الـ QR، وسيتم الربط وبدء الرد الآلي مجاناً!</li>
-          </ul>
-
-          <h4 style="color:var(--text-main); margin: 15px 0 8px 0;">3. إعداد Webhook الدفع في Stripe:</h4>
-          <ul class="guide-steps">
-            <li>ادخل إلى لوحة تحكم Stripe الخاصة بك ثم توجه لقسم المطورين (Developers) ثم **Webhooks**.</li>
+            <li>ادخل إلى لوحة تحكم Stripe ثم توجه لـ **Webhooks**.</li>
             <li>أضف عنوان إرسال جديد (Add endpoint) والصق الرابط التالي:
-              <div class="code-box">https://wardat.xyz/webhook/stripe</div>
+              <div class="code-box">https://demo.wardat.xyz/webhook/stripe</div>
             </li>
-            <li>اختر إرسال الأحداث التالية فقط:
-              <br>`checkout.session.completed` و `checkout.session.expired`.
-            </li>
-            <li>انسخ المفتاح السري المسمى **Signing secret** (يبدأ بـ `whsec_`) وضعها في الحقل المخصص في الإعدادات على اليمين.</li>
+            <li>اختر إرسال الأحداث التالية فقط: `checkout.session.completed` و `checkout.session.expired`.</li>
+            <li>انسخ المفتاح السري **Signing secret** (يبدأ بـ `whsec_`) وضعها في الحقل المخصص في الإعدادات.</li>
           </ul>
         </div>
       </div>
@@ -2064,10 +2053,12 @@
       const type = document.getElementById('whatsappTypeInput').value;
       const meta = document.getElementById('metaShopFields');
       const ultra = document.getElementById('ultramsgShopFields');
+      const metaGuide = document.getElementById('metaGuidePanel');
       
       if (type === 'BUSINESS') {
         meta.style.display = 'block';
         ultra.style.display = 'none';
+        if (metaGuide) metaGuide.style.display = 'block';
         if (waPollInterval) {
           clearInterval(waPollInterval);
           waPollInterval = null;
@@ -2075,6 +2066,7 @@
       } else {
         meta.style.display = 'none';
         ultra.style.display = 'block';
+        if (metaGuide) metaGuide.style.display = 'none';
         
         checkWaStatus();
         if (!waPollInterval) {
