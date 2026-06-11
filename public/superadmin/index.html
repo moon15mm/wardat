@@ -520,6 +520,10 @@
             <input type="text" id="username" placeholder="مثال: jasmine_admin" required>
           </div>
           <div class="form-group">
+            <label for="email">البريد الإلكتروني للمتجر (لاستعادة كلمة المرور)</label>
+            <input type="email" id="email" placeholder="مثال: owner@example.com" required>
+          </div>
+          <div class="form-group">
             <label for="password">كلمة المرور</label>
             <input type="password" id="password" placeholder="أدخل كلمة مرور قوية" required>
           </div>
@@ -827,6 +831,7 @@
         name: document.getElementById('name').value.trim(),
         subdomain: document.getElementById('subdomain').value.trim().toLowerCase(),
         username: document.getElementById('username').value.trim(),
+        email: document.getElementById('email').value.trim().toLowerCase(),
         password: document.getElementById('password').value,
         subscriptionPlan: document.getElementById('subscriptionPlan').value,
         subscriptionDurationMonths: document.getElementById('subscriptionDurationMonths').value,

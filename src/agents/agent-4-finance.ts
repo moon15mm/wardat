@@ -20,6 +20,24 @@ export async function handlePaymentSuccess(session: Stripe.Checkout.Session): Pr
 
   logger.info(`[Agent4] Payment succeeded for order ${orderId} in shop ${shopId}`);
 
+  // SECURITY: verify the order actually belongs to the shop named in the metadata.
+  // Without this, a shop owner could sign a valid webhook (with their own secret)
+  // referencing another shop's orderId and confirm it without payment.
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) {
+    logger.error(`[Agent4] Order ${orderId} not found; ignoring payment event`);
+    return;
+  }
+  if (order.shopId !== shopId) {
+    logger.error(`[Agent4] SECURITY: order ${orderId} belongs to shop ${order.shopId}, not ${shopId}. Rejecting.`);
+    return;
+  }
+  // Idempotency: if already confirmed, do nothing (prevents double stock decrement / double notify).
+  if (order.paymentStatus === 'CONFIRMED') {
+    logger.info(`[Agent4] Order ${orderId} already confirmed; skipping.`);
+    return;
+  }
+
   // Fetch shop config
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
@@ -59,17 +77,19 @@ export async function handlePaymentSuccess(session: Stripe.Checkout.Session): Pr
 
   await updateOrderStatus(orderId, 'CONFIRMED', cardLast4);
 
-  // Decrement product stock if order is linked to a product
+  // Decrement product stock if order is linked to a product.
+  // Conditional update (stock > 0) prevents stock from going negative under races.
   try {
-    const dbOrder = await prisma.order.findUnique({
-      where: { id: orderId },
-    });
-    if (dbOrder && dbOrder.productId) {
-      await prisma.product.update({
-        where: { id: dbOrder.productId },
+    if (order.productId) {
+      const result = await prisma.product.updateMany({
+        where: { id: order.productId, stock: { gt: 0 } },
         data: { stock: { decrement: 1 } },
       });
-      logger.info(`[Agent4] Decremented stock for product ${dbOrder.productId} (Order: ${orderId})`);
+      if (result.count > 0) {
+        logger.info(`[Agent4] Decremented stock for product ${order.productId} (Order: ${orderId})`);
+      } else {
+        logger.warn(`[Agent4] Stock not decremented for product ${order.productId} (already 0) (Order: ${orderId})`);
+      }
     }
   } catch (err: any) {
     logger.error(`[Agent4] Failed to decrement product stock for order ${orderId}: ${err.message}`);

@@ -3,3 +3,6 @@ dist/
 .env
 *.xlsx
 logs/*.log
+logs/*.log.gz
+logs/*.json
+data/whatsapp-sessions/

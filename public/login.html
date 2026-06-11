@@ -242,6 +242,25 @@
 
         <button type="submit" class="btn-login">دخول للوحة التحكم</button>
       </form>
+
+      <div style="margin-top:18px; text-align:center;">
+        <a href="#" onclick="showForgot(event)" style="color:var(--text-sub); font-size:0.85rem; text-decoration:none; border-bottom:1px dashed var(--glass-border); padding-bottom:2px;">نسيت كلمة المرور؟</a>
+      </div>
+
+      <!-- Forgot password form (hidden by default) -->
+      <form id="forgotForm" onsubmit="handleForgot(event)" style="display:none; margin-top:25px; border-top:1px solid var(--glass-border); padding-top:25px;">
+        <div id="forgotMsg" class="error-msg" style="background:rgba(45,255,150,0.08); border-color:rgba(45,255,150,0.25); color:#4ade80;"></div>
+        <div class="form-group">
+          <label for="forgotEmail">البريد الإلكتروني المسجّل</label>
+          <div class="input-wrapper">
+            <input type="email" id="forgotEmail" placeholder="أدخل بريدك الإلكتروني" required>
+          </div>
+        </div>
+        <button type="submit" class="btn-login">إرسال رابط الاستعادة</button>
+        <div style="margin-top:14px; text-align:center;">
+          <a href="#" onclick="hideForgot(event)" style="color:var(--text-sub); font-size:0.85rem; text-decoration:none;">العودة لتسجيل الدخول</a>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -316,6 +335,43 @@
       } catch (err) {
         errorBox.textContent = err.message;
         errorBox.style.display = 'block';
+      }
+    }
+
+    // Forgot-password UI toggles
+    function showForgot(e) {
+      e.preventDefault();
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('errorBox').style.display = 'none';
+      document.getElementById('forgotForm').style.display = 'block';
+    }
+
+    function hideForgot(e) {
+      e.preventDefault();
+      document.getElementById('forgotForm').style.display = 'none';
+      document.getElementById('forgotMsg').style.display = 'none';
+      document.getElementById('loginForm').style.display = 'block';
+    }
+
+    async function handleForgot(e) {
+      e.preventDefault();
+      const msgBox = document.getElementById('forgotMsg');
+      const email = document.getElementById('forgotEmail').value.trim();
+      msgBox.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await response.json();
+        // Always a generic success message (no email enumeration).
+        msgBox.textContent = data.message || 'إذا كان البريد مسجلاً، ستصلك رسالة بخطوات الاستعادة.';
+        msgBox.style.display = 'block';
+      } catch (err) {
+        msgBox.textContent = 'تعذّر إرسال الطلب. يرجى المحاولة لاحقاً.';
+        msgBox.style.display = 'block';
       }
     }
   </script>

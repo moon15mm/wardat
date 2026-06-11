@@ -1,10 +1,38 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import prisma from '../services/db';
-import { hashPassword, generateToken } from '../utils/auth';
+import { hashPassword, verifyPassword, generateToken } from '../utils/auth';
 import { authenticateSuperAdmin, authenticateShop } from '../middlewares/auth';
+import { sendPasswordResetEmail } from '../services/email';
 import logger from '../utils/logger';
 
 const router = Router();
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isValidEmail(value: unknown): value is string {
+  return typeof value === 'string' && EMAIL_REGEX.test(value.trim());
+}
+
+// Hash a reset token before storing it, so a DB leak can't be used to reset passwords.
+function hashResetToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+// Constant-time string comparison to avoid timing attacks on admin credentials.
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+// Mask a secret for display: keep last 4 chars, replace the rest with dots.
+function maskSecret(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (value.length <= 4) return '••••';
+  return '••••' + value.slice(-4);
+}
 
 // -------------------------------------------------------------
 // 1. PUBLIC AUTH ROUTE
@@ -18,9 +46,9 @@ router.post('/auth/login', async (req, res) => {
 
   // Check if it matches Super Admin
   const adminUser = process.env.ADMIN_USERNAME || 'admin';
-  const adminPass = process.env.ADMIN_PASSWORD || 'admin123';
+  const adminPass = process.env.ADMIN_PASSWORD || '';
 
-  if (username === adminUser && password === adminPass) {
+  if (adminPass && safeEqual(username, adminUser) && safeEqual(password, adminPass)) {
     const token = generateToken({ role: 'superadmin' });
     return res.json({ token, role: 'superadmin', name: 'مدير النظام' });
   }
@@ -31,15 +59,121 @@ router.post('/auth/login', async (req, res) => {
       where: { username },
     });
 
-    if (shop && hashPassword(password) === shop.password) {
-      const token = generateToken({ role: 'shop', shopId: shop.id });
-      return res.json({ token, role: 'shop', shopId: shop.id, name: shop.name });
+    if (shop) {
+      const { valid, needsRehash } = await verifyPassword(password, shop.password);
+      if (valid) {
+        // Transparently upgrade legacy SHA-256 hashes to bcrypt on successful login.
+        if (needsRehash) {
+          try {
+            await prisma.shop.update({
+              where: { id: shop.id },
+              data: { password: await hashPassword(password) },
+            });
+          } catch (e) {
+            logger.warn(`[Auth] Failed to rehash password for shop ${shop.id}`);
+          }
+        }
+        const token = generateToken({ role: 'shop', shopId: shop.id });
+        return res.json({ token, role: 'shop', shopId: shop.id, name: shop.name });
+      }
     }
   } catch (err: any) {
+    logger.error(`[Auth] Login DB error: ${err.message}`);
     return res.status(500).json({ error: 'حدث خطأ في الاتصال بقاعدة البيانات' });
   }
 
   return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+});
+
+// -------------------------------------------------------------
+// PASSWORD RESET (shop owners)
+// -------------------------------------------------------------
+
+// Request a reset link by email. Always responds success to avoid leaking which
+// emails are registered.
+router.post('/auth/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  const genericMsg = 'إذا كان البريد مسجلاً لدينا، فستصلك رسالة بخطوات إعادة تعيين كلمة المرور.';
+
+  if (!isValidEmail(email)) {
+    // Don't reveal validity; still respond the same way.
+    return res.json({ message: genericMsg });
+  }
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const shop = await prisma.shop.findUnique({ where: { email: normalizedEmail } });
+
+    if (shop) {
+      // Generate a one-time token; store only its hash with a 60-minute expiry.
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = hashResetToken(rawToken);
+      const expiry = new Date(Date.now() + 60 * 60 * 1000);
+
+      await prisma.shop.update({
+        where: { id: shop.id },
+        data: { resetToken: tokenHash, resetTokenExpiry: expiry },
+      });
+
+      const baseUrl = (process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+      const resetLink = `${baseUrl}/reset-password?token=${rawToken}`;
+
+      try {
+        await sendPasswordResetEmail(normalizedEmail, shop.name, resetLink);
+      } catch (mailErr: any) {
+        logger.error(`[Auth] Failed to send reset email to ${normalizedEmail}: ${mailErr.message}`);
+        // Still respond generically; the token is stored and link was logged in dev.
+      }
+    } else {
+      logger.info(`[Auth] Password reset requested for unregistered email: ${normalizedEmail}`);
+    }
+
+    return res.json({ message: genericMsg });
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    return res.json({ message: genericMsg });
+  }
+});
+
+// Complete the reset with a valid token + new password.
+router.post('/auth/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+
+  if (!token || typeof token !== 'string') {
+    return res.status(400).json({ error: 'رابط إعادة التعيين غير صالح.' });
+  }
+  if (!password || typeof password !== 'string' || password.length < 6) {
+    return res.status(400).json({ error: 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.' });
+  }
+
+  try {
+    const tokenHash = hashResetToken(token);
+    const shop = await prisma.shop.findFirst({
+      where: {
+        resetToken: tokenHash,
+        resetTokenExpiry: { gt: new Date() },
+      },
+    });
+
+    if (!shop) {
+      return res.status(400).json({ error: 'رابط إعادة التعيين غير صالح أو منتهي الصلاحية. يرجى طلب رابط جديد.' });
+    }
+
+    await prisma.shop.update({
+      where: { id: shop.id },
+      data: {
+        password: await hashPassword(password),
+        resetToken: null,
+        resetTokenExpiry: null,
+      },
+    });
+
+    logger.info(`[Auth] Password reset completed for shop ${shop.id}`);
+    return res.json({ message: 'تم تغيير كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول.' });
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    return res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
+  }
 });
 
 router.get('/whatsapp/test-connection', async (req, res) => {
@@ -86,7 +220,8 @@ router.get('/whatsapp/test-connection', async (req, res) => {
     }
     res.json(results);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -111,7 +246,8 @@ router.get('/admin/stats', authenticateSuperAdmin, async (req, res) => {
       totalRevenue: revenueAggregate._sum.price || 0,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -132,12 +268,13 @@ router.get('/admin/shops', authenticateSuperAdmin, async (req, res) => {
         name: s.name,
         subdomain: s.subdomain,
         username: s.username,
+        email: s.email,
         whatsappType: s.whatsappType,
         whatsappPhoneId: s.whatsappPhoneId,
         aiProvider: s.aiProvider,
-        geminiApiKey: s.geminiApiKey,
+        geminiApiKey: maskSecret(s.geminiApiKey),
         ultramsgInstanceId: s.ultramsgInstanceId,
-        ultramsgToken: s.ultramsgToken,
+        ultramsgToken: maskSecret(s.ultramsgToken),
         createdAt: s.createdAt,
         productsCount: s._count.products,
         ordersCount: s._count.orders,
@@ -147,7 +284,8 @@ router.get('/admin/shops', authenticateSuperAdmin, async (req, res) => {
       }))
     );
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -156,6 +294,7 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
     name,
     subdomain,
     username,
+    email,
     password,
     whatsappType,
     whatsappPhoneId,
@@ -178,16 +317,22 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
     return res.status(400).json({ error: 'يرجى تقديم اسم المتجر، الدومين الفرعي، اسم المستخدم وكلمة المرور' });
   }
 
+  // Email is required so the shop owner can recover a forgotten password.
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: 'يرجى تقديم بريد إلكتروني صالح للمتجر (مطلوب لاستعادة كلمة المرور)' });
+  }
+  const normalizedEmail = (email as string).trim().toLowerCase();
+
   try {
     const existingShop = await prisma.shop.findFirst({
       where: {
-        OR: [{ subdomain }, { username }],
+        OR: [{ subdomain }, { username }, { email: normalizedEmail }],
       },
     });
 
     if (existingShop) {
       return res.status(400).json({
-        error: 'اسم المستخدم أو الدومين الفرعي مسجل مسبقاً لمتجر آخر',
+        error: 'اسم المستخدم أو الدومين الفرعي أو البريد الإلكتروني مسجل مسبقاً لمتجر آخر',
       });
     }
 
@@ -210,7 +355,8 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
         name,
         subdomain,
         username,
-        password: hashPassword(password),
+        email: normalizedEmail,
+        password: await hashPassword(password),
         whatsappType: whatsappType || 'BUSINESS',
         whatsappPhoneId: whatsappPhoneId || null,
         whatsappToken: whatsappToken || null,
@@ -230,9 +376,11 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
       },
     });
 
-    res.status(201).json(shop);
+    const { password: _pw, ...safeShop } = shop;
+    res.status(201).json(safeShop);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -243,7 +391,8 @@ router.delete('/admin/shops/:id', authenticateSuperAdmin, async (req, res) => {
     });
     res.json({ message: 'تم حذف المتجر وبياناته بنجاح' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -278,9 +427,11 @@ router.put('/admin/shops/:id', authenticateSuperAdmin, async (req, res) => {
       data: updateData,
     });
 
-    res.json({ message: 'تم تحديث خطة اشتراك المتجر بنجاح', shop: updated });
+    const { password: _pw, ...safeUpdated } = updated;
+    res.json({ message: 'تم تحديث خطة اشتراك المتجر بنجاح', shop: safeUpdated });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -303,7 +454,8 @@ router.get('/shop/stats', authenticateShop, async (req, res) => {
       totalRevenue: revenueAggregate._sum.price || 0,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -315,8 +467,18 @@ router.get('/shop/details', authenticateShop, async (req, res) => {
     });
     if (!shop) return res.status(404).json({ error: 'Shop not found' });
 
-    // Do not return hashed password
-    const { password, ...details } = shop;
+    // Do not return hashed password or raw secrets. Mask sensitive fields so the
+    // dashboard can show "configured / not configured" without exposing live keys.
+    const { password, resetToken, resetTokenExpiry, ...rest } = shop;
+    const details = {
+      ...rest,
+      whatsappToken: maskSecret(shop.whatsappToken),
+      whatsappVerifyToken: maskSecret(shop.whatsappVerifyToken),
+      stripeSecretKey: maskSecret(shop.stripeSecretKey),
+      stripeWebhookSecret: maskSecret(shop.stripeWebhookSecret),
+      geminiApiKey: maskSecret(shop.geminiApiKey),
+      ultramsgToken: maskSecret(shop.ultramsgToken),
+    };
 
     const now = Date.now();
     const end = shop.subscriptionEnd ? new Date(shop.subscriptionEnd).getTime() : 0;
@@ -330,7 +492,8 @@ router.get('/shop/details', authenticateShop, async (req, res) => {
       isExpired: isExpired || shop.subscriptionStatus !== 'ACTIVE',
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -338,6 +501,7 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
   const shopId = (req as any).shopId;
   const {
     name,
+    email,
     whatsappType,
     whatsappPhoneId,
     whatsappToken,
@@ -361,23 +525,51 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
       name,
       whatsappType: whatsappType || 'BUSINESS',
       whatsappPhoneId: whatsappPhoneId || null,
-      whatsappToken: whatsappToken || null,
-      whatsappVerifyToken: whatsappVerifyToken || null,
-      stripeSecretKey: stripeSecretKey || null,
-      stripeWebhookSecret: stripeWebhookSecret || null,
       stripeSuccessUrl: stripeSuccessUrl || null,
       stripeCancelUrl: stripeCancelUrl || null,
       whatsappAdminGroupId: whatsappAdminGroupId || null,
       aiProvider: aiProvider || 'OPENAI',
-      geminiApiKey: geminiApiKey || null,
       ultramsgInstanceId: ultramsgInstanceId || null,
-      ultramsgToken: ultramsgToken || null,
       deliveryStartHour: deliveryStartHour || '09:00',
       deliveryEndHour: deliveryEndHour || '22:00',
     };
 
+    // Email update (kept valid + unique so password recovery keeps working).
+    // An empty value is treated as "no change" so shops created before email
+    // became mandatory can still save other settings.
+    if (typeof email === 'string' && email.trim() !== '') {
+      if (!isValidEmail(email)) {
+        return res.status(400).json({ error: 'يرجى تقديم بريد إلكتروني صالح.' });
+      }
+      const normalizedEmail = email.trim().toLowerCase();
+      const clash = await prisma.shop.findFirst({
+        where: { email: normalizedEmail, NOT: { id: shopId } },
+      });
+      if (clash) {
+        return res.status(400).json({ error: 'هذا البريد الإلكتروني مستخدم من قبل متجر آخر.' });
+      }
+      updateData.email = normalizedEmail;
+    }
+
+    // Secret fields: only overwrite when a genuinely new value is supplied.
+    // The dashboard receives masked values (prefixed with •); echoing those back
+    // must NOT clobber the stored secret. An empty string clears the field.
+    const applySecret = (field: string, value: unknown) => {
+      if (value === undefined) return; // field not sent → leave unchanged
+      const str = typeof value === 'string' ? value : '';
+      if (str.startsWith('••••')) return; // masked placeholder → leave unchanged
+      updateData[field] = str.trim() || null;
+    };
+
+    applySecret('whatsappToken', whatsappToken);
+    applySecret('whatsappVerifyToken', whatsappVerifyToken);
+    applySecret('stripeSecretKey', stripeSecretKey);
+    applySecret('stripeWebhookSecret', stripeWebhookSecret);
+    applySecret('geminiApiKey', geminiApiKey);
+    applySecret('ultramsgToken', ultramsgToken);
+
     if (password) {
-      updateData.password = hashPassword(password);
+      updateData.password = await hashPassword(password);
     }
 
     await prisma.shop.update({
@@ -387,7 +579,8 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
 
     res.json({ message: 'تم تحديث إعدادات المتجر بنجاح' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -520,7 +713,8 @@ router.post('/shop/whatsapp/logout', authenticateShop, async (req, res) => {
     await logoutSession(shopId);
     res.json({ message: 'تم تسجيل الخروج وفصل الواتساب بنجاح' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -533,7 +727,8 @@ router.get('/shop/products', authenticateShop, async (req, res) => {
     });
     res.json(products);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -560,7 +755,8 @@ router.post('/shop/products', authenticateShop, async (req, res) => {
     });
     res.status(201).json(product);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -593,7 +789,8 @@ router.put('/shop/products/:id', authenticateShop, async (req, res) => {
 
     res.json(updated);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -615,7 +812,8 @@ router.delete('/shop/products/:id', authenticateShop, async (req, res) => {
 
     res.json({ message: 'تم حذف المنتج بنجاح' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -628,7 +826,8 @@ router.get('/shop/orders', authenticateShop, async (req, res) => {
     });
     res.json(orders);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -839,7 +1038,8 @@ router.get('/shop/analytics', authenticateShop, async (req, res) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
@@ -894,14 +1094,15 @@ router.get('/shop/chats', authenticateShop, async (req, res) => {
 
     res.json(chats);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
 // GET /api/shop/chats/:phone - Get full conversation history for a customer
 router.get('/shop/chats/:phone', authenticateShop, async (req, res) => {
   const shopId = (req as any).shopId;
-  const phone = req.params.phone;
+  const phone = req.params.phone as string;
 
   try {
     const session = await prisma.session.findUnique({
@@ -935,14 +1136,15 @@ router.get('/shop/chats/:phone', authenticateShop, async (req, res) => {
       orderData,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
 // POST /api/shop/chats/:phone/toggle-bot - Toggle bot pause state for a customer
 router.post('/shop/chats/:phone/toggle-bot', authenticateShop, async (req, res) => {
   const shopId = (req as any).shopId;
-  const phone = req.params.phone;
+  const phone = req.params.phone as string;
 
   try {
     const session = await prisma.session.findUnique({
@@ -966,14 +1168,15 @@ router.post('/shop/chats/:phone/toggle-bot', authenticateShop, async (req, res) 
       message: newState ? 'تم إيقاف البوت - يمكنك الآن التحدث مع الزبون مباشرة' : 'تم تفعيل البوت - سيعود للرد الآلي',
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 
 // POST /api/shop/chats/:phone/send - Send a manual message from shop owner to customer
 router.post('/shop/chats/:phone/send', authenticateShop, async (req, res) => {
   const shopId = (req as any).shopId;
-  const phone = req.params.phone;
+  const phone = req.params.phone as string;
   const { message } = req.body;
 
   if (!message || !message.trim()) {
@@ -1038,7 +1241,8 @@ router.post('/shop/chats/:phone/send', authenticateShop, async (req, res) => {
       message: 'تم إرسال الرسالة للزبون بنجاح وتم إيقاف البوت تلقائياً',
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
 

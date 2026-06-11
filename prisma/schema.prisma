@@ -12,7 +12,12 @@ model Shop {
   name                String
   subdomain           String    @unique
   username            String    @unique
+  email               String?   @unique
   password            String    // Hashed password
+
+  // Password reset
+  resetToken          String?   // SHA-256 hash of the reset token
+  resetTokenExpiry    DateTime?
   
   // Subscription settings
   subscriptionPlan     String    @default("SILVER") // SILVER, GOLD, PLATINUM
@@ -61,6 +66,8 @@ model Product {
   category    String
   available   Boolean  @default(true)
   stock       Int      @default(10)
+
+  @@index([shopId])
 }
 
 model Order {
@@ -78,6 +85,10 @@ model Order {
   stripeSessionId String?
   cardLast4       String?
   productId       String?
+
+  @@index([shopId, timestamp])
+  @@index([shopId, paymentStatus])
+  @@index([stripeSessionId])
 }
 
 model Session {
@@ -93,4 +104,6 @@ model Session {
   botPaused         Boolean  @default(false)
 
   @@unique([phone, shopId])
+  @@index([shopId, lastActivity])
+  @@index([lastActivity])
 }

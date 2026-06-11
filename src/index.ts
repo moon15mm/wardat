@@ -4,6 +4,9 @@ import dns from 'dns';
 dns.setDefaultResultOrder('ipv4first');
 import express from 'express';
 import path from 'path';
+import crypto from 'crypto';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import apiRoutes from './routes/api';
 import { handleMessage } from './agents/agent-1-conversation';
 import { handlePaymentSuccess, handlePaymentFailed } from './agents/agent-4-finance';
@@ -13,13 +16,54 @@ import { WhatsAppMessage } from './types';
 import prisma from './services/db';
 import logger from './utils/logger';
 import { initAllSessions } from './services/baileys-manager';
+import { runSerialized, isDuplicate } from './utils/concurrency';
 import cron from 'node-cron';
+
+// -------------------------------------------------------------
+// Boot-time safety checks
+// -------------------------------------------------------------
+// auth.ts already throws if SESSION_SECRET is missing. Warn about other
+// dangerous defaults so misconfiguration is loud, not silent.
+if (!process.env.ADMIN_PASSWORD) {
+  logger.warn('[Boot] ADMIN_PASSWORD is not set — Super Admin login is DISABLED until you set it.');
+}
+if (!process.env.WHATSAPP_APP_SECRET) {
+  logger.warn('[Boot] WHATSAPP_APP_SECRET is not set — incoming WhatsApp webhook signatures will NOT be verified. Set it in production.');
+}
 
 const app = express();
 
-// Stripe webhook needs raw body
+// Trust the first proxy hop so rate-limiting and req.ip work behind nginx/Cloudflare.
+app.set('trust proxy', 1);
+
+// Security headers. CSP is disabled because the dashboards use inline scripts;
+// enabling it would require refactoring the static HTML.
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// -------------------------------------------------------------
+// Rate limiters
+// -------------------------------------------------------------
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'محاولات تسجيل دخول كثيرة جداً. يرجى المحاولة بعد 15 دقيقة.' },
+});
+
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 1000, // generous: a single shop under load can send many messages
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// -------------------------------------------------------------
+// Stripe webhook (needs raw body for signature verification)
+// -------------------------------------------------------------
 app.post(
   '/webhook/stripe',
+  webhookLimiter,
   express.raw({ type: 'application/json' }),
   async (req, res) => {
     const sig = req.headers['stripe-signature'] as string;
@@ -68,6 +112,14 @@ app.post(
 
       // Construct and verify event signature using correct webhook secret
       const event = constructWebhookEvent(stripeConfig, req.body, sig);
+
+      // Idempotency: ignore events we've already processed (Stripe retries on slow responses).
+      if (isDuplicate(`stripe:${event.id}`)) {
+        logger.info(`[Stripe] Duplicate event ${event.id} ignored`);
+        res.json({ received: true });
+        return;
+      }
+
       logger.info(`[Stripe] Verified Event: ${event.type} (Platform Renewal: ${isPlatformRenewal})`);
 
       if (event.type === 'checkout.session.completed') {
@@ -93,9 +145,19 @@ app.post(
   }
 );
 
-app.use(express.json());
+// Capture the raw body on all JSON requests so we can verify HMAC signatures.
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      (req as any).rawBody = buf;
+    },
+  })
+);
 
-// API routes
+// Auth routes (login + password reset) are rate-limited to deter brute force.
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/forgot-password', loginLimiter);
+app.use('/api/auth/reset-password', loginLimiter);
 app.use('/api', apiRoutes);
 
 // Static files serving
@@ -114,6 +176,10 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/login.html'));
 });
 
+app.get('/reset-password', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/reset-password.html'));
+});
+
 app.get('/success', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/success.html'));
 });
@@ -122,10 +188,35 @@ app.get('/cancel', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/cancel.html'));
 });
 
-// Internal test simulator (remove before going fully public)
+// Internal test simulator — only available outside production.
 app.get('/test-simulator', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.sendStatus(404);
+    return;
+  }
   res.sendFile(path.join(__dirname, '../public/test-simulator.html'));
 });
+
+// -------------------------------------------------------------
+// WhatsApp Cloud API signature verification (Meta)
+// -------------------------------------------------------------
+function verifyMetaSignature(req: express.Request): boolean {
+  const appSecret = process.env.WHATSAPP_APP_SECRET;
+  if (!appSecret) {
+    // Not configured: allow (migration window) but it was warned about at boot.
+    return true;
+  }
+
+  const signature = req.headers['x-hub-signature-256'] as string | undefined;
+  const rawBody = (req as any).rawBody as Buffer | undefined;
+  if (!signature || !rawBody) return false;
+
+  const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex');
+  const sigBuf = Buffer.from(signature);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length) return false;
+  return crypto.timingSafeEqual(sigBuf, expBuf);
+}
 
 // WhatsApp webhook verification (universal platform verification token)
 app.get('/webhook/whatsapp', (req, res) => {
@@ -143,29 +234,40 @@ app.get('/webhook/whatsapp', (req, res) => {
 });
 
 // WhatsApp incoming messages
-app.post('/webhook/whatsapp', async (req, res) => {
+app.post('/webhook/whatsapp', webhookLimiter, async (req, res) => {
+  // Reject forged requests before doing any work.
+  if (!verifyMetaSignature(req)) {
+    logger.warn('[WhatsApp] Rejected webhook with invalid signature');
+    res.sendStatus(403);
+    return;
+  }
+
+  // Acknowledge immediately so Meta does not retry while we process.
+  res.sendStatus(200);
+
   try {
     const body = req.body;
 
-    if (body.object !== 'whatsapp_business_account') {
-      res.sendStatus(404);
-      return;
-    }
+    if (body.object !== 'whatsapp_business_account') return;
 
     const entry = body.entry?.[0];
     const changes = entry?.changes?.[0];
     const value = changes?.value;
 
-    if (!value?.messages?.[0]) {
-      res.sendStatus(200);
-      return;
-    }
+    if (!value?.messages?.[0]) return;
 
     // Identify target phone number ID to locate the tenant
     const targetPhoneId = value.metadata?.phone_number_id;
     if (!targetPhoneId) {
       logger.warn('[WhatsApp] Missing phone_number_id in incoming webhook metadata');
-      res.sendStatus(200);
+      return;
+    }
+
+    const rawMessage = value.messages[0];
+
+    // Drop duplicate deliveries by message id.
+    if (isDuplicate(`wa:${rawMessage.id}`)) {
+      logger.info(`[WhatsApp] Duplicate message ${rawMessage.id} ignored`);
       return;
     }
 
@@ -176,11 +278,9 @@ app.post('/webhook/whatsapp', async (req, res) => {
 
     if (!shop) {
       logger.error(`[WhatsApp] Incoming message target Phone ID ${targetPhoneId} has no registered shop`);
-      res.sendStatus(200);
       return;
     }
 
-    const rawMessage = value.messages[0];
     const contact = value.contacts?.[0];
 
     const message: WhatsAppMessage = {
@@ -207,19 +307,17 @@ app.post('/webhook/whatsapp', async (req, res) => {
       `[WhatsApp] Message from ${message.from} (${contact?.profile?.name || 'unknown'}) to Shop ${shop.name}: ${message.text?.body || message.type}`
     );
 
-    await handleMessage(message, shop.id);
-
-    res.sendStatus(200);
+    // Process one customer's messages strictly in order.
+    await runSerialized(`${shop.id}:${message.from}`, () => handleMessage(message, shop.id));
   } catch (err: any) {
     logger.error(`[WhatsApp] Error processing message: ${err.message}`);
-    res.sendStatus(200);
   }
 });
 
 // Helper to parse Ultramsg location messages
 function parseUltramsgLocation(body: string): { latitude: number; longitude: number } | undefined {
   if (!body) return undefined;
-  
+
   // Try to match standard "lat,lng" (e.g., "24.7136,46.6753")
   const commaMatch = body.match(/^(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)$/);
   if (commaMatch) {
@@ -251,19 +349,30 @@ function parseUltramsgLocation(body: string): { latitude: number; longitude: num
 }
 
 // Ultramsg incoming messages (Standard WhatsApp)
-app.post('/webhook/ultramsg', async (req, res) => {
+app.post('/webhook/ultramsg', webhookLimiter, async (req, res) => {
+  // Optional shared-secret token check (set ULTRAMSG_WEBHOOK_TOKEN and append ?token=... to the webhook URL).
+  const expectedToken = process.env.ULTRAMSG_WEBHOOK_TOKEN;
+  if (expectedToken && req.query.token !== expectedToken) {
+    logger.warn('[Ultramsg] Rejected webhook with invalid token');
+    res.sendStatus(403);
+    return;
+  }
+
+  // Acknowledge immediately.
+  res.sendStatus(200);
+
   try {
     const body = req.body;
     const instanceId = body.instanceId;
 
-    if (!instanceId || body.event_type !== 'message_received') {
-      res.sendStatus(200);
-      return;
-    }
+    if (!instanceId || body.event_type !== 'message_received') return;
 
     const rawMsg = body.data;
-    if (!rawMsg || rawMsg.fromMe === true) {
-      res.sendStatus(200);
+    if (!rawMsg || rawMsg.fromMe === true) return;
+
+    // Drop duplicate deliveries.
+    if (rawMsg.id && isDuplicate(`um:${rawMsg.id}`)) {
+      logger.info(`[Ultramsg] Duplicate message ${rawMsg.id} ignored`);
       return;
     }
 
@@ -276,7 +385,6 @@ app.post('/webhook/ultramsg', async (req, res) => {
 
     if (!shop) {
       logger.warn(`[Ultramsg] Incoming message target Instance ID ${instanceId} has no registered shop`);
-      res.sendStatus(200);
       return;
     }
 
@@ -298,12 +406,9 @@ app.post('/webhook/ultramsg', async (req, res) => {
       `[Ultramsg] Message from ${message.from} to Shop ${shop.name}: ${rawMsg.body || rawMsg.type}`
     );
 
-    await handleMessage(message, shop.id);
-
-    res.sendStatus(200);
+    await runSerialized(`${shop.id}:${message.from}`, () => handleMessage(message, shop.id));
   } catch (err: any) {
     logger.error(`[Ultramsg] Error processing message: ${err.message}`);
-    res.sendStatus(200);
   }
 });
 
@@ -313,11 +418,11 @@ app.get('/health', (_req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
   logger.info(`Server running on port ${PORT}`);
   logger.info(`WhatsApp webhook: /webhook/whatsapp`);
   logger.info(`Stripe webhook: /webhook/stripe`);
-  
+
   await initAllSessions();
 
   // Daily Cron Job to expire shops past their subscription end date
@@ -328,16 +433,60 @@ app.listen(PORT, async () => {
         where: {
           subscriptionStatus: 'ACTIVE',
           subscriptionEnd: {
-            lt: new Date()
-          }
+            lt: new Date(),
+          },
         },
         data: {
-          subscriptionStatus: 'EXPIRED'
-        }
+          subscriptionStatus: 'EXPIRED',
+        },
       });
       logger.info(`[Cron] Expired ${result.count} shops with ended subscriptions.`);
     } catch (err: any) {
       logger.error(`[Cron] Error checking subscriptions: ${err.message}`);
     }
   });
+
+  // Hourly Cron Job to purge stale sessions (older than 24h) so the table doesn't grow forever.
+  cron.schedule('0 * * * *', async () => {
+    try {
+      const cutoff = BigInt(Date.now() - 24 * 60 * 60 * 1000);
+      const result = await prisma.session.deleteMany({
+        where: { lastActivity: { lt: cutoff } },
+      });
+      if (result.count > 0) {
+        logger.info(`[Cron] Purged ${result.count} stale sessions.`);
+      }
+    } catch (err: any) {
+      logger.error(`[Cron] Error purging stale sessions: ${err.message}`);
+    }
+  });
 });
+
+// -------------------------------------------------------------
+// Graceful shutdown
+// -------------------------------------------------------------
+let shuttingDown = false;
+async function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.info(`[Shutdown] Received ${signal}, closing server gracefully...`);
+
+  server.close(async () => {
+    try {
+      await prisma.$disconnect();
+    } catch (e) {
+      // ignore
+    }
+    logger.info('[Shutdown] Closed cleanly.');
+    process.exit(0);
+  });
+
+  // Force-exit if connections don't drain in time.
+  setTimeout(() => {
+    logger.warn('[Shutdown] Forced exit after timeout.');
+    process.exit(1);
+  }, 15000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

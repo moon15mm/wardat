@@ -12,7 +12,7 @@ async function main() {
       name: 'متجر ورود ديمو',
       subdomain: 'demo',
       username: 'demo_admin',
-      password: hashPassword('demo123'),
+      password: await hashPassword('demo123'),
       whatsappPhoneId: 'YOUR_WHATSAPP_PHONE_ID', // استبدله بمعرف رقم الواتساب الخاص بك
       whatsappToken: 'YOUR_WHATSAPP_ACCESS_TOKEN', // استبدله برمز الوصول الخاص بك
       whatsappVerifyToken: 'my_universal_token_123',
