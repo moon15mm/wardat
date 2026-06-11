@@ -3,6 +3,12 @@ import bcrypt from 'bcryptjs';
 
 const SECRET = process.env.SESSION_SECRET || '';
 
+// Legacy salt used by older SHA-256 password hashes. It is deliberately decoupled
+// from SESSION_SECRET so we can rotate the (strong) JWT secret without locking out
+// shops whose passwords were hashed with the original default. Used ONLY to verify
+// and then migrate legacy hashes to bcrypt — never for new hashes or tokens.
+const LEGACY_PASSWORD_SECRET = process.env.LEGACY_PASSWORD_SECRET || 'wardat-default-secret-key-123456';
+
 // Token lifetime in seconds (default 24h)
 const TOKEN_TTL_SECONDS = parseInt(process.env.TOKEN_TTL_SECONDS || '86400', 10);
 
@@ -26,7 +32,7 @@ export async function hashPassword(password: string): Promise<string> {
  * transparently migrate existing passwords on next successful login.
  */
 function legacyHash(password: string): string {
-  return crypto.createHash('sha256').update(password + SECRET).digest('hex');
+  return crypto.createHash('sha256').update(password + LEGACY_PASSWORD_SECRET).digest('hex');
 }
 
 /**
