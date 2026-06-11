@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>وكيل جذب العملاء | وردات</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--pink:#ff2d81;--purple:#8e2de2;--bg:#0f0c20;--bg2:#15102a;--text:#f5f3f7;--sub:#b1a9c3;--glass:rgba(255,255,255,.04);--border:rgba(255,255,255,.08);--green:#34d399;--amber:#f0c06a;--red:#ff6b6b}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Tajawal',sans-serif}
+  body{background:linear-gradient(135deg,#0f0c20,#15102a 50%,#060214);min-height:100vh;color:var(--text);padding:24px}
+  .wrap{max-width:1100px;margin:0 auto}
+  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px}
+  .logo{font-size:1.5rem;font-weight:700;background:linear-gradient(to left,var(--pink),var(--purple));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{color:var(--sub);font-size:.9rem;margin-bottom:22px}
+  a.back{color:var(--sub);text-decoration:none;font-size:.9rem;border:1px solid var(--border);padding:8px 14px;border-radius:10px}
+  a.back:hover{background:var(--glass)}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:22px}
+  .stat{background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center}
+  .stat .v{font-size:1.6rem;font-weight:700}.stat .l{color:var(--sub);font-size:.8rem;margin-top:2px}
+  .card{background:var(--glass);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px}
+  h3{font-size:1.05rem;margin-bottom:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+  label{display:block;font-size:.8rem;color:var(--sub);margin-bottom:5px}
+  input,select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(0,0,0,.25);color:var(--text);font-size:.9rem;outline:none;font-family:'Tajawal'}
+  input:focus,select:focus,textarea:focus{border-color:var(--pink)}
+  select option{background:#1a1430}
+  .btn{background:linear-gradient(to right,var(--pink),var(--purple));color:#fff;border:none;padding:10px 18px;border-radius:10px;font-weight:700;cursor:pointer;font-family:'Tajawal';font-size:.9rem}
+  .btn:hover{opacity:.92}
+  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+  .btn-sm{padding:7px 12px;font-size:.82rem;border-radius:9px}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .pill{background:var(--glass);border:1px solid var(--border);color:var(--sub);padding:7px 14px;border-radius:20px;cursor:pointer;font-size:.85rem}
+  .pill.on{background:var(--pink);color:#fff;border-color:transparent}
+  .p-card{background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
+  .p-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .p-name{font-weight:700;font-size:1.05rem}
+  .p-meta{color:var(--sub);font-size:.82rem;margin:6px 0}
+  .p-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .badge{font-size:.72rem;padding:3px 10px;border-radius:20px}
+  .st-NEW{background:rgba(120,140,200,.18);color:#aab6e6}
+  .st-CONTACTED{background:rgba(240,192,106,.15);color:var(--amber)}
+  .st-INTERESTED{background:rgba(142,45,226,.2);color:#c4a9ff}
+  .st-DEMO{background:rgba(255,45,129,.15);color:#ff8fb5}
+  .st-WON{background:rgba(52,211,153,.16);color:var(--green)}
+  .st-LOST{background:rgba(255,107,107,.14);color:var(--red)}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:18px}
+  .overlay.on{display:flex}
+  .modal{background:#15102a;border:1px solid var(--border);border-radius:16px;padding:24px;max-width:620px;width:100%;max-height:90vh;overflow:auto}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+  .close{cursor:pointer;color:var(--sub);font-size:1.4rem;background:none;border:none}
+  .kindbtns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .variant{background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;white-space:pre-wrap;line-height:1.7;font-size:.92rem}
+  .v-actions{display:flex;gap:8px;margin-top:10px}
+  .toast{position:fixed;bottom:20px;right:20px;background:var(--green);color:#06281c;padding:12px 18px;border-radius:10px;font-weight:700;display:none;z-index:60}
+  .empty{text-align:center;color:var(--sub);padding:30px}
+  .spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:r .7s linear infinite;vertical-align:-3px}
+  @keyframes r{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="logo">وكيل جذب العملاء</div>
+    </div>
+    <a class="back" href="/superadmin">→ رجوع للوحة الأدمن</a>
+  </div>
+  <div class="sub">إدارة المتاجر المستهدفة وصياغة رسائل تواصل ذكية — الهدف: أول مشترك رسمي 🎯</div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="card">
+    <h3>➕ إضافة متجر مستهدف</h3>
+    <form id="addForm">
+      <div class="grid">
+        <div><label>اسم المتجر *</label><input id="f_name" required placeholder="مثال: ورود المدينة"></div>
+        <div><label>المدينة</label><input id="f_city" placeholder="الرياض"></div>
+        <div><label>رقم واتساب (مع رمز الدولة)</label><input id="f_phone" placeholder="9665xxxxxxxx"></div>
+        <div><label>انستقرام</label><input id="f_instagram" placeholder="@store"></div>
+        <div><label>المصدر</label><input id="f_source" placeholder="انستقرام / خرائط جوجل / ترشيح"></div>
+      </div>
+      <div style="margin-top:12px"><button class="btn" type="submit">إضافة للقائمة</button></div>
+    </form>
+  </div>
+
+  <div class="filters" id="filters"></div>
+  <div id="list"></div>
+</div>
+
+<div class="overlay" id="draftOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="draftTitle">صياغة رسالة تواصل</h3>
+      <button class="close" onclick="closeDraft()">&times;</button>
+    </div>
+    <div class="kindbtns">
+      <button class="btn btn-sm" onclick="genDraft('first_touch')">رسالة أولى</button>
+      <button class="btn btn-sm btn-ghost" onclick="genDraft('follow_up')">متابعة</button>
+      <button class="btn btn-sm btn-ghost" onclick="genDraft('demo_invite')">دعوة لتجربة</button>
+    </div>
+    <div id="draftResults"><div class="empty">اختر نوع الرسالة ليصيغها الوكيل…</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const token = localStorage.getItem('wardat_token');
+const role = localStorage.getItem('wardat_role');
+if (!token || role !== 'superadmin') { localStorage.clear(); location.href='/login'; }
+const headers = { 'Authorization': 'Bearer '+token, 'Content-Type':'application/json' };
+
+const STATUSES = [
+  ['ALL','الكل'],['NEW','جديد'],['CONTACTED','تم التواصل'],['INTERESTED','مهتم'],
+  ['DEMO','عرض/تجربة'],['WON','مشترك ✅'],['LOST','غير مهتم']
+];
+const STATUS_LABEL = {NEW:'جديد',CONTACTED:'تم التواصل',INTERESTED:'مهتم',DEMO:'عرض/تجربة',WON:'مشترك',LOST:'غير مهتم'};
+let currentFilter = 'ALL';
+let currentDraftId = null, currentDraftPhone = null;
+
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',1800); }
+
+function renderFilters(){
+  document.getElementById('filters').innerHTML = STATUSES.map(([k,l])=>
+    `<div class="pill ${k===currentFilter?'on':''}" onclick="setFilter('${k}')">${l}</div>`).join('');
+}
+function setFilter(k){ currentFilter=k; renderFilters(); loadList(); }
+
+async function loadStats(){
+  const res = await fetch('/api/admin/prospects/stats',{headers}); const d = await res.json();
+  const cards = [['total','الإجمالي',d.total]];
+  const order=['NEW','CONTACTED','INTERESTED','DEMO','WON','LOST'];
+  const html = `<div class="stat"><div class="v">${d.total||0}</div><div class="l">الإجمالي</div></div>`+
+    order.map(s=>`<div class="stat"><div class="v" style="color:${s==='WON'?'var(--green)':s==='LOST'?'var(--red)':'var(--text)'}">${d.counts[s]||0}</div><div class="l">${STATUS_LABEL[s]}</div></div>`).join('');
+  document.getElementById('stats').innerHTML = html;
+}
+
+async function loadList(){
+  const q = currentFilter==='ALL' ? '' : ('?status='+currentFilter);
+  const res = await fetch('/api/admin/prospects'+q,{headers});
+  const data = await res.json();
+  const list = document.getElementById('list');
+  if(!Array.isArray(data) || data.length===0){ list.innerHTML='<div class="empty">لا يوجد متاجر في هذه القائمة بعد.</div>'; return; }
+  list.innerHTML = data.map(p=>{
+    const opts = Object.keys(STATUS_LABEL).map(s=>`<option value="${s}" ${p.status===s?'selected':''}>${STATUS_LABEL[s]}</option>`).join('');
+    const waNum = (p.phone||'').replace(/\D/g,'');
+    const contacts = [
+      p.phone?`<a href="https://wa.me/${waNum}" target="_blank" style="color:var(--green);text-decoration:none">📱 ${p.phone}</a>`:'',
+      p.instagram?`<span style="color:#c4a9ff">📷 ${p.instagram}</span>`:''
+    ].filter(Boolean).join(' · ');
+    const last = p.lastContact?('آخر تواصل: '+new Date(p.lastContact).toLocaleDateString('ar')):'لم يتم التواصل بعد';
+    return `<div class="p-card">
+      <div class="p-head">
+        <div class="p-name">${p.name} <span class="badge st-${p.status}">${STATUS_LABEL[p.status]}</span></div>
+        <select onchange="changeStatus('${p.id}',this.value)" style="width:auto">${opts}</select>
+      </div>
+      <div class="p-meta">${[p.city,p.source].filter(Boolean).join(' · ')||'—'} • ${last}</div>
+      ${contacts?`<div class="p-meta">${contacts}</div>`:''}
+      <textarea rows="2" placeholder="ملاحظات…" onblur="saveNotes('${p.id}',this.value)">${p.notes||''}</textarea>
+      <div class="p-actions">
+        <button class="btn btn-sm" onclick="openDraft('${p.id}','${(p.phone||'').replace(/\D/g,'')}','${p.name.replace(/'/g,'')}')">✍️ ولّد رسالة</button>
+        <button class="btn btn-sm btn-ghost" onclick="touch('${p.id}')">⏱️ تم التواصل الآن</button>
+        <button class="btn btn-sm btn-ghost" onclick="del('${p.id}','${p.name.replace(/'/g,'')}')">🗑️ حذف</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function changeStatus(id,status){ await fetch('/api/admin/prospects/'+id,{method:'PUT',headers,body:JSON.stringify({status})}); toast('تم تحديث الحالة'); loadStats(); loadList(); }
+async function saveNotes(id,notes){ await fetch('/api/admin/prospects/'+id,{method:'PUT',headers,body:JSON.stringify({notes})}); toast('تم حفظ الملاحظة'); }
+async function touch(id){ await fetch('/api/admin/prospects/'+id,{method:'PUT',headers,body:JSON.stringify({touch:true,status:'CONTACTED'})}); toast('سُجّل التواصل'); loadStats(); loadList(); }
+async function del(id,name){ if(!confirm('حذف "'+name+'"؟'))return; await fetch('/api/admin/prospects/'+id,{method:'DELETE',headers}); toast('تم الحذف'); loadStats(); loadList(); }
+
+document.getElementById('addForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const body = {
+    name:f_name.value.trim(), city:f_city.value.trim(), phone:f_phone.value.trim(),
+    instagram:f_instagram.value.trim(), source:f_source.value.trim()
+  };
+  const res = await fetch('/api/admin/prospects',{method:'POST',headers,body:JSON.stringify(body)});
+  if(res.ok){ e.target.reset(); toast('أُضيف المتجر'); loadStats(); loadList(); }
+  else { const d=await res.json(); alert(d.error||'فشل'); }
+});
+
+function openDraft(id,phone,name){ currentDraftId=id; currentDraftPhone=phone; document.getElementById('draftTitle').textContent='صياغة رسالة لـ '+name; document.getElementById('draftResults').innerHTML='<div class="empty">اختر نوع الرسالة ليصيغها الوكيل…</div>'; document.getElementById('draftOverlay').classList.add('on'); }
+function closeDraft(){ document.getElementById('draftOverlay').classList.remove('on'); }
+
+async function genDraft(kind){
+  const box = document.getElementById('draftResults');
+  box.innerHTML='<div class="empty"><span class="spin"></span> الوكيل يكتب الرسالة…</div>';
+  try{
+    const res = await fetch('/api/admin/prospects/'+currentDraftId+'/draft',{method:'POST',headers,body:JSON.stringify({kind})});
+    const d = await res.json();
+    if(!res.ok) throw new Error(d.error||'فشل');
+    box.innerHTML = (d.variants||[]).map((v,i)=>{
+      const enc = encodeURIComponent(v);
+      const wa = currentDraftPhone?`<a class="btn btn-sm" style="text-decoration:none" target="_blank" href="https://wa.me/${currentDraftPhone}?text=${enc}">إرسال واتساب</a>`:'';
+      return `<div class="variant" id="var${i}">${v}<div class="v-actions"><button class="btn btn-sm btn-ghost" onclick="copyVar(${i})">نسخ</button>${wa}</div></div>`;
+    }).join('') || '<div class="empty">تعذّر توليد رسالة.</div>';
+  }catch(err){ box.innerHTML='<div class="empty">'+err.message+'</div>'; }
+}
+function copyVar(i){ const el=document.getElementById('var'+i); const txt=el.childNodes[0].textContent; navigator.clipboard.writeText(txt); toast('نُسخت الرسالة'); }
+
+renderFilters(); loadStats(); loadList();
+</script>
+</body>
+</html>

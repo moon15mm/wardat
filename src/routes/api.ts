@@ -5,6 +5,7 @@ import { hashPassword, verifyPassword, generateToken } from '../utils/auth';
 import { authenticateSuperAdmin, authenticateShop } from '../middlewares/auth';
 import { sendPasswordResetEmail } from '../services/email';
 import * as settings from '../services/settings';
+import { generateOutreachDrafts, DraftKind } from '../services/outreach';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -509,6 +510,130 @@ router.put('/admin/settings', authenticateSuperAdmin, async (req, res) => {
   } catch (err: any) {
     logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
     res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
+  }
+});
+
+// -------------------------------------------------------------
+// OUTREACH AGENT — prospect pipeline / CRM (Super Admin)
+// Goal: land the first official subscriber. Drafts messages with AI;
+// never sends automatically (operator copies & sends manually).
+// -------------------------------------------------------------
+const PROSPECT_STATUSES = ['NEW', 'CONTACTED', 'INTERESTED', 'DEMO', 'WON', 'LOST'];
+
+router.get('/admin/prospects', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    const where = status && PROSPECT_STATUSES.includes(status) ? { status } : {};
+    const prospects = await prisma.prospect.findMany({
+      where,
+      orderBy: { updatedAt: 'desc' },
+    });
+    res.json(prospects);
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
+  }
+});
+
+router.get('/admin/prospects/stats', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const grouped = await prisma.prospect.groupBy({
+      by: ['status'],
+      _count: { status: true },
+    });
+    const counts: Record<string, number> = {};
+    for (const s of PROSPECT_STATUSES) counts[s] = 0;
+    let total = 0;
+    for (const g of grouped) {
+      counts[g.status] = g._count.status;
+      total += g._count.status;
+    }
+    res.json({ total, counts });
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
+  }
+});
+
+router.post('/admin/prospects', authenticateSuperAdmin, async (req, res) => {
+  const { name, city, phone, instagram, source, status, notes } = req.body;
+  if (!name || !String(name).trim()) {
+    return res.status(400).json({ error: 'يرجى إدخال اسم المتجر المستهدف' });
+  }
+  try {
+    const prospect = await prisma.prospect.create({
+      data: {
+        name: String(name).trim(),
+        city: city || null,
+        phone: phone || null,
+        instagram: instagram || null,
+        source: source || null,
+        status: PROSPECT_STATUSES.includes(status) ? status : 'NEW',
+        notes: notes || '',
+      },
+    });
+    res.status(201).json(prospect);
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
+  }
+});
+
+router.put('/admin/prospects/:id', authenticateSuperAdmin, async (req, res) => {
+  const { name, city, phone, instagram, source, status, notes, touch } = req.body;
+  try {
+    const data: any = {};
+    if (name !== undefined) data.name = String(name).trim();
+    if (city !== undefined) data.city = city || null;
+    if (phone !== undefined) data.phone = phone || null;
+    if (instagram !== undefined) data.instagram = instagram || null;
+    if (source !== undefined) data.source = source || null;
+    if (notes !== undefined) data.notes = notes || '';
+    if (status !== undefined) {
+      if (!PROSPECT_STATUSES.includes(status)) {
+        return res.status(400).json({ error: 'حالة غير صالحة' });
+      }
+      data.status = status;
+    }
+    // "touch" records that we just reached out (sets lastContact to now).
+    if (touch) data.lastContact = new Date();
+
+    const updated = await prisma.prospect.update({
+      where: { id: req.params.id as string },
+      data,
+    });
+    res.json(updated);
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
+  }
+});
+
+router.delete('/admin/prospects/:id', authenticateSuperAdmin, async (req, res) => {
+  try {
+    await prisma.prospect.delete({ where: { id: req.params.id as string } });
+    res.json({ message: 'تم حذف العميل المحتمل' });
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
+  }
+});
+
+// Generate AI outreach message drafts for a prospect (does NOT send).
+router.post('/admin/prospects/:id/draft', authenticateSuperAdmin, async (req, res) => {
+  const kind = (req.body?.kind || 'first_touch') as DraftKind;
+  try {
+    const prospect = await prisma.prospect.findUnique({ where: { id: req.params.id as string } });
+    if (!prospect) return res.status(404).json({ error: 'العميل المحتمل غير موجود' });
+
+    const variants = await generateOutreachDrafts(
+      { name: prospect.name, city: prospect.city, source: prospect.source, notes: prospect.notes },
+      kind
+    );
+    res.json({ variants });
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'تعذّر توليد الرسالة حالياً. يرجى المحاولة لاحقاً.' });
   }
 });
 

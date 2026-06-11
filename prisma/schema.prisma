@@ -61,6 +61,22 @@ model PlatformSetting {
   updatedAt DateTime @updatedAt @default(now())
 }
 
+model Prospect {
+  id          String    @id @default(uuid())
+  name        String    // اسم المتجر/المحل المستهدف
+  city        String?
+  phone       String?   // رقم تواصل (واتساب)
+  instagram   String?
+  source      String?   // من أين وُجد: انستقرام، خرائط جوجل، ترشيح...
+  status      String    @default("NEW") // NEW, CONTACTED, INTERESTED, DEMO, WON, LOST
+  notes       String    @default("")
+  lastContact DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+}
+
 model Product {
   id          String   @id @default(uuid())
   shopId      String

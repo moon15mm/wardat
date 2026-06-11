@@ -164,6 +164,10 @@ app.get('/superadmin', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/superadmin/index.html'));
 });
 
+app.get('/superadmin/outreach', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/superadmin/outreach.html'));
+});
+
 app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/dashboard/index.html'));
 });
