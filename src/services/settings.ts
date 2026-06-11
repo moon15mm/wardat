@@ -22,6 +22,7 @@ const DEFAULTS: Record<string, string> = {
   PLAN_DISCOUNT_3: '5',
   PLAN_DISCOUNT_6: '10',
   PLAN_DISCOUNT_12: '20',
+  FOLLOWUP_DAYS: '3',
 };
 
 // All keys the settings UI can read/write.

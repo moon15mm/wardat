@@ -7,6 +7,11 @@ import { sendPasswordResetEmail } from '../services/email';
 import * as settings from '../services/settings';
 import { generateOutreachDrafts, DraftKind } from '../services/outreach';
 import logger from '../utils/logger';
+import { getAgentSettings, saveAgentSettings, runAcquisitionCycle } from '../services/agent-acquisition';
+import { getAgentLogs, clearAgentLogs, logAgentAction } from '../utils/agent-logger';
+import { discoverFlowerShops } from '../services/lead-finder';
+import { sendTextMessage, WhatsAppConfig } from '../services/whatsapp';
+import { getSessionStatus } from '../services/baileys-manager';
 
 const router = Router();
 
@@ -636,6 +641,134 @@ router.post('/admin/prospects/:id/draft', authenticateSuperAdmin, async (req, re
     res.status(500).json({ error: 'تعذّر توليد الرسالة حالياً. يرجى المحاولة لاحقاً.' });
   }
 });
+
+// -------------------------------------------------------------
+// ACQUISITION AGENT SETTINGS & ACTIONS (Super Admin)
+// -------------------------------------------------------------
+router.get('/admin/agent/settings', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const settingsData = await getAgentSettings();
+    const shops = await prisma.shop.findMany({
+      select: { id: true, name: true, subdomain: true, whatsappType: true }
+    });
+    res.json({ settings: settingsData, shops });
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في جلب إعدادات الوكيل' });
+  }
+});
+
+router.put('/admin/agent/settings', authenticateSuperAdmin, async (req, res) => {
+  try {
+    await saveAgentSettings(req.body);
+    res.json({ message: 'تم حفظ إعدادات الوكيل بنجاح' });
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في حفظ إعدادات الوكيل' });
+  }
+});
+
+router.post('/admin/agent/run', authenticateSuperAdmin, async (req, res) => {
+  try {
+    logAgentAction('[تشغيل يدوي] بدء تشغيل دورة الاستحواذ بطلب من المدير.');
+    // Run async so it returns immediately
+    runAcquisitionCycle();
+    res.json({ message: 'تم تشغيل دورة الوكيل بنجاح في الخلفية' });
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في تشغيل الوكيل' });
+  }
+});
+
+router.get('/admin/agent/logs', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const logs = getAgentLogs(100);
+    res.json({ logs });
+  } catch (err: any) {
+    res.status(500).json({ error: 'حدث خطأ في جلب السجلات' });
+  }
+});
+
+router.post('/admin/agent/clear-logs', authenticateSuperAdmin, async (req, res) => {
+  try {
+    clearAgentLogs();
+    logAgentAction('تم مسح السجلات بطلب من المدير.');
+    res.json({ message: 'تم مسح السجلات بنجاح' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'حدث خطأ في مسح السجلات' });
+  }
+});
+
+router.post('/admin/agent/discover-leads', authenticateSuperAdmin, async (req, res) => {
+  const { city } = req.body;
+  if (!city) return res.status(400).json({ error: 'يرجى تحديد المدينة' });
+  try {
+    const leads = await discoverFlowerShops(city);
+    res.json(leads);
+  } catch (err: any) {
+    res.status(500).json({ error: 'حدث خطأ أثناء اكتشاف المتاجر' });
+  }
+});
+
+router.post('/admin/agent/send-message', authenticateSuperAdmin, async (req, res) => {
+  const { prospectId, senderShopId, message } = req.body;
+  if (!prospectId || !senderShopId || !message) {
+    return res.status(400).json({ error: 'بيانات غير مكتملة' });
+  }
+
+  try {
+    const prospect = await prisma.prospect.findUnique({ where: { id: prospectId } });
+    if (!prospect || !prospect.phone) {
+      return res.status(404).json({ error: 'العميل المحتمل غير موجود أو لا يملك رقم هاتف' });
+    }
+
+    const shop = await prisma.shop.findUnique({ where: { id: senderShopId } });
+    if (!shop) {
+      return res.status(404).json({ error: 'متجر الإرسال غير موجود' });
+    }
+
+    let active = false;
+    if (shop.whatsappType === 'NORMAL') {
+      const status = getSessionStatus(shop.id);
+      active = status.status === 'CONNECTED';
+    } else {
+      active = !!(shop.whatsappToken && shop.whatsappPhoneId);
+    }
+
+    if (!active) {
+      return res.status(400).json({ error: 'جلسة واتساب لمتجر الإرسال غير متصلة حالياً' });
+    }
+
+    const whatsappConfig: WhatsAppConfig = {
+      whatsappType: shop.whatsappType as 'BUSINESS' | 'NORMAL',
+      shopId: shop.id,
+      token: shop.whatsappToken,
+      phoneId: shop.whatsappPhoneId,
+      adminGroupId: shop.whatsappAdminGroupId,
+      ultramsgInstanceId: shop.ultramsgInstanceId,
+      ultramsgToken: shop.ultramsgToken,
+    };
+
+    await sendTextMessage(whatsappConfig, prospect.phone, message);
+    
+    // Update lastContact
+    await prisma.prospect.update({
+      where: { id: prospectId },
+      data: {
+        lastContact: new Date(),
+        status: prospect.status === 'NEW' ? 'CONTACTED' : prospect.status,
+        notes: `${prospect.notes}\n[واتساب البوت] تم إرسال رسالة مباشرة من البوت.`
+      }
+    });
+
+    logAgentAction(`تم إرسال رسالة مباشرة إلى "${prospect.name}" عبر البوت.`);
+    res.json({ message: 'تم إرسال الرسالة بنجاح وتحديث حالة العميل' });
+  } catch (err: any) {
+    logger.error(`[API] Send message error: ${err.message}`);
+    res.status(500).json({ error: `فشل الإرسال: ${err.message}` });
+  }
+});
+
 
 // -------------------------------------------------------------
 // 3. SHOP OWNER ROUTES (Protected)

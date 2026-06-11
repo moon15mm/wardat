@@ -19,6 +19,7 @@ import { initAllSessions } from './services/baileys-manager';
 import { runSerialized, isDuplicate } from './utils/concurrency';
 import * as settings from './services/settings';
 import cron from 'node-cron';
+import { runAcquisitionCycle } from './services/agent-acquisition';
 
 // -------------------------------------------------------------
 // Boot-time safety checks
@@ -446,6 +447,16 @@ const server = app.listen(PORT, async () => {
       logger.info(`[Cron] Expired ${result.count} shops with ended subscriptions.`);
     } catch (err: any) {
       logger.error(`[Cron] Error checking subscriptions: ${err.message}`);
+    }
+  });
+
+  // Daily Cron Job for the Customer Acquisition Agent (Runs at 1:00 AM)
+  cron.schedule('0 1 * * *', async () => {
+    logger.info('[Cron] Running daily Customer Acquisition Agent cycle...');
+    try {
+      await runAcquisitionCycle();
+    } catch (err: any) {
+      logger.error(`[Cron] Error running Customer Acquisition Agent cycle: ${err.message}`);
     }
   });
 
