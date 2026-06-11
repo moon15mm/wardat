@@ -267,7 +267,7 @@
           <div class="radar-console" id="radarConsole"></div>
         </div>
         <div id="discoveredLeadsContainer" style="display:none; margin-top: 15px;">
-          <h4 style="font-size:0.9rem; margin-bottom:8px;">المتاجر المكتشفة:</h4>
+          <h4 style="font-size:0.9rem; margin-bottom:8px;">المتاجر المكتشفة في <span id="discoveredCityTitle" style="color:var(--pink);"></span>:</h4>
           <div id="discoveredLeadsList" class="discovered-list"></div>
         </div>
       </div>
@@ -494,6 +494,7 @@ async function discoverLeads() {
       document.getElementById('discoveredCityTitle').textContent = city;
       discoveredBox.style.display = 'block';
       
+      window.discoveredLeads = data;
       const list = document.getElementById('discoveredLeadsList');
       list.innerHTML = data.map((l, index) => {
         const contactInfo = [l.phone, l.instagram].filter(Boolean).join(' · ') || 'لا يوجد معلومات تواصل';
@@ -503,7 +504,7 @@ async function discoverLeads() {
             <div class="discovered-subtext">${contactInfo} | ${l.source}</div>
             <div class="discovered-subtext" style="font-style: italic; color: #a5b4fc;">${l.notes}</div>
           </div>
-          <button class="btn btn-sm" id="addBtn${index}" onclick="addDiscoveredLead('${l.name.replace(/'/g, "")}', '${l.city}', '${l.phone||""}', '${l.instagram||""}', '${l.source}', '${l.notes.replace(/'/g, "")}', ${index})">➕ إضافة</button>
+          <button class="btn btn-sm" id="addBtn${index}" onclick="addDiscoveredLeadByIndex(${index})">➕ إضافة</button>
         </div>`;
       }).join('');
     }, 3800);
@@ -516,11 +517,21 @@ async function discoverLeads() {
   }
 }
 
-async function addDiscoveredLead(name, city, phone, instagram, source, notes, index) {
-  const body = { name, city, phone, instagram, source, notes, status: 'NEW' };
+async function addDiscoveredLeadByIndex(index) {
+  const l = window.discoveredLeads[index];
+  if (!l) return;
+  const body = { 
+    name: l.name, 
+    city: l.city, 
+    phone: l.phone || "", 
+    instagram: l.instagram || "", 
+    source: l.source, 
+    notes: l.notes, 
+    status: 'NEW' 
+  };
   const res = await fetch('/api/admin/prospects', { method: 'POST', headers, body: JSON.stringify(body) });
   if (res.ok) {
-    toast(`تمت إضافة ${name} إلى القائمة`);
+    toast(`تمت إضافة ${l.name} إلى القائمة`);
     document.getElementById(`addBtn${index}`).textContent = '✅ تمت الإضافة';
     document.getElementById(`addBtn${index}`).disabled = true;
     loadStats();
