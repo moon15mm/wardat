@@ -8,8 +8,6 @@ import * as settings from './settings';
  * operator copies and sends manually (avoids spam / WhatsApp ToS issues).
  */
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy_key' });
-
 export type DraftKind = 'first_touch' | 'follow_up' | 'demo_invite';
 
 export interface ProspectInput {
@@ -56,8 +54,14 @@ ${prospect.city ? `- المدينة: ${prospect.city}\n` : ''}${prospect.source 
 اكتب نصّين جاهزين للإرسال عبر واتساب.`;
 
   try {
+    const ai = settings.getOpenAI();
+    if (!ai.apiKey || ai.apiKey.startsWith('your_')) {
+      // No real key configured → fall through to the static fallback below.
+      throw new Error('OPENAI_API_KEY not configured');
+    }
+    const openai = new OpenAI({ apiKey: ai.apiKey });
     const resp = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      model: ai.model,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: userMsg },

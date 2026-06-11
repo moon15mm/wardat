@@ -32,13 +32,21 @@ export const SETTING_KEYS = [
   'WHATSAPP_APP_SECRET',
   'SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM',
   'APP_BASE_URL', 'ULTRAMSG_WEBHOOK_TOKEN',
+  'OPENAI_API_KEY', 'OPENAI_MODEL',
 ] as const;
 export type SettingKey = typeof SETTING_KEYS[number];
 
 // Keys whose values must be masked when returned to the UI.
 export const SECRET_KEYS = new Set<string>([
-  'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'WHATSAPP_APP_SECRET', 'SMTP_PASS',
+  'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'WHATSAPP_APP_SECRET', 'SMTP_PASS', 'OPENAI_API_KEY',
 ]);
+
+export function getOpenAI(): { apiKey: string; model: string } {
+  return {
+    apiKey: raw('OPENAI_API_KEY') || '',
+    model: raw('OPENAI_MODEL') || 'gpt-4o-mini',
+  };
+}
 
 const cache = new Map<string, string>();
 let loaded = false;
