@@ -1,37 +1,36 @@
 import nodemailer from 'nodemailer';
 import logger from '../utils/logger';
+import { getSmtp } from './settings';
 
 /**
- * SMTP-based mailer.
- *
- * Configure with env vars:
- *   SMTP_HOST, SMTP_PORT, SMTP_SECURE (true/false), SMTP_USER, SMTP_PASS, SMTP_FROM
+ * SMTP-based mailer. Configuration comes from the settings service
+ * (DB override → SMTP_* env vars). The transporter is rebuilt automatically
+ * whenever the SMTP configuration changes (keyed by a signature), so edits in
+ * the admin panel take effect without a restart.
  *
  * If SMTP is not configured, emails are not sent but their content (including the
  * reset link) is logged, so the flow still works in development.
  */
 
 let transporter: nodemailer.Transporter | null = null;
+let signature = '';
 
 function getTransporter(): nodemailer.Transporter | null {
-  if (transporter) return transporter;
-
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT || '587', 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-
-  if (!host || !user || !pass) {
+  const smtp = getSmtp();
+  if (!smtp.host || !smtp.user || !smtp.pass) {
     return null; // not configured
   }
 
-  transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: process.env.SMTP_SECURE === 'true' || port === 465,
-    auth: { user, pass },
-  });
+  const sig = `${smtp.host}|${smtp.port}|${smtp.secure}|${smtp.user}|${smtp.pass}`;
+  if (transporter && sig === signature) return transporter;
 
+  transporter = nodemailer.createTransport({
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
+    auth: { user: smtp.user, pass: smtp.pass },
+  });
+  signature = sig;
   return transporter;
 }
 
@@ -41,7 +40,8 @@ export function isEmailConfigured(): boolean {
 
 export async function sendEmail(to: string, subject: string, html: string, text?: string): Promise<void> {
   const tx = getTransporter();
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@wardat.xyz';
+  const smtp = getSmtp();
+  const from = smtp.from || smtp.user || 'no-reply@wardat.xyz';
 
   if (!tx) {
     logger.warn(`[Email] SMTP not configured. Would have sent to ${to} | Subject: ${subject}`);

@@ -467,7 +467,10 @@
     <!-- Shop Listing -->
     <div class="section-header">
       <h2>إدارة المحلات والمشتركين</h2>
-      <button class="btn-add" onclick="openModal()">إضافة متجر جديد +</button>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn-add" style="background:linear-gradient(135deg,#8e2de2,#4a00e0);" onclick="openSettings()">⚙️ إعدادات النظام</button>
+        <button class="btn-add" onclick="openModal()">إضافة متجر جديد +</button>
+      </div>
     </div>
 
     <div class="table-container">
@@ -674,6 +677,65 @@
     </div>
   </div>
 
+  <!-- Modal: System Settings (plan prices + operational .env config) -->
+  <div id="settingsModal" class="modal">
+    <div class="modal-content" style="max-width: 820px;">
+      <div class="modal-header">
+        <h3>⚙️ إعدادات النظام</h3>
+        <span class="modal-close" onclick="closeSettings()">&times;</span>
+      </div>
+      <div id="settingsAlert" class="alert-box"></div>
+
+      <form id="settingsForm" onsubmit="saveSettings(event)">
+        <h4 style="margin:6px 0 12px; color: var(--pink-glow); border-bottom:1px solid var(--glass-border); padding-bottom:6px;">💰 أسعار الباقات (شهرياً بالريال)</h4>
+        <div class="form-grid">
+          <div class="form-group"><label>الباقة الفضية (Silver)</label><input type="number" min="0" id="set_PLAN_PRICE_SILVER" required></div>
+          <div class="form-group"><label>الباقة الذهبية (Gold)</label><input type="number" min="0" id="set_PLAN_PRICE_GOLD" required></div>
+          <div class="form-group"><label>الباقة البلاتينية (Platinum)</label><input type="number" min="0" id="set_PLAN_PRICE_PLATINUM" required></div>
+        </div>
+
+        <h4 style="margin:18px 0 12px; color: var(--pink-glow); border-bottom:1px solid var(--glass-border); padding-bottom:6px;">🎁 نسب الخصم حسب المدة (%)</h4>
+        <div class="form-grid">
+          <div class="form-group"><label>خصم 3 أشهر</label><input type="number" min="0" max="90" id="set_PLAN_DISCOUNT_3"></div>
+          <div class="form-group"><label>خصم 6 أشهر</label><input type="number" min="0" max="90" id="set_PLAN_DISCOUNT_6"></div>
+          <div class="form-group"><label>خصم 12 شهر</label><input type="number" min="0" max="90" id="set_PLAN_DISCOUNT_12"></div>
+        </div>
+
+        <h4 style="margin:18px 0 12px; color: var(--pink-glow); border-bottom:1px solid var(--glass-border); padding-bottom:6px;">💳 بوابة دفع المنصة (Stripe) — لتجديد الاشتراكات</h4>
+        <div class="form-grid">
+          <div class="form-group"><label>Stripe Secret Key</label><input type="text" id="set_STRIPE_SECRET_KEY" placeholder="sk_live_..."></div>
+          <div class="form-group"><label>Stripe Webhook Secret</label><input type="text" id="set_STRIPE_WEBHOOK_SECRET" placeholder="whsec_..."></div>
+          <div class="form-group"><label>Success URL</label><input type="text" id="set_STRIPE_SUCCESS_URL"></div>
+          <div class="form-group"><label>Cancel URL</label><input type="text" id="set_STRIPE_CANCEL_URL"></div>
+        </div>
+
+        <h4 style="margin:18px 0 12px; color: var(--pink-glow); border-bottom:1px solid var(--glass-border); padding-bottom:6px;">🔐 واتساب والرابط العام</h4>
+        <div class="form-grid">
+          <div class="form-group"><label>WhatsApp App Secret (Meta)</label><input type="text" id="set_WHATSAPP_APP_SECRET"></div>
+          <div class="form-group"><label>APP_BASE_URL (رابط الموقع)</label><input type="text" id="set_APP_BASE_URL" placeholder="https://wardat.xyz"></div>
+          <div class="form-group"><label>Ultramsg Webhook Token (اختياري)</label><input type="text" id="set_ULTRAMSG_WEBHOOK_TOKEN"></div>
+        </div>
+
+        <h4 style="margin:18px 0 12px; color: var(--pink-glow); border-bottom:1px solid var(--glass-border); padding-bottom:6px;">✉️ بريد الإرسال (SMTP) — لاستعادة كلمة المرور</h4>
+        <div class="form-grid">
+          <div class="form-group"><label>SMTP Host</label><input type="text" id="set_SMTP_HOST" placeholder="smtp.gmail.com"></div>
+          <div class="form-group"><label>SMTP Port</label><input type="text" id="set_SMTP_PORT" placeholder="587"></div>
+          <div class="form-group"><label>SMTP Secure (true/false)</label><input type="text" id="set_SMTP_SECURE" placeholder="false"></div>
+          <div class="form-group"><label>SMTP User</label><input type="text" id="set_SMTP_USER"></div>
+          <div class="form-group"><label>SMTP Password / App Password</label><input type="text" id="set_SMTP_PASS"></div>
+          <div class="form-group"><label>SMTP From</label><input type="text" id="set_SMTP_FROM" placeholder="وردات &lt;no-reply@wardat.xyz&gt;"></div>
+        </div>
+
+        <p style="font-size:0.8rem; color: var(--text-sub); margin-top:14px; text-align:right;">الحقول التي تظهر بـ •••• محفوظة مسبقاً — اتركها كما هي للإبقاء عليها، أو اكتب قيمة جديدة لتغييرها.</p>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="closeSettings()">إلغاء</button>
+          <button type="submit" class="btn-save">حفظ الإعدادات</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     const token = localStorage.getItem('wardat_token');
     const role = localStorage.getItem('wardat_role');
@@ -714,6 +776,64 @@
       fetchStats();
       fetchShops();
     };
+
+    // ---- System Settings ----
+    const SETTING_KEYS = [
+      'PLAN_PRICE_SILVER','PLAN_PRICE_GOLD','PLAN_PRICE_PLATINUM',
+      'PLAN_DISCOUNT_3','PLAN_DISCOUNT_6','PLAN_DISCOUNT_12',
+      'STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET','STRIPE_SUCCESS_URL','STRIPE_CANCEL_URL',
+      'WHATSAPP_APP_SECRET','APP_BASE_URL','ULTRAMSG_WEBHOOK_TOKEN',
+      'SMTP_HOST','SMTP_PORT','SMTP_SECURE','SMTP_USER','SMTP_PASS','SMTP_FROM'
+    ];
+
+    async function openSettings() {
+      const alertBox = document.getElementById('settingsAlert');
+      alertBox.style.display = 'none';
+      try {
+        const res = await fetch('/api/admin/settings', { headers });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'تعذّر تحميل الإعدادات');
+        SETTING_KEYS.forEach(k => {
+          const el = document.getElementById('set_' + k);
+          if (el) el.value = data[k] != null ? data[k] : '';
+        });
+        document.getElementById('settingsModal').style.display = 'flex';
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function closeSettings() {
+      document.getElementById('settingsModal').style.display = 'none';
+    }
+
+    async function saveSettings(e) {
+      e.preventDefault();
+      const alertBox = document.getElementById('settingsAlert');
+      alertBox.style.display = 'none';
+      const payload = {};
+      SETTING_KEYS.forEach(k => {
+        const el = document.getElementById('set_' + k);
+        if (el) payload[k] = el.value.trim();
+      });
+      try {
+        const res = await fetch('/api/admin/settings', {
+          method: 'PUT', headers, body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'فشل حفظ الإعدادات');
+        alertBox.textContent = data.message || 'تم الحفظ بنجاح';
+        alertBox.style.background = 'rgba(0,200,120,0.12)';
+        alertBox.style.color = '#34d399';
+        alertBox.style.display = 'block';
+        setTimeout(closeSettings, 1200);
+      } catch (err) {
+        alertBox.textContent = err.message;
+        alertBox.style.background = '';
+        alertBox.style.color = '';
+        alertBox.style.display = 'block';
+      }
+    }
 
     async function fetchStats() {
       try {

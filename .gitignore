@@ -8,3 +8,5 @@ logs/*.json
 data/whatsapp-sessions/
 
 .deploy_runner.py
+
+marketing/

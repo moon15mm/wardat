@@ -4,6 +4,7 @@ import prisma from '../services/db';
 import { hashPassword, verifyPassword, generateToken } from '../utils/auth';
 import { authenticateSuperAdmin, authenticateShop } from '../middlewares/auth';
 import { sendPasswordResetEmail } from '../services/email';
+import * as settings from '../services/settings';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -115,7 +116,7 @@ router.post('/auth/forgot-password', async (req, res) => {
         data: { resetToken: tokenHash, resetTokenExpiry: expiry },
       });
 
-      const baseUrl = (process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+      const baseUrl = (settings.raw('APP_BASE_URL') || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
       const resetLink = `${baseUrl}/reset-password?token=${rawToken}`;
 
       try {
@@ -174,6 +175,22 @@ router.post('/auth/reset-password', async (req, res) => {
     logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
     return res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
+});
+
+// Public: current plan prices + discount tiers (used by the dashboard pricing UI).
+router.get('/plans', (req, res) => {
+  res.json({
+    prices: {
+      SILVER: settings.getPlanPrice('SILVER'),
+      GOLD: settings.getPlanPrice('GOLD'),
+      PLATINUM: settings.getPlanPrice('PLATINUM'),
+    },
+    discountPercents: {
+      3: Math.round(settings.getDiscountFraction(3) * 100),
+      6: Math.round(settings.getDiscountFraction(6) * 100),
+      12: Math.round(settings.getDiscountFraction(12) * 100),
+    },
+  });
 });
 
 router.get('/whatsapp/test-connection', async (req, res) => {
@@ -436,6 +453,66 @@ router.put('/admin/shops/:id', authenticateSuperAdmin, async (req, res) => {
 });
 
 // -------------------------------------------------------------
+// PLATFORM SETTINGS (Super Admin) — plan prices + operational .env config
+// -------------------------------------------------------------
+router.get('/admin/settings', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const all = settings.effectiveAll();
+    const out: Record<string, string> = {};
+    for (const key of Object.keys(all)) {
+      out[key] = settings.SECRET_KEYS.has(key) ? (maskSecret(all[key]) || '') : all[key];
+    }
+    res.json(out);
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
+  }
+});
+
+router.put('/admin/settings', authenticateSuperAdmin, async (req, res) => {
+  const body = req.body || {};
+  const updates: Record<string, string> = {};
+
+  const priceKeys = ['PLAN_PRICE_SILVER', 'PLAN_PRICE_GOLD', 'PLAN_PRICE_PLATINUM'];
+  const discountKeys = ['PLAN_DISCOUNT_3', 'PLAN_DISCOUNT_6', 'PLAN_DISCOUNT_12'];
+
+  for (const key of settings.SETTING_KEYS) {
+    if (!(key in body)) continue;
+    const val = body[key];
+
+    if (priceKeys.includes(key)) {
+      const n = parseFloat(val);
+      if (isNaN(n) || n < 0) {
+        return res.status(400).json({ error: `قيمة السعر غير صالحة: ${key}` });
+      }
+      updates[key] = String(Math.round(n));
+    } else if (discountKeys.includes(key)) {
+      const n = parseFloat(val);
+      if (isNaN(n) || n < 0 || n > 90) {
+        return res.status(400).json({ error: `نسبة الخصم يجب أن تكون بين 0 و 90: ${key}` });
+      }
+      updates[key] = String(Math.round(n));
+    } else if (settings.SECRET_KEYS.has(key)) {
+      // Don't overwrite a secret with a masked placeholder or an empty value.
+      const str = typeof val === 'string' ? val : '';
+      if (str.startsWith('••••') || str.trim() === '') continue;
+      updates[key] = str.trim();
+    } else {
+      // Plain config (urls, host, port, user, from, secure flag) — store as-is.
+      updates[key] = typeof val === 'string' ? val.trim() : String(val);
+    }
+  }
+
+  try {
+    const count = await settings.saveSettings(updates);
+    res.json({ message: 'تم حفظ إعدادات النظام بنجاح', saved: count });
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
+  }
+});
+
+// -------------------------------------------------------------
 // 3. SHOP OWNER ROUTES (Protected)
 // -------------------------------------------------------------
 router.get('/shop/stats', authenticateShop, async (req, res) => {
@@ -606,31 +683,28 @@ router.post('/shop/subscription/checkout', authenticateShop, async (req, res) =>
     return res.status(400).json({ error: 'فترة الاشتراك المحددة غير صالحة' });
   }
 
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const platformStripe = settings.getPlatformStripe();
+  if (!platformStripe.secretKey) {
     return res.status(500).json({ error: 'بوابة دفع المنصة (Stripe) غير مهيأة حالياً. يرجى التواصل مع الإدارة للتفعيل.' });
   }
 
   try {
-    // 1. Calculate pricing
-    let monthlyPrice = 150; // default GOLD
-    if (plan === 'SILVER') monthlyPrice = 50;
-    else if (plan === 'PLATINUM') monthlyPrice = 300;
-
-    // Apply discounts: 3 months (5%), 6 months (10%), 12 months (20%)
-    let discount = 0;
-    if (duration === 3) discount = 0.05;
-    else if (duration === 6) discount = 0.10;
-    else if (duration === 12) discount = 0.20;
-
+    // 1. Calculate pricing from platform settings (admin-editable).
+    const monthlyPrice = settings.getPlanPrice(plan);
+    const discount = settings.getDiscountFraction(duration);
     const totalPrice = Math.round(monthlyPrice * duration * (1 - discount));
+
+    if (!totalPrice || totalPrice <= 0) {
+      return res.status(500).json({ error: 'سعر الباقة غير مهيأ بشكل صحيح. يرجى التواصل مع الإدارة.' });
+    }
 
     // 2. Create Stripe Checkout session on behalf of the platform
     const Stripe = require('stripe');
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    const stripe = new Stripe(platformStripe.secretKey, {
       apiVersion: '2025-04-30.basil' as any,
     });
 
-    const origin = req.headers.origin || 'https://wardat.xyz';
+    const origin = req.headers.origin || settings.getAppBaseUrl();
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],

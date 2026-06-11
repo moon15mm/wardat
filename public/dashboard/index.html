@@ -1601,21 +1601,21 @@
                 <div class="plan-card" data-plan="SILVER" onclick="selectPlan('SILVER')">
                   <div style="font-size: 1.6rem; margin-bottom: 5px;">🥈</div>
                   <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.95rem;">الفضية</div>
-                  <div style="font-size: 1.1rem; color: var(--pink-glow); font-weight: bold; font-family: 'Outfit';">50 <span style="font-size: 0.8rem; font-family: 'Tajawal';">ر.س</span></div>
+                  <div style="font-size: 1.1rem; color: var(--pink-glow); font-weight: bold; font-family: 'Outfit';"><span id="planPriceSILVER">50</span> <span style="font-size: 0.8rem; font-family: 'Tajawal';">ر.س</span></div>
                   <div style="font-size: 0.7rem; color: var(--text-sub); margin-top: 3px;">شهرياً</div>
                 </div>
                 <!-- Gold Plan -->
                 <div class="plan-card active" data-plan="GOLD" onclick="selectPlan('GOLD')">
                   <div style="font-size: 1.6rem; margin-bottom: 5px;">🥇</div>
                   <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.95rem;">الذهبية</div>
-                  <div style="font-size: 1.1rem; color: var(--pink-glow); font-weight: bold; font-family: 'Outfit';">150 <span style="font-size: 0.8rem; font-family: 'Tajawal';">ر.س</span></div>
+                  <div style="font-size: 1.1rem; color: var(--pink-glow); font-weight: bold; font-family: 'Outfit';"><span id="planPriceGOLD">150</span> <span style="font-size: 0.8rem; font-family: 'Tajawal';">ر.س</span></div>
                   <div style="font-size: 0.7rem; color: var(--text-sub); margin-top: 3px;">شهرياً</div>
                 </div>
                 <!-- Platinum Plan -->
                 <div class="plan-card" data-plan="PLATINUM" onclick="selectPlan('PLATINUM')">
                   <div style="font-size: 1.6rem; margin-bottom: 5px;">💎</div>
                   <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.95rem;">البلاتينية</div>
-                  <div style="font-size: 1.1rem; color: var(--pink-glow); font-weight: bold; font-family: 'Outfit';">300 <span style="font-size: 0.8rem; font-family: 'Tajawal';">ر.س</span></div>
+                  <div style="font-size: 1.1rem; color: var(--pink-glow); font-weight: bold; font-family: 'Outfit';"><span id="planPricePLATINUM">300</span> <span style="font-size: 0.8rem; font-family: 'Tajawal';">ر.س</span></div>
                   <div style="font-size: 0.7rem; color: var(--text-sub); margin-top: 3px;">شهرياً</div>
                 </div>
               </div>
@@ -2537,6 +2537,28 @@
     let selectedPlan = 'GOLD';
     let selectedDuration = 1;
 
+    // Plan pricing fetched from the platform (admin-editable). Falls back to defaults.
+    let PLAN_PRICES = { SILVER: 50, GOLD: 150, PLATINUM: 300 };
+    let PLAN_DISCOUNTS = { 3: 5, 6: 10, 12: 20 };
+
+    async function loadPlanPricing() {
+      try {
+        const res = await fetch('/api/plans');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.prices) PLAN_PRICES = data.prices;
+        if (data.discountPercents) PLAN_DISCOUNTS = data.discountPercents;
+        // Update the price labels on the plan cards
+        const map = { SILVER: 'planPriceSILVER', GOLD: 'planPriceGOLD', PLATINUM: 'planPricePLATINUM' };
+        Object.keys(map).forEach(p => {
+          const el = document.getElementById(map[p]);
+          if (el && PLAN_PRICES[p] != null) el.textContent = PLAN_PRICES[p];
+        });
+        calculateSubPrice();
+      } catch (e) {}
+    }
+    loadPlanPricing();
+
     function selectPlan(plan) {
       selectedPlan = plan;
       document.querySelectorAll('.plan-card').forEach(card => {
@@ -2565,29 +2587,13 @@
       const plan = selectedPlan;
       const duration = selectedDuration;
       
-      let monthlyPrice = 150;
-      let planText = 'الباقة الذهبية';
-      if (plan === 'SILVER') {
-        monthlyPrice = 50;
-        planText = 'الباقة الفضية';
-      } else if (plan === 'PLATINUM') {
-        monthlyPrice = 300;
-        planText = 'الباقة البلاتينية';
-      }
-      
-      let discount = 0;
-      let discountText = '';
-      if (duration === 3) {
-        discount = 0.05;
-        discountText = ' (خصم 5%)';
-      } else if (duration === 6) {
-        discount = 0.10;
-        discountText = ' (خصم 10%)';
-      } else if (duration === 12) {
-        discount = 0.20;
-        discountText = ' (خصم 20% 🔥)';
-      }
-      
+      let monthlyPrice = PLAN_PRICES[plan] != null ? PLAN_PRICES[plan] : 150;
+      let planText = plan === 'SILVER' ? 'الباقة الفضية' : plan === 'PLATINUM' ? 'الباقة البلاتينية' : 'الباقة الذهبية';
+
+      const discPct = PLAN_DISCOUNTS[duration] || 0;
+      const discount = discPct / 100;
+      const discountText = discPct ? ` (خصم ${discPct}%${duration === 12 ? ' 🔥' : ''})` : '';
+
       const totalPrice = Math.round(monthlyPrice * duration * (1 - discount));
       document.getElementById('subTotalPriceText').textContent = `${totalPrice} ريال`;
       document.getElementById('subPriceBreakdown').textContent = `${planText} لمدة ${duration} أشهر${discountText}`;

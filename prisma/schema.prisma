@@ -55,6 +55,12 @@ model Shop {
   sessions            Session[]
 }
 
+model PlatformSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @default(now())
+}
+
 model Product {
   id          String   @id @default(uuid())
   shopId      String

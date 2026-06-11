@@ -17,6 +17,7 @@ import prisma from './services/db';
 import logger from './utils/logger';
 import { initAllSessions } from './services/baileys-manager';
 import { runSerialized, isDuplicate } from './utils/concurrency';
+import * as settings from './services/settings';
 import cron from 'node-cron';
 
 // -------------------------------------------------------------
@@ -83,13 +84,8 @@ app.post(
       let stripeConfig;
 
       if (isPlatformRenewal) {
-        // Platform (Super Admin) keys for subscription payments
-        stripeConfig = {
-          secretKey: process.env.STRIPE_SECRET_KEY || '',
-          webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
-          successUrl: process.env.STRIPE_SUCCESS_URL || '',
-          cancelUrl: process.env.STRIPE_CANCEL_URL || '',
-        };
+        // Platform (Super Admin) keys for subscription payments (DB → env).
+        stripeConfig = settings.getPlatformStripe();
       } else {
         // Fetch the specific shop configuration from database for customer orders
         const shop = await prisma.shop.findUnique({
@@ -201,7 +197,7 @@ app.get('/test-simulator', (req, res) => {
 // WhatsApp Cloud API signature verification (Meta)
 // -------------------------------------------------------------
 function verifyMetaSignature(req: express.Request): boolean {
-  const appSecret = process.env.WHATSAPP_APP_SECRET;
+  const appSecret = settings.getWhatsappAppSecret();
   if (!appSecret) {
     // Not configured: allow (migration window) but it was warned about at boot.
     return true;
@@ -422,6 +418,9 @@ const server = app.listen(PORT, async () => {
   logger.info(`Server running on port ${PORT}`);
   logger.info(`WhatsApp webhook: /webhook/whatsapp`);
   logger.info(`Stripe webhook: /webhook/stripe`);
+
+  // Load DB-backed platform settings (plan prices, platform Stripe, app secret, SMTP).
+  await settings.loadSettings();
 
   await initAllSessions();
 
