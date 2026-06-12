@@ -81,10 +81,33 @@ const DISCOVERY_QUERIES = [
   'بوكيهات ورد', 'زهور', 'florist', 'flower and gift shop',
 ];
 
+// Resolve a city name to coordinates so we can focus the search locally.
+async function geocodeCity(city: string, key: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const resp = await axios.post(
+      'https://places.googleapis.com/v1/places:searchText',
+      { textQuery: `${city} السعودية`, languageCode: 'ar', regionCode: 'SA' },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': key,
+          'X-Goog-FieldMask': 'places.location,places.displayName',
+        },
+        timeout: 12000,
+      }
+    );
+    const loc = resp.data.places?.[0]?.location;
+    if (loc && typeof loc.latitude === 'number') return { lat: loc.latitude, lng: loc.longitude };
+  } catch {
+    /* best-effort */
+  }
+  return null;
+}
+
 /**
  * Discover flower/gift shops in a city via Google Places. Real data only —
  * never fabricates names or numbers. Extracts an Instagram handle when the
- * shop's Google listing links to it.
+ * shop's Google listing links to it. Focuses results around the city center.
  */
 export async function discoverLeads(city: string): Promise<Lead[]> {
   const key = settings.raw('GOOGLE_PLACES_API_KEY');
@@ -95,6 +118,12 @@ export async function discoverLeads(city: string): Promise<Lead[]> {
 
   agentLog(`[بدء] بحث موسّع عن محلات الورد والهدايا في «${city}» عبر Places API (New)...`);
   try {
+    const geo = await geocodeCity(city, key);
+    if (geo) {
+      agentLog(`[معلومة] تم تحديد موقع «${city}» — تركيز البحث على نطاق 30كم حوله.`);
+    } else {
+      agentLog(`[تنبيه] تعذّر تحديد موقع «${city}» بدقة — قد تظهر نتائج من مناطق أخرى.`);
+    }
     // Dedupe by name+address. The New Text Search returns phone/website inline,
     // so one request per keyword is enough (no separate details calls).
     const byKey = new Map<string, Lead>();
@@ -104,9 +133,13 @@ export async function discoverLeads(city: string): Promise<Lead[]> {
     await Promise.all(
       DISCOVERY_QUERIES.map(async (kw) => {
         try {
+          const body: any = { textQuery: `${kw} ${city}`, languageCode: 'ar', regionCode: 'SA' };
+          if (geo) {
+            body.locationBias = { circle: { center: { latitude: geo.lat, longitude: geo.lng }, radius: 30000 } };
+          }
           const resp = await axios.post(
             'https://places.googleapis.com/v1/places:searchText',
-            { textQuery: `${kw} ${city}`, languageCode: 'ar', regionCode: 'SA' },
+            body,
             {
               headers: {
                 'Content-Type': 'application/json',
