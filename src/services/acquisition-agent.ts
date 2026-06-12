@@ -84,19 +84,25 @@ const DISCOVERY_QUERIES = [
 // Resolve a city/town name to coordinates so we can restrict the search locally.
 // Prefers the Geocoding API (accurate for towns); falls back to Places.
 async function geocodeCity(city: string, key: string): Promise<{ lat: number; lng: number } | null> {
-  try {
-    const r = await axios.get(
-      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(city + '، السعودية')}&region=sa&language=ar&key=${key}`,
-      { timeout: 12000 }
-    );
-    if (r.data.status === 'OK') {
-      const loc = r.data.results?.[0]?.geometry?.location;
-      if (loc) return { lat: loc.lat, lng: loc.lng };
-    } else if (r.data.status === 'REQUEST_DENIED') {
-      agentLog('[تنبيه] «Geocoding API» غير مفعّل — لتحديد دقيق للبلدات الصغيرة فعّله من Google Cloud. سأستخدم تقديراً أقل دقة.');
+  // Google geocodes transliterated/English names of small towns far better than
+  // Arabic, so try several address forms and take the first hit.
+  const variants = [city, `${city}, Saudi Arabia`, `${city}، السعودية`];
+  for (const addr of variants) {
+    try {
+      const r = await axios.get(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&region=sa&language=ar&key=${key}`,
+        { timeout: 12000 }
+      );
+      if (r.data.status === 'OK') {
+        const loc = r.data.results?.[0]?.geometry?.location;
+        if (loc) return { lat: loc.lat, lng: loc.lng };
+      } else if (r.data.status === 'REQUEST_DENIED') {
+        agentLog('[تنبيه] «Geocoding API» غير مفعّل — فعّله من Google Cloud لتحديد دقيق للبلدات.');
+        break;
+      }
+    } catch {
+      /* try next variant */
     }
-  } catch {
-    /* fall through to Places */
   }
   try {
     const resp = await axios.post(
