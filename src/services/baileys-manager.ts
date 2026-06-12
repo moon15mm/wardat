@@ -148,7 +148,12 @@ export async function startBaileysSession(shopId: string): Promise<void> {
             rawMsg = rawMsg.viewOnceMessageV2.message;
           }
 
-          const from = fromJid.split('@')[0];
+          // WhatsApp/Baileys v7 may address users by a privacy LID (e.g. "<id>@lid")
+          // instead of "<number>@s.whatsapp.net". We must REPLY to the exact JID we
+          // received from — reconstructing "<id>@s.whatsapp.net" from a LID sends to a
+          // non-existent address (the customer never gets a reply). So keep the full
+          // JID for LID senders, and the clean number for normal senders.
+          const from = fromJid.endsWith('@lid') ? fromJid : fromJid.split('@')[0];
           const text = rawMsg.conversation || rawMsg.extendedTextMessage?.text || rawMsg.imageMessage?.caption || '';
           const isLocation = rawMsg.locationMessage;
 
