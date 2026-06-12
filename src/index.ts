@@ -157,8 +157,17 @@ app.use('/api/auth/forgot-password', loginLimiter);
 app.use('/api/auth/reset-password', loginLimiter);
 app.use('/api', apiRoutes);
 
-// Static files serving
-app.use(express.static(path.join(__dirname, '../public')));
+// Static files serving. HTML is served with no-store so dashboard/cockpit
+// updates are picked up immediately (no stale cached pages); other assets cache normally.
+app.use(
+  express.static(path.join(__dirname, '../public'), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-store, must-revalidate');
+      }
+    },
+  })
+);
 
 // HTML redirects/routes for clean URLs
 app.get('/superadmin', (req, res) => {
