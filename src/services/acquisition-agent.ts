@@ -81,8 +81,23 @@ const DISCOVERY_QUERIES = [
   'بوكيهات ورد', 'زهور', 'florist', 'flower and gift shop',
 ];
 
-// Resolve a city name to coordinates so we can focus the search locally.
+// Resolve a city/town name to coordinates so we can restrict the search locally.
+// Prefers the Geocoding API (accurate for towns); falls back to Places.
 async function geocodeCity(city: string, key: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const r = await axios.get(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(city + '، السعودية')}&region=sa&language=ar&key=${key}`,
+      { timeout: 12000 }
+    );
+    if (r.data.status === 'OK') {
+      const loc = r.data.results?.[0]?.geometry?.location;
+      if (loc) return { lat: loc.lat, lng: loc.lng };
+    } else if (r.data.status === 'REQUEST_DENIED') {
+      agentLog('[تنبيه] «Geocoding API» غير مفعّل — لتحديد دقيق للبلدات الصغيرة فعّله من Google Cloud. سأستخدم تقديراً أقل دقة.');
+    }
+  } catch {
+    /* fall through to Places */
+  }
   try {
     const resp = await axios.post(
       'https://places.googleapis.com/v1/places:searchText',
@@ -120,10 +135,12 @@ export async function discoverLeads(city: string): Promise<Lead[]> {
   try {
     const geo = await geocodeCity(city, key);
     if (geo) {
-      agentLog(`[معلومة] تم تحديد موقع «${city}» — تركيز البحث على نطاق 30كم حوله.`);
+      agentLog(`[معلومة] موقع «${city}»: ${geo.lat.toFixed(3)},${geo.lng.toFixed(3)} — حصر البحث ضمن نطاق محلي فقط.`);
     } else {
-      agentLog(`[تنبيه] تعذّر تحديد موقع «${city}» بدقة — قد تظهر نتائج من مناطق أخرى.`);
+      agentLog(`[تنبيه] تعذّر تحديد موقع «${city}» — قد تظهر نتائج من مناطق أخرى.`);
     }
+    // ~28km half-box around the town center.
+    const DELTA = 0.25;
     // Dedupe by name+address. The New Text Search returns phone/website inline,
     // so one request per keyword is enough (no separate details calls).
     const byKey = new Map<string, Lead>();
@@ -135,7 +152,13 @@ export async function discoverLeads(city: string): Promise<Lead[]> {
         try {
           const body: any = { textQuery: `${kw} ${city}`, languageCode: 'ar', regionCode: 'SA' };
           if (geo) {
-            body.locationBias = { circle: { center: { latitude: geo.lat, longitude: geo.lng }, radius: 30000 } };
+            // Hard restriction: only return shops within the box around the town.
+            body.locationRestriction = {
+              rectangle: {
+                low: { latitude: geo.lat - DELTA, longitude: geo.lng - DELTA },
+                high: { latitude: geo.lat + DELTA, longitude: geo.lng + DELTA },
+              },
+            };
           }
           const resp = await axios.post(
             'https://places.googleapis.com/v1/places:searchText',
