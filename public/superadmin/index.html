@@ -714,6 +714,7 @@
         <div class="form-grid">
           <div class="form-group"><label>OpenAI API Key</label><input type="text" id="set_OPENAI_API_KEY" placeholder="sk-..."></div>
           <div class="form-group"><label>OpenAI Model</label><input type="text" id="set_OPENAI_MODEL" placeholder="gpt-4o-mini"></div>
+          <div class="form-group"><label>Google Places API Key (لاكتشاف العملاء)</label><input type="text" id="set_GOOGLE_PLACES_API_KEY" placeholder="AIza..."></div>
         </div>
 
         <h4 style="margin:18px 0 12px; color: var(--pink-glow); border-bottom:1px solid var(--glass-border); padding-bottom:6px;">🔐 واتساب والرابط العام</h4>
@@ -791,7 +792,7 @@
       'STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET','STRIPE_SUCCESS_URL','STRIPE_CANCEL_URL',
       'WHATSAPP_APP_SECRET','APP_BASE_URL','ULTRAMSG_WEBHOOK_TOKEN',
       'SMTP_HOST','SMTP_PORT','SMTP_SECURE','SMTP_USER','SMTP_PASS','SMTP_FROM',
-      'OPENAI_API_KEY','OPENAI_MODEL'
+      'OPENAI_API_KEY','OPENAI_MODEL','GOOGLE_PLACES_API_KEY'
     ];
 
     async function openSettings() {

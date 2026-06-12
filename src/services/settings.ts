@@ -34,13 +34,20 @@ export const SETTING_KEYS = [
   'SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM',
   'APP_BASE_URL', 'ULTRAMSG_WEBHOOK_TOKEN',
   'OPENAI_API_KEY', 'OPENAI_MODEL',
+  // Acquisition agent
+  'FOLLOWUP_DAYS', 'AGENT_ENABLED', 'AGENT_CITY', 'AGENT_SENDER_SHOP_ID', 'AGENT_AUTOSEND', 'GOOGLE_PLACES_API_KEY',
 ] as const;
 export type SettingKey = typeof SETTING_KEYS[number];
 
 // Keys whose values must be masked when returned to the UI.
 export const SECRET_KEYS = new Set<string>([
-  'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'WHATSAPP_APP_SECRET', 'SMTP_PASS', 'OPENAI_API_KEY',
+  'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'WHATSAPP_APP_SECRET', 'SMTP_PASS', 'OPENAI_API_KEY', 'GOOGLE_PLACES_API_KEY',
 ]);
+
+export function getFollowupDays(): number {
+  const n = parseInt(raw('FOLLOWUP_DAYS') || '3', 10);
+  return isNaN(n) ? 3 : Math.min(60, Math.max(1, n));
+}
 
 export function getOpenAI(): { apiKey: string; model: string } {
   return {
