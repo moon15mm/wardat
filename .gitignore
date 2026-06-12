@@ -10,3 +10,6 @@ data/whatsapp-sessions/
 .deploy_runner.py
 
 marketing/
+
+backups/
+.env.bak.*

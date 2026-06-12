@@ -178,6 +178,10 @@ app.get('/superadmin/outreach', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/superadmin/outreach.html'));
 });
 
+app.get('/superadmin/backups', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/superadmin/backups.html'));
+});
+
 app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/dashboard/index.html'));
 });
@@ -466,6 +470,20 @@ const server = app.listen(PORT, async () => {
       await runAcquisitionCycle();
     } catch (err: any) {
       logger.error(`[Cron] Error running Customer Acquisition Agent cycle: ${err.message}`);
+    }
+  });
+
+  // Daily Cron Job for automated backups (3:00 AM) with retention pruning.
+  cron.schedule('0 3 * * *', async () => {
+    if (settings.raw('BACKUP_ENABLED') === 'false') return;
+    logger.info('[Cron] Running daily backup...');
+    try {
+      const backup = require('./services/backup');
+      await backup.createBackup();
+      const days = parseInt(settings.raw('BACKUP_RETENTION_DAYS') || '14', 10);
+      await backup.applyRetention(days);
+    } catch (err: any) {
+      logger.error(`[Cron] Backup failed: ${err.message}`);
     }
   });
 

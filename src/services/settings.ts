@@ -23,6 +23,8 @@ const DEFAULTS: Record<string, string> = {
   PLAN_DISCOUNT_6: '10',
   PLAN_DISCOUNT_12: '20',
   FOLLOWUP_DAYS: '3',
+  BACKUP_ENABLED: 'true',
+  BACKUP_RETENTION_DAYS: '14',
 };
 
 // All keys the settings UI can read/write.
@@ -36,6 +38,8 @@ export const SETTING_KEYS = [
   'OPENAI_API_KEY', 'OPENAI_MODEL',
   // Acquisition agent
   'FOLLOWUP_DAYS', 'AGENT_ENABLED', 'AGENT_CITY', 'AGENT_SENDER_SHOP_ID', 'AGENT_AUTOSEND', 'GOOGLE_PLACES_API_KEY',
+  // Backups
+  'BACKUP_ENABLED', 'BACKUP_RETENTION_DAYS',
 ] as const;
 export type SettingKey = typeof SETTING_KEYS[number];
 

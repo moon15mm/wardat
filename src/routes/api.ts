@@ -6,6 +6,7 @@ import { authenticateSuperAdmin, authenticateShop } from '../middlewares/auth';
 import { sendPasswordResetEmail } from '../services/email';
 import * as settings from '../services/settings';
 import { generateOutreachDrafts, DraftKind } from '../services/outreach';
+import * as backup from '../services/backup';
 import logger from '../utils/logger';
 import { getAgentSettings, saveAgentSettings, runAcquisitionCycle } from '../services/agent-acquisition';
 import { getAgentLogs, clearAgentLogs, logAgentAction } from '../utils/agent-logger';
@@ -786,6 +787,66 @@ router.post('/admin/agent/send-message', authenticateSuperAdmin, async (req, res
   }
 });
 
+
+// -------------------------------------------------------------
+// BACKUPS (Super Admin) — scheduled DB + sessions backups, manage & download
+// -------------------------------------------------------------
+router.get('/admin/backups', authenticateSuperAdmin, (req, res) => {
+  try {
+    res.json({
+      backups: backup.listBackups(),
+      enabled: settings.raw('BACKUP_ENABLED') !== 'false',
+      retentionDays: parseInt(settings.raw('BACKUP_RETENTION_DAYS') || '14', 10),
+    });
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في جلب النسخ الاحتياطية.' });
+  }
+});
+
+router.post('/admin/backups/run', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const result = await backup.createBackup();
+    const days = parseInt(settings.raw('BACKUP_RETENTION_DAYS') || '14', 10);
+    await backup.applyRetention(days);
+    res.json({ message: 'تم إنشاء نسخة احتياطية بنجاح', ...result });
+  } catch (err: any) {
+    logger.error(`[API] backup run failed: ${err.message}`);
+    res.status(500).json({ error: `فشل إنشاء النسخة الاحتياطية: ${err.message}` });
+  }
+});
+
+router.get('/admin/backups/download/:name', authenticateSuperAdmin, (req, res) => {
+  const p = backup.safeBackupPath(req.params.name as string);
+  if (!p) return res.status(404).json({ error: 'الملف غير موجود' });
+  res.download(p, req.params.name as string);
+});
+
+router.delete('/admin/backups/:name', authenticateSuperAdmin, (req, res) => {
+  const ok = backup.deleteBackup(req.params.name as string);
+  if (!ok) return res.status(404).json({ error: 'الملف غير موجود' });
+  res.json({ message: 'تم حذف النسخة الاحتياطية' });
+});
+
+router.put('/admin/backups/settings', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const { enabled, retentionDays } = req.body || {};
+    const updates: Record<string, string> = {};
+    if (enabled !== undefined) updates.BACKUP_ENABLED = enabled ? 'true' : 'false';
+    if (retentionDays !== undefined) {
+      const n = parseInt(retentionDays, 10);
+      if (isNaN(n) || n < 1 || n > 365) {
+        return res.status(400).json({ error: 'مدة الاحتفاظ يجب أن تكون بين 1 و 365 يوماً' });
+      }
+      updates.BACKUP_RETENTION_DAYS = String(n);
+    }
+    await settings.saveSettings(updates);
+    res.json({ message: 'تم حفظ إعدادات النسخ الاحتياطي' });
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم.' });
+  }
+});
 
 // -------------------------------------------------------------
 // 3. SHOP OWNER ROUTES (Protected)
