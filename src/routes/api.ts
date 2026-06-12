@@ -1247,6 +1247,42 @@ router.get('/shop/orders', authenticateShop, async (req, res) => {
   }
 });
 
+// Update an order's status (cancel / confirm / mark delivered / etc.) — shop-scoped.
+const ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'CANCELLED', 'DELIVERED', 'FAILED'];
+router.put('/shop/orders/:id', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  const { status } = req.body || {};
+  if (!ORDER_STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'حالة الطلب غير صالحة' });
+  }
+  try {
+    // Verify the order belongs to THIS shop before changing anything.
+    const order = await prisma.order.findFirst({ where: { id: req.params.id as string, shopId } });
+    if (!order) return res.status(404).json({ error: 'الطلب غير موجود' });
+
+    await prisma.order.update({ where: { id: order.id }, data: { paymentStatus: status } });
+    res.json({ message: 'تم تحديث حالة الطلب' });
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
+  }
+});
+
+// Delete an order — shop-scoped.
+router.delete('/shop/orders/:id', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  try {
+    const order = await prisma.order.findFirst({ where: { id: req.params.id as string, shopId } });
+    if (!order) return res.status(404).json({ error: 'الطلب غير موجود' });
+
+    await prisma.order.delete({ where: { id: order.id } });
+    res.json({ message: 'تم حذف الطلب' });
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
+  }
+});
+
 router.get('/shop/analytics', authenticateShop, async (req, res) => {
   const shopId = (req as any).shopId;
   try {

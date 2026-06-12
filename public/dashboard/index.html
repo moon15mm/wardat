@@ -1251,11 +1251,12 @@
                 <th>رقم العملية والبطاقة</th>
                 <th>رابط خرائط جوجل</th>
                 <th>تاريخ الطلب</th>
+                <th>إجراءات</th>
               </tr>
             </thead>
             <tbody id="ordersTableBody">
               <tr>
-                <td colspan="10" style="text-align: center; color: var(--text-sub);">جاري تحميل سجل الطلبات...</td>
+                <td colspan="11" style="text-align: center; color: var(--text-sub);">جاري تحميل سجل الطلبات...</td>
               </tr>
             </tbody>
           </table>
@@ -2385,21 +2386,22 @@
         tbody.innerHTML = '';
 
         if (orders.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-sub);">لا يوجد طلبات مسجلة للمحل حالياً</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--text-sub);">لا يوجد طلبات مسجلة للمحل حالياً</td></tr>`;
           return;
         }
 
-        orders.forEach(order => {
-          let statusClass = 'pending';
-          let statusLabel = 'معلّق بالدفع';
+        const STATUS_META = {
+          PENDING:   { cls: 'pending',   label: 'معلّق بالدفع' },
+          CONFIRMED: { cls: 'confirmed', label: 'مدفوع ومؤكد' },
+          DELIVERED: { cls: 'confirmed', label: 'تم التوصيل' },
+          CANCELLED: { cls: 'failed',    label: 'ملغى' },
+          FAILED:    { cls: 'failed',    label: 'دفع فاشل' },
+        };
+        const STATUS_OPTS = [['PENDING','معلّق'],['CONFIRMED','مؤكد'],['DELIVERED','تم التوصيل'],['CANCELLED','إلغاء'],['FAILED','فاشل']];
 
-          if (order.paymentStatus === 'CONFIRMED') {
-            statusClass = 'confirmed';
-            statusLabel = 'مدفوع ومؤكد';
-          } else if (order.paymentStatus === 'FAILED') {
-            statusClass = 'failed';
-            statusLabel = 'دفع فاشل';
-          }
+        orders.forEach(order => {
+          const meta = STATUS_META[order.paymentStatus] || STATUS_META.PENDING;
+          const opts = STATUS_OPTS.map(([v,l]) => `<option value="${v}" ${order.paymentStatus===v?'selected':''}>${l}</option>`).join('');
 
           const row = document.createElement('tr');
           row.innerHTML = `
@@ -2409,16 +2411,41 @@
             <td>${order.recipientName}</td>
             <td style="font-weight: 500;">${order.productName}</td>
             <td style="font-family: 'Outfit'; color: var(--pink-glow); font-weight: bold;">${order.price}</td>
-            <td><span class="status-tag ${statusClass}">${statusLabel}</span></td>
+            <td><span class="status-tag ${meta.cls}">${meta.label}</span></td>
             <td style="font-family: 'Outfit'; font-size: 0.8rem; color: var(--text-sub);">${order.cardLast4 ? 'بطاقة: ' + order.cardLast4 : 'لا يوجد'}</td>
-            <td><a href="${order.locationUrl}" target="_blank" style="color:var(--purple-glow); font-size: 0.85rem; font-weight:bold;">عرض الخريطة 📍</a></td>
+            <td>${order.locationUrl ? `<a href="${order.locationUrl}" target="_blank" style="color:var(--purple-glow); font-size: 0.85rem; font-weight:bold;">عرض الخريطة 📍</a>` : '—'}</td>
             <td style="font-size: 0.85rem; color: var(--text-sub);">${new Date(order.timestamp).toLocaleString('ar-SA')}</td>
+            <td style="white-space:nowrap;">
+              <select onchange="updateOrderStatus('${order.id}', this.value)" style="padding:5px 8px; border-radius:8px; background:rgba(0,0,0,0.3); color:var(--text-main); border:1px solid var(--glass-border); font-size:0.8rem;">${opts}</select>
+              <button onclick="deleteOrder('${order.id}')" title="حذف الطلب" style="margin-right:6px; background:transparent; border:1px solid rgba(255,75,75,0.4); color:#ff6b6b; border-radius:8px; padding:5px 9px; cursor:pointer; font-size:0.8rem;">🗑️</button>
+            </td>
           `;
           tbody.appendChild(row);
         });
       } catch (err) {
-        document.getElementById('ordersTableBody').innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger);">فشل تحميل سجل الطلبات</td></tr>`;
+        document.getElementById('ordersTableBody').innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--danger);">فشل تحميل سجل الطلبات</td></tr>`;
       }
+    }
+
+    async function updateOrderStatus(id, status) {
+      try {
+        const res = await fetch('/api/shop/orders/' + id, {
+          method: 'PUT', headers, body: JSON.stringify({ status })
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'فشل'); }
+        fetchOrders();
+        if (typeof fetchStats === 'function') fetchStats();
+      } catch (e) { alert(e.message); }
+    }
+
+    async function deleteOrder(id) {
+      if (!confirm('هل أنت متأكد من حذف هذا الطلب نهائياً؟')) return;
+      try {
+        const res = await fetch('/api/shop/orders/' + id, { method: 'DELETE', headers });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'فشل الحذف'); }
+        fetchOrders();
+        if (typeof fetchStats === 'function') fetchStats();
+      } catch (e) { alert(e.message); }
     }
 
     async function fetchProducts() {
