@@ -102,9 +102,24 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
     case 'CONFIRMING_ORDER':
       await handleConfirmation(phone, shopId, whatsappConfig, userText, intent.intent, session);
       break;
-    case 'AWAITING_PAYMENT':
-      await sendTextMessage(whatsappConfig, phone, 'طلبك قيد المعالجة. يرجى إتمام الدفع عبر الرابط المرسل.');
+    case 'AWAITING_PAYMENT': {
+      const l = userText.trim().toLowerCase();
+      const restartWords = ['جديد', 'طلب جديد', 'ابدأ', 'ابدا', 'البداية', 'القائمة', 'الغاء', 'إلغاء', 'الغاء الطلب', 'إلغاء الطلب', 'cancel', 'menu', 'start'];
+      if (restartWords.includes(l)) {
+        // Let the customer escape a stuck/abandoned payment and start over.
+        session.orderData = {};
+        session.selectedProduct = undefined;
+        session.state = 'GREETING';
+        await handleGreeting(phone, shopId, whatsappConfig, userText, 'greeting', session);
+      } else {
+        await sendTextMessage(
+          whatsappConfig,
+          phone,
+          'طلبك السابق ما زال بانتظار الدفع عبر الرابط المرسل. 💳\n\nلبدء *طلب جديد* اكتب كلمة: *جديد* 🆕'
+        );
+      }
       break;
+    }
     default:
       await handleWithAI(phone, shopId, whatsappConfig, session);
   }

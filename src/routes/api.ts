@@ -1261,6 +1261,12 @@ router.put('/shop/orders/:id', authenticateShop, async (req, res) => {
     if (!order) return res.status(404).json({ error: 'الطلب غير موجود' });
 
     await prisma.order.update({ where: { id: order.id }, data: { paymentStatus: status } });
+
+    // Cancelling/failing an order frees the customer's chat session so the bot
+    // stops looping "complete payment" and they can start a fresh order.
+    if (status === 'CANCELLED' || status === 'FAILED') {
+      await prisma.session.deleteMany({ where: { phone: order.customerPhone, shopId } });
+    }
     res.json({ message: 'تم تحديث حالة الطلب' });
   } catch (err: any) {
     logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
@@ -1276,6 +1282,8 @@ router.delete('/shop/orders/:id', authenticateShop, async (req, res) => {
     if (!order) return res.status(404).json({ error: 'الطلب غير موجود' });
 
     await prisma.order.delete({ where: { id: order.id } });
+    // Also free the customer's chat session so the bot doesn't keep asking for payment.
+    await prisma.session.deleteMany({ where: { phone: order.customerPhone, shopId } });
     res.json({ message: 'تم حذف الطلب' });
   } catch (err: any) {
     logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
