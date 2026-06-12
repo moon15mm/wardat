@@ -525,16 +525,30 @@ router.put('/admin/settings', authenticateSuperAdmin, async (req, res) => {
 // never sends automatically (operator copies & sends manually).
 // -------------------------------------------------------------
 const PROSPECT_STATUSES = ['NEW', 'CONTACTED', 'INTERESTED', 'DEMO', 'WON', 'LOST'];
+const FOLLOWUP_ACTIVE = ['CONTACTED', 'INTERESTED', 'DEMO'];
+
+// A prospect "needs follow-up" if it was contacted but has gone quiet for
+// FOLLOWUP_DAYS. WON/LOST/NEW are never "due".
+function computeDue(p: { status: string; lastContact: Date | null; updatedAt: Date }, days: number) {
+  if (!FOLLOWUP_ACTIVE.includes(p.status)) return { due: false, staleDays: 0 };
+  const base = p.lastContact ? new Date(p.lastContact).getTime() : new Date(p.updatedAt).getTime();
+  const staleDays = Math.floor((Date.now() - base) / 86400000);
+  return { due: staleDays >= days, staleDays };
+}
 
 router.get('/admin/prospects', authenticateSuperAdmin, async (req, res) => {
   try {
+    const days = settings.getFollowupDays();
+    const dueOnly = req.query.due === '1';
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
-    const where = status && PROSPECT_STATUSES.includes(status) ? { status } : {};
+    const where = !dueOnly && status && PROSPECT_STATUSES.includes(status) ? { status } : {};
     const prospects = await prisma.prospect.findMany({
       where,
       orderBy: { updatedAt: 'desc' },
     });
-    res.json(prospects);
+    let mapped = prospects.map((p) => ({ ...p, ...computeDue(p, days) }));
+    if (dueOnly) mapped = mapped.filter((x) => x.due);
+    res.json(mapped);
   } catch (err: any) {
     logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
     res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
@@ -543,6 +557,7 @@ router.get('/admin/prospects', authenticateSuperAdmin, async (req, res) => {
 
 router.get('/admin/prospects/stats', authenticateSuperAdmin, async (req, res) => {
   try {
+    const days = settings.getFollowupDays();
     const grouped = await prisma.prospect.groupBy({
       by: ['status'],
       _count: { status: true },
@@ -554,7 +569,9 @@ router.get('/admin/prospects/stats', authenticateSuperAdmin, async (req, res) =>
       counts[g.status] = g._count.status;
       total += g._count.status;
     }
-    res.json({ total, counts });
+    const active = await prisma.prospect.findMany({ where: { status: { in: FOLLOWUP_ACTIVE } } });
+    const dueFollowups = active.filter((p) => computeDue(p, days).due).length;
+    res.json({ total, counts, dueFollowups, followupDays: days });
   } catch (err: any) {
     logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
     res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });

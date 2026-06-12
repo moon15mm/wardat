@@ -309,7 +309,7 @@ if (!token || role !== 'superadmin') { localStorage.clear(); location.href='/log
 const headers = { 'Authorization': 'Bearer '+token, 'Content-Type':'application/json' };
 
 const STATUSES = [
-  ['ALL','الكل'],['NEW','جديد'],['CONTACTED','تم التواصل'],['INTERESTED','مهتم'],
+  ['ALL','الكل'],['DUE','🔔 تحتاج متابعة'],['NEW','جديد'],['CONTACTED','تم التواصل'],['INTERESTED','مهتم'],
   ['DEMO','عرض/تجربة'],['WON','مشترك ✅'],['LOST','غير مهتم']
 ];
 const STATUS_LABEL = {NEW:'جديد',CONTACTED:'تم التواصل',INTERESTED:'مهتم',DEMO:'عرض/تجربة',WON:'مشترك',LOST:'غير مهتم'};
@@ -331,7 +331,9 @@ async function loadStats(){
     const res = await fetch('/api/admin/prospects/stats',{headers}); 
     const d = await res.json();
     const order=['NEW','CONTACTED','INTERESTED','DEMO','WON','LOST'];
-    const html = `<div class="stat"><div class="v">${d.total||0}</div><div class="l">الإجمالي</div></div>`+
+    const totalCard = `<div class="stat"><div class="v">${d.total||0}</div><div class="l">الإجمالي</div></div>`;
+    const dueCard = `<div class="stat" style="border-color:rgba(240,192,106,.5);cursor:pointer" onclick="setFilter('DUE')"><div class="v" style="color:var(--amber)">${d.dueFollowups||0}</div><div class="l">🔔 تحتاج متابعة</div></div>`;
+    const html = totalCard + dueCard +
       order.map(s=>`<div class="stat"><div class="v" style="color:${s==='WON'?'var(--green)':s==='LOST'?'var(--red)':'var(--text)'}">${d.counts[s]||0}</div><div class="l">${STATUS_LABEL[s]}</div></div>`).join('');
     document.getElementById('stats').innerHTML = html;
   } catch(e) {}
@@ -340,7 +342,7 @@ async function loadStats(){
 // Load prospect pipeline list
 async function loadList(){
   try {
-    const q = currentFilter==='ALL' ? '' : ('?status='+currentFilter);
+    const q = currentFilter==='ALL' ? '' : (currentFilter==='DUE' ? '?due=1' : ('?status='+currentFilter));
     const res = await fetch('/api/admin/prospects'+q,{headers});
     const data = await res.json();
     const list = document.getElementById('list');
@@ -353,12 +355,14 @@ async function loadList(){
         p.instagram?`<span style="color:#c4a9ff; font-weight:bold;">📷 ${p.instagram}</span>`:''
       ].filter(Boolean).join(' · ');
       const last = p.lastContact?('آخر تواصل: '+new Date(p.lastContact).toLocaleDateString('ar')):'لم يتم التواصل بعد';
-      return `<div class="p-card">
+      const dueNote = p.due ? `<div class="p-meta" style="color:var(--amber);font-weight:bold;">⏰ متأخرة المتابعة منذ ${p.staleDays} يوم</div>` : '';
+      return `<div class="p-card" style="${p.due?'border-color:rgba(240,192,106,.6);':''}">
         <div class="p-head">
-          <div class="p-name">${p.name} <span class="badge st-${p.status}">${STATUS_LABEL[p.status]}</span></div>
+          <div class="p-name">${p.name} <span class="badge st-${p.status}">${STATUS_LABEL[p.status]}</span>${p.due?' <span class="badge" style="background:rgba(240,192,106,.18);color:var(--amber)">🔔 متابعة</span>':''}</div>
           <select onchange="changeStatus('${p.id}',this.value)" style="width:auto">${opts}</select>
         </div>
         <div class="p-meta">${[p.city,p.source].filter(Boolean).join(' · ')||'—'} • ${last}</div>
+        ${dueNote}
         ${contacts?`<div class="p-meta">${contacts}</div>`:''}
         <textarea rows="2" style="margin-top:6px;" placeholder="ملاحظات العميل..." onblur="saveNotes('${p.id}',this.value)">${p.notes||''}</textarea>
         <div class="p-actions">
@@ -498,11 +502,14 @@ async function discoverLeads() {
       const list = document.getElementById('discoveredLeadsList');
       list.innerHTML = data.map((l, index) => {
         const contactInfo = [l.phone, l.instagram].filter(Boolean).join(' · ') || 'لا يوجد معلومات تواصل';
+        const igQuery = encodeURIComponent(`${l.name} ${l.city||''} انستقرام`);
+        const igSearch = `<a href="https://www.google.com/search?q=${igQuery}" target="_blank" style="color:#c4a9ff;text-decoration:none;">🔎 بحث انستقرام</a>`;
         return `<div class="discovered-item">
           <div class="discovered-info">
             <div class="discovered-name">${l.name}</div>
             <div class="discovered-subtext">${contactInfo} | ${l.source}</div>
             <div class="discovered-subtext" style="font-style: italic; color: #a5b4fc;">${l.notes}</div>
+            <div class="discovered-subtext" style="margin-top:5px;">${igSearch}</div>
           </div>
           <button class="btn btn-sm" id="addBtn${index}" onclick="addDiscoveredLeadByIndex(${index})">➕ إضافة</button>
         </div>`;
