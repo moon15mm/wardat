@@ -500,7 +500,17 @@ async function discoverLeads() {
       
       window.discoveredLeads = data;
       const list = document.getElementById('discoveredLeadsList');
-      list.innerHTML = data.map((l, index) => {
+
+      // Manual quick-search links — the reliable way to find Instagram/Snapchat-only shops.
+      const igKw = encodeURIComponent('ورد ' + city);
+      const linksHtml = `<div style="background:rgba(142,45,226,.12);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:.82rem;line-height:2;">
+        🔎 <b>بحث يدوي سريع</b> (للمحلات الموجودة على انستقرام/سناب فقط — لا تظهر على خرائط Google):<br>
+        <a target="_blank" style="color:#c4a9ff;text-decoration:none" href="https://www.instagram.com/explore/search/keyword/?q=${igKw}">📷 انستقرام (بحث بالكلمة)</a> ·
+        <a target="_blank" style="color:#c4a9ff;text-decoration:none" href="https://www.google.com/search?q=${encodeURIComponent('instagram ورد وهدايا ' + city)}">انستقرام عبر Google</a> ·
+        <a target="_blank" style="color:#c4a9ff;text-decoration:none" href="https://www.google.com/maps/search/${encodeURIComponent('محلات ورد وهدايا ' + city)}">🗺️ خرائط Google</a>
+      </div>`;
+
+      const itemsHtml = data.length ? data.map((l, index) => {
         const contactInfo = [l.phone, l.instagram].filter(Boolean).join(' · ') || 'لا يوجد معلومات تواصل';
         const igQuery = encodeURIComponent(`${l.name} ${l.city||''} انستقرام`);
         const igSearch = `<a href="https://www.google.com/search?q=${igQuery}" target="_blank" style="color:#c4a9ff;text-decoration:none;">🔎 بحث انستقرام</a>`;
@@ -513,7 +523,9 @@ async function discoverLeads() {
           </div>
           <button class="btn btn-sm" id="addBtn${index}" onclick="addDiscoveredLeadByIndex(${index})">➕ إضافة</button>
         </div>`;
-      }).join('');
+      }).join('') : '<div class="empty">لم تظهر محلات على خرائط Google لهذه المنطقة. كثير من المحلات الصغيرة موجودة على انستقرام فقط — استخدم روابط البحث بالأعلى وأضِفها يدوياً.</div>';
+
+      list.innerHTML = linksHtml + itemsHtml;
     }, 3800);
     
   } catch(err) {
