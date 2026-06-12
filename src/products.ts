@@ -1,5 +1,6 @@
 import prisma from './services/db';
 import { Product } from './types';
+import { buildCatalogCollage } from './services/catalog-image';
 
 export async function getAllProducts(shopId: string): Promise<Product[]> {
   const dbProducts = await prisma.product.findMany({
@@ -84,59 +85,43 @@ export async function sendProductCatalog(
   sendImageFn: (config: any, to: string, imageUrl: string, caption: string) => Promise<void>,
 ): Promise<string> {
   const available = await getAllProducts(shopId);
-  
+
   if (available.length === 0) {
     const msg = 'لا توجد منتجات متوفرة حالياً في هذا المتجر.';
     await sendTextFn(whatsappConfig, phone, msg);
     return msg;
   }
 
-  // Send intro message
-  const introMsg = '🛍️ *مرحباً! إليك منتجاتنا المتاحة:*';
-  await sendTextFn(whatsappConfig, phone, introMsg);
-
-  // Send each product as an image card
-  for (let i = 0; i < available.length; i++) {
-    const p = available[i];
-    const stockText = (p.stock !== undefined && p.stock <= 3 && p.stock > 0) 
-      ? `\n🔥 _متبقي ${p.stock} فقط - اطلب الآن!_` 
-      : '';
-    const outOfStock = (p.stock !== undefined && p.stock <= 0) 
-      ? '\n❌ _نفدت الكمية حالياً_' 
-      : '';
-    
-    const caption = `*${i + 1}. ${p.name}* 🌹\n` +
-      `━━━━━━━━━━━━━━\n` +
-      (p.description ? `📝 ${p.description}\n\n` : '\n') +
-      `💰 *السعر: ${p.price} ريال*${stockText}${outOfStock}\n\n` +
-      `📩 _أرسل الرقم *${i + 1}* لطلب هذا المنتج_`;
-
-    if (p.imageUrl && p.imageUrl.trim() !== '') {
-      try {
-        await sendImageFn(whatsappConfig, phone, p.imageUrl, caption);
-      } catch (err) {
-        // Fallback to text if image fails
-        await sendTextFn(whatsappConfig, phone, caption);
-      }
-    } else {
-      await sendTextFn(whatsappConfig, phone, caption);
-    }
-
-    // Small delay between messages to avoid rate limiting
-    if (i < available.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 800));
-    }
+  // Build a single collage image (grid of all products with number badges).
+  let collageUrl: string | null = null;
+  try {
+    collageUrl = await buildCatalogCollage(shopId, available);
+  } catch {
+    collageUrl = null;
   }
 
-  // Send summary selection message
-  const summaryParts = available.map((p, i) => `*${i + 1}*- ${p.name}`);
-  const summaryMsg = `━━━━━━━━━━━━━━━━━━━\n` +
-    `📋 *ملخص المنتجات:*\n\n` +
-    summaryParts.join('\n') + 
-    `\n\n✅ *أرسل رقم المنتج* الذي يعجبك للطلب!`;
-  
-  await sendTextFn(whatsappConfig, phone, summaryMsg);
-  
+  // Build the accompanying numbered text list (names, prices, stock hints).
+  let list = '🛍️ *قائمة منتجاتنا المتوفرة* 🛍️\n━━━━━━━━━━━━━━━━━━━\n\n';
+  available.forEach((p, i) => {
+    const stockText = (p.stock !== undefined && p.stock <= 3 && p.stock > 0)
+      ? ` 🔥 _متبقّي ${p.stock} فقط_`
+      : (p.stock !== undefined && p.stock <= 0 ? ' ❌ _نفدت الكمية_' : '');
+    list += `*${i + 1}.* 🌹 *${p.name}* — *${p.price} ريال*${stockText}\n`;
+    if (p.description) list += `     📝 ${p.description}\n`;
+    list += `\n`;
+  });
+  list += '━━━━━━━━━━━━━━━━━━━\n✅ *أرسل رقم المنتج* الذي يعجبك لطلبه مباشرة';
+
+  // Send: one image (collage) then one text list. Falls back to text-only.
+  if (collageUrl) {
+    try {
+      await sendImageFn(whatsappConfig, phone, collageUrl, '🛍️ *إليك منتجاتنا المتوفرة* 👇');
+    } catch {
+      /* image failed — the text list below still carries everything */
+    }
+  }
+  await sendTextFn(whatsappConfig, phone, list);
+
   return `عرض كتالوج المنتجات (${available.length} منتج)`;
 }
 
