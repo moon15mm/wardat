@@ -1440,6 +1440,10 @@
               <label for="shopEmailInput">البريد الإلكتروني (لاستعادة كلمة المرور)</label>
               <input type="email" id="shopEmailInput" placeholder="owner@example.com">
             </div>
+            <div class="form-group">
+              <label for="logoUrlInput">رابط شعار/أيقونة المتجر (يظهر في رسالة الترحيب)</label>
+              <input type="text" id="logoUrlInput" placeholder="https://.../logo.png">
+            </div>
 
             <!-- WhatsApp Configuration -->
             <h4 style="margin: 20px 0 10px 0; color: var(--pink-glow); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">نوع وإعدادات اتصال واتساب</h4>
@@ -2156,6 +2160,7 @@
         // Settings inputs
         document.getElementById('shopNameInput').value = shop.name || '';
         document.getElementById('shopEmailInput').value = shop.email || '';
+        document.getElementById('logoUrlInput').value = shop.logoUrl || '';
         document.getElementById('whatsappTypeInput').value = shop.whatsappType || 'BUSINESS';
         document.getElementById('whatsappPhoneIdInput').value = shop.whatsappPhoneId || '';
         document.getElementById('whatsappVerifyTokenInput').value = shop.whatsappVerifyToken || '';
@@ -2339,6 +2344,7 @@
       const payload = {
         name: document.getElementById('shopNameInput').value.trim(),
         email: document.getElementById('shopEmailInput').value.trim().toLowerCase(),
+        logoUrl: document.getElementById('logoUrlInput').value.trim() || null,
         whatsappType: document.getElementById('whatsappTypeInput').value,
         whatsappPhoneId: document.getElementById('whatsappPhoneIdInput').value.trim() || null,
         whatsappVerifyToken: document.getElementById('whatsappVerifyTokenInput').value.trim() || null,

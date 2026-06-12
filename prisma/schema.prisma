@@ -47,6 +47,8 @@ model Shop {
   stripeSuccessUrl    String?
   stripeCancelUrl    String?
 
+  logoUrl             String?   // شعار/أيقونة المتجر
+
   deliveryStartHour   String    @default("09:00")
   deliveryEndHour     String    @default("22:00")
 

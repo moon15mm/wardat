@@ -159,6 +159,27 @@ async function handleGreeting(
   intent: string,
   session: Session
 ): Promise<void> {
+  // Branded welcome: send the shop logo first if configured.
+  try {
+    const shop = await prisma.shop.findUnique({ where: { id: shopId }, select: { logoUrl: true, name: true } });
+    const greetingText = `أهلاً وسهلاً بك في ${shop?.name || 'متجرنا'}! 🌹\n\nيسعدنا خدمتك. دعنا نعرض لك منتجاتنا 🛒`;
+    if (shop?.logoUrl && shop.logoUrl.trim()) {
+      try {
+        await sendImageMessage(whatsappConfig, phone, shop.logoUrl, greetingText);
+        session.messages.push({ role: 'assistant', content: greetingText });
+        session.state = 'BROWSING';
+        const catalogResult = await sendProductCatalog(shopId, whatsappConfig, phone, sendTextMessage, sendImageMessage);
+        session.messages.push({ role: 'assistant', content: catalogResult });
+        session.state = 'SELECTING_PRODUCT';
+        return;
+      } catch {
+        /* logo send failed — fall through to text greeting */
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
   const greeting = 'أهلاً وسهلاً بك في متجرنا! 🌹\n\nيسعدنا خدمتك. دعنا نعرض لك منتجاتنا 🛒';
 
   await sendTextMessage(whatsappConfig, phone, greeting);
