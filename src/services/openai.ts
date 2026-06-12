@@ -3,7 +3,13 @@ import axios from 'axios';
 import { ChatMessage } from '../types';
 import logger from '../utils/logger';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy_key' });
+// Each shop uses ITS OWN OpenAI key. The platform key (env) is only a fallback
+// for shops that haven't set one yet.
+function getOpenAIClient(shopKey?: string | null): OpenAI | null {
+  const key = (shopKey && shopKey.trim()) || process.env.OPENAI_API_KEY;
+  if (!key || key.startsWith('your_')) return null;
+  return new OpenAI({ apiKey: key });
+}
 
 const SYSTEM_PROMPT = `أنت مساعد متجر ورد ذكي على واتساب. تتحدث بالعربية بأسلوب ودود ومهني.
 
@@ -89,14 +95,14 @@ async function classifyIntentGemini(
 export async function getAIResponse(
   messages: ChatMessage[],
   productContext: string,
-  shop: { aiProvider: string; geminiApiKey?: string | null }
+  shop: { aiProvider: string; geminiApiKey?: string | null; openaiApiKey?: string | null }
 ): Promise<string> {
   const provider = shop.aiProvider || 'OPENAI';
 
   if (provider === 'GEMINI') {
     const apiKey = shop.geminiApiKey || process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      logger.error(`[AI] Gemini API Key missing for shop: ${JSON.stringify(shop)}`);
+      logger.error(`[AI] Gemini API Key missing for shop`);
       return 'عذراً، نظام الذكاء الاصطناعي غير مهيأ حالياً. يرجى إدخال مفتاح Gemini API في الإعدادات.';
     }
     try {
@@ -107,7 +113,12 @@ export async function getAIResponse(
     }
   }
 
-  // OPENAI
+  // OPENAI (per-shop key)
+  const openai = getOpenAIClient(shop.openaiApiKey);
+  if (!openai) {
+    logger.error('[AI] OpenAI API Key missing for shop');
+    return 'عذراً، نظام الذكاء الاصطناعي غير مهيأ حالياً. يرجى إدخال مفتاح OpenAI API في إعدادات المتجر.';
+  }
   try {
     const response = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
@@ -129,7 +140,7 @@ export async function getAIResponse(
 export async function classifyIntent(
   message: string,
   state: string,
-  shop: { aiProvider: string; geminiApiKey?: string | null }
+  shop: { aiProvider: string; geminiApiKey?: string | null; openaiApiKey?: string | null }
 ): Promise<{
   intent: string;
   extractedData?: Record<string, string>;
@@ -149,7 +160,9 @@ export async function classifyIntent(
     }
   }
 
-  // OPENAI
+  // OPENAI (per-shop key)
+  const openai = getOpenAIClient(shop.openaiApiKey);
+  if (!openai) return { intent: 'other' };
   try {
     const response = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',

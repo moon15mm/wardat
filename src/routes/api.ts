@@ -297,6 +297,7 @@ router.get('/admin/shops', authenticateSuperAdmin, async (req, res) => {
         whatsappPhoneId: s.whatsappPhoneId,
         aiProvider: s.aiProvider,
         geminiApiKey: maskSecret(s.geminiApiKey),
+        openaiApiKey: maskSecret(s.openaiApiKey),
         ultramsgInstanceId: s.ultramsgInstanceId,
         ultramsgToken: maskSecret(s.ultramsgToken),
         createdAt: s.createdAt,
@@ -331,6 +332,7 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
     whatsappAdminGroupId,
     aiProvider,
     geminiApiKey,
+    openaiApiKey,
     ultramsgInstanceId,
     ultramsgToken,
     subscriptionPlan,
@@ -392,6 +394,7 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
         whatsappAdminGroupId: whatsappAdminGroupId || null,
         aiProvider: aiProvider || 'OPENAI',
         geminiApiKey: geminiApiKey || null,
+        openaiApiKey: openaiApiKey || null,
         ultramsgInstanceId: ultramsgInstanceId || null,
         ultramsgToken: ultramsgToken || null,
         subscriptionPlan: subscriptionPlan || 'SILVER',
@@ -890,6 +893,7 @@ router.get('/shop/details', authenticateShop, async (req, res) => {
       stripeSecretKey: maskSecret(shop.stripeSecretKey),
       stripeWebhookSecret: maskSecret(shop.stripeWebhookSecret),
       geminiApiKey: maskSecret(shop.geminiApiKey),
+      openaiApiKey: maskSecret(shop.openaiApiKey),
       ultramsgToken: maskSecret(shop.ultramsgToken),
     };
 
@@ -926,6 +930,7 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
     whatsappAdminGroupId,
     aiProvider,
     geminiApiKey,
+    openaiApiKey,
     ultramsgInstanceId,
     ultramsgToken,
     deliveryStartHour,
@@ -979,6 +984,7 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
     applySecret('stripeSecretKey', stripeSecretKey);
     applySecret('stripeWebhookSecret', stripeWebhookSecret);
     applySecret('geminiApiKey', geminiApiKey);
+    applySecret('openaiApiKey', openaiApiKey);
     applySecret('ultramsgToken', ultramsgToken);
 
     if (password) {

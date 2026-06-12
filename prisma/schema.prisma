@@ -39,6 +39,7 @@ model Shop {
   // AI settings per shop
   aiProvider          String     @default("OPENAI") // OPENAI or GEMINI
   geminiApiKey        String?
+  openaiApiKey        String?
   
   // Stripe settings per shop
   stripeSecretKey     String?

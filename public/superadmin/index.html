@@ -564,6 +564,10 @@
             <label for="geminiApiKey">Gemini API Key (اختياري)</label>
             <input type="text" id="geminiApiKey" placeholder="أدخل مفتاح Gemini (يبدأ بـ AIza...)">
           </div>
+          <div class="form-group" id="openaiApiKeyGroup">
+            <label for="openaiApiKey">OpenAI API Key (مفتاح خاص بالمتجر)</label>
+            <input type="text" id="openaiApiKey" placeholder="أدخل مفتاح OpenAI الخاص بالمتجر (sk-...)">
+          </div>
 
           <!-- WhatsApp Type Selector -->
           <div class="form-group full-width" style="grid-column: 1 / -1;">
@@ -932,12 +936,8 @@
 
     function toggleAiFields() {
       const provider = document.getElementById('aiProvider').value;
-      const geminiGroup = document.getElementById('geminiApiKeyGroup');
-      if (provider === 'GEMINI') {
-        geminiGroup.style.display = 'block';
-      } else {
-        geminiGroup.style.display = 'none';
-      }
+      document.getElementById('geminiApiKeyGroup').style.display = provider === 'GEMINI' ? 'block' : 'none';
+      document.getElementById('openaiApiKeyGroup').style.display = provider === 'GEMINI' ? 'none' : 'block';
     }
 
     function openModal() {
@@ -978,6 +978,7 @@
         whatsappAdminGroupId: document.getElementById('whatsappAdminGroupId').value.trim() || null,
         aiProvider: document.getElementById('aiProvider').value,
         geminiApiKey: document.getElementById('geminiApiKey').value.trim() || null,
+        openaiApiKey: document.getElementById('openaiApiKey').value.trim() || null,
       };
 
       try {

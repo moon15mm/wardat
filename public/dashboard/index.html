@@ -1530,6 +1530,10 @@
               <label for="geminiApiKeyInput">Gemini API Key (مطلوب عند اختيار Gemini)</label>
               <input type="text" id="geminiApiKeyInput" placeholder="أدخل مفتاح Gemini (يبدأ بـ AIza...)">
             </div>
+            <div class="form-group" id="openaiApiKeyInputGroup">
+              <label for="openaiApiKeyInput">OpenAI API Key (مفتاحك الخاص — مطلوب عند اختيار OpenAI)</label>
+              <input type="text" id="openaiApiKeyInput" placeholder="أدخل مفتاح OpenAI الخاص بمتجرك (sk-...)">
+            </div>
 
             <!-- Delivery Hours Configuration -->
             <h4 style="margin: 20px 0 10px 0; color: var(--warning); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">أوقات العمل والتوصيل</h4>
@@ -2047,11 +2051,9 @@
     function toggleShopAiFields() {
       const provider = document.getElementById('aiProviderInput').value;
       const geminiGroup = document.getElementById('geminiApiKeyInputGroup');
-      if (provider === 'GEMINI') {
-        geminiGroup.style.display = 'block';
-      } else {
-        geminiGroup.style.display = 'none';
-      }
+      const openaiGroup = document.getElementById('openaiApiKeyInputGroup');
+      geminiGroup.style.display = provider === 'GEMINI' ? 'block' : 'none';
+      openaiGroup.style.display = provider === 'GEMINI' ? 'none' : 'block';
     }
 
     function toggleShopWhatsappFields() {
@@ -2166,6 +2168,7 @@
         document.getElementById('stripeCancelUrlInput').value = shop.stripeCancelUrl || `${siteOrigin}/cancel`;
         document.getElementById('aiProviderInput').value = shop.aiProvider || 'OPENAI';
         document.getElementById('geminiApiKeyInput').value = shop.geminiApiKey || '';
+        document.getElementById('openaiApiKeyInput').value = shop.openaiApiKey || '';
         document.getElementById('deliveryStartInput').value = shop.deliveryStartHour || '09:00';
         document.getElementById('deliveryEndInput').value = shop.deliveryEndHour || '22:00';
 
@@ -2346,6 +2349,7 @@
         stripeCancelUrl: document.getElementById('stripeCancelUrlInput').value.trim() || null,
         aiProvider: document.getElementById('aiProviderInput').value,
         geminiApiKey: document.getElementById('geminiApiKeyInput').value.trim() || null,
+        openaiApiKey: document.getElementById('openaiApiKeyInput').value.trim() || null,
         deliveryStartHour: document.getElementById('deliveryStartInput').value,
         deliveryEndHour: document.getElementById('deliveryEndInput').value,
       };
