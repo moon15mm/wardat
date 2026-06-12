@@ -469,14 +469,6 @@ const server = app.listen(PORT, async () => {
     }
   });
 
-  // Acquisition agent: every 6 hours run a follow-up cycle when the agent is enabled.
-  cron.schedule('0 */6 * * *', () => {
-    if (settings.raw('AGENT_ENABLED') === 'true') {
-      const { runCycle } = require('./services/acquisition-agent');
-      runCycle().catch((e: any) => logger.error(`[Agent] scheduled cycle error: ${e.message}`));
-    }
-  });
-
   // Hourly Cron Job to purge stale sessions (older than 24h) so the table doesn't grow forever.
   cron.schedule('0 * * * *', async () => {
     try {

@@ -6,7 +6,6 @@ import { authenticateSuperAdmin, authenticateShop } from '../middlewares/auth';
 import { sendPasswordResetEmail } from '../services/email';
 import * as settings from '../services/settings';
 import { generateOutreachDrafts, DraftKind } from '../services/outreach';
-import * as agent from '../services/acquisition-agent';
 import logger from '../utils/logger';
 import { getAgentSettings, saveAgentSettings, runAcquisitionCycle } from '../services/agent-acquisition';
 import { getAgentLogs, clearAgentLogs, logAgentAction } from '../utils/agent-logger';
@@ -787,80 +786,6 @@ router.post('/admin/agent/send-message', authenticateSuperAdmin, async (req, res
   }
 });
 
-
-// -------------------------------------------------------------
-// ACQUISITION AGENT — autonomous-ish lead discovery + follow-up (Super Admin)
-// -------------------------------------------------------------
-router.get('/admin/agent/settings', authenticateSuperAdmin, async (req, res) => {
-  try {
-    const shops = await prisma.shop.findMany({
-      select: { id: true, name: true, subdomain: true, whatsappType: true },
-      orderBy: { name: 'asc' },
-    });
-    res.json({ settings: agent.getAgentSettings(), shops });
-  } catch (err: any) {
-    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
-    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
-  }
-});
-
-router.put('/admin/agent/settings', authenticateSuperAdmin, async (req, res) => {
-  try {
-    const { enabled, city, senderShopId, followupDays, autoSend } = req.body || {};
-    await agent.saveAgentSettings({
-      enabled: !!enabled,
-      city: typeof city === 'string' ? city : '',
-      senderShopId: typeof senderShopId === 'string' ? senderShopId : '',
-      followupDays: parseInt(followupDays, 10) || 3,
-      autoSend: !!autoSend,
-    });
-    res.json({ message: 'تم حفظ إعدادات الوكيل' });
-  } catch (err: any) {
-    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
-    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
-  }
-});
-
-router.get('/admin/agent/logs', authenticateSuperAdmin, (req, res) => {
-  res.json({ logs: agent.getLogs() });
-});
-
-router.post('/admin/agent/clear-logs', authenticateSuperAdmin, (req, res) => {
-  agent.clearLogs();
-  res.json({ message: 'تم مسح السجل' });
-});
-
-router.post('/admin/agent/run', authenticateSuperAdmin, (req, res) => {
-  // Fire-and-forget so the request returns immediately.
-  agent.runCycle().catch((e) => logger.error(`[Agent] runCycle error: ${e.message}`));
-  res.json({ message: 'started' });
-});
-
-router.post('/admin/agent/discover-leads', authenticateSuperAdmin, async (req, res) => {
-  const city = (req.body?.city || '').trim();
-  if (!city) return res.status(400).json({ error: 'يرجى إدخال اسم المدينة' });
-  try {
-    const leads = await agent.discoverLeads(city);
-    res.json(leads); // UI expects a bare array
-  } catch (err: any) {
-    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
-    res.status(500).json({ error: 'فشل البحث' });
-  }
-});
-
-router.post('/admin/agent/send-message', authenticateSuperAdmin, async (req, res) => {
-  const { prospectId, senderShopId, message } = req.body || {};
-  if (!prospectId || !senderShopId || !message) {
-    return res.status(400).json({ error: 'بيانات الإرسال ناقصة' });
-  }
-  try {
-    await agent.sendViaBot(prospectId, senderShopId, message);
-    res.json({ message: 'تم الإرسال' });
-  } catch (err: any) {
-    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
-    res.status(500).json({ error: err.message || 'فشل إرسال الرسالة' });
-  }
-});
 
 // -------------------------------------------------------------
 // 3. SHOP OWNER ROUTES (Protected)
