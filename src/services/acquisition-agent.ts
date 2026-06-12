@@ -93,68 +93,67 @@ export async function discoverLeads(city: string): Promise<Lead[]> {
     return [];
   }
 
-  agentLog(`[بدء] بحث موسّع عن محلات الورد والهدايا في «${city}» (عدة كلمات مفتاحية)...`);
+  agentLog(`[بدء] بحث موسّع عن محلات الورد والهدايا في «${city}» عبر Places API (New)...`);
   try {
-    const byId = new Map<string, any>();
+    // Dedupe by name+address. The New Text Search returns phone/website inline,
+    // so one request per keyword is enough (no separate details calls).
+    const byKey = new Map<string, Lead>();
     let denied = false;
+    let deniedMsg = '';
 
     await Promise.all(
       DISCOVERY_QUERIES.map(async (kw) => {
-        const query = encodeURIComponent(`${kw} ${city}`);
-        const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${query}&language=ar&region=sa&key=${key}`;
         try {
-          const resp = await axios.get(url, { timeout: 15000 });
-          const status = resp.data.status;
-          if (status && status !== 'OK' && status !== 'ZERO_RESULTS') {
-            if (status === 'REQUEST_DENIED') {
-              denied = true;
-              agentLog(`[خطأ] Google Places رفض الطلب: ${status}${resp.data.error_message ? ' - ' + resp.data.error_message : ''} (تأكد من تفعيل Places API والفوترة).`);
+          const resp = await axios.post(
+            'https://places.googleapis.com/v1/places:searchText',
+            { textQuery: `${kw} ${city}`, languageCode: 'ar', regionCode: 'SA' },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Goog-Api-Key': key,
+                'X-Goog-FieldMask':
+                  'places.displayName,places.formattedAddress,places.internationalPhoneNumber,places.websiteUri',
+              },
+              timeout: 15000,
             }
-            return;
-          }
-          for (const place of resp.data.results || []) {
-            if (!byId.has(place.place_id)) byId.set(place.place_id, place);
+          );
+          for (const p of resp.data.places || []) {
+            const name = p.displayName?.text || '';
+            if (!name) continue;
+            const dedupe = name + '|' + (p.formattedAddress || '');
+            if (byKey.has(dedupe)) continue;
+            const website = p.websiteUri || '';
+            let instagram = '';
+            const m = website.match(/instagram\.com\/([A-Za-z0-9_.]+)/i);
+            if (m) instagram = '@' + m[1];
+            byKey.set(dedupe, {
+              name,
+              city,
+              phone: (p.internationalPhoneNumber || '').replace(/[\s-]/g, ''),
+              instagram,
+              source: 'Google Maps',
+              notes: [p.formattedAddress, website].filter(Boolean).join(' | '),
+            });
           }
         } catch (e: any) {
-          agentLog(`[تنبيه] تعذّر استعلام «${kw}»: ${e.message}`);
+          const status = e.response?.status;
+          const msg = e.response?.data?.error?.message || e.message;
+          if (status === 403 || status === 400) {
+            denied = true;
+            deniedMsg = msg;
+          } else {
+            agentLog(`[تنبيه] تعذّر استعلام «${kw}»: ${msg}`);
+          }
         }
       })
     );
 
-    if (denied) return [];
+    if (byKey.size === 0 && denied) {
+      agentLog(`[خطأ] Google Places (New) رفض الطلب: ${deniedMsg} — تأكد من تفعيل «Places API (New)» وربط الفوترة، وأن المفتاح غير مقيّد بما يمنع هذا الـ API.`);
+      return [];
+    }
 
-    const places = Array.from(byId.values()).slice(0, 20);
-    agentLog(`[معلومة] خرائط Google أعادت ${places.length} مرشّحاً. جاري جلب أرقام التواصل وحسابات انستقرام...`);
-
-    const leads: Lead[] = await Promise.all(
-      places.map(async (place) => {
-        let phone = '';
-        let instagram = '';
-        let website = '';
-        try {
-          const det = await axios.get(
-            `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=international_phone_number,formatted_phone_number,website&language=ar&key=${key}`,
-            { timeout: 12000 }
-          );
-          const r = det.data.result || {};
-          phone = (r.international_phone_number || r.formatted_phone_number || '').replace(/[\s-]/g, '');
-          website = r.website || '';
-          const m = website.match(/instagram\.com\/([A-Za-z0-9_.]+)/i);
-          if (m) instagram = '@' + m[1];
-        } catch {
-          /* details optional */
-        }
-        return {
-          name: place.name,
-          city,
-          phone,
-          instagram,
-          source: 'Google Maps',
-          notes: [place.formatted_address, website].filter(Boolean).join(' | '),
-        };
-      })
-    );
-
+    const leads = Array.from(byKey.values()).slice(0, 25);
     agentLog(`[انتهاء] ${leads.length} متجر من خرائط Google. ملاحظة: المحلات الموجودة على انستقرام فقط لا تظهر هنا — استخدم روابط البحث اليدوي.`);
     return leads;
   } catch (err: any) {
