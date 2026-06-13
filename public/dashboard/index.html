@@ -2901,7 +2901,7 @@
           data.topCustomers.forEach(item => {
             const row = document.createElement('tr');
             row.innerHTML = `
-              <td style="font-family: \'Outfit\';">${item.phone}</td>
+              <td style="font-family: \'Outfit\';">${formatPhone(item.phone)}</td>
               <td style="font-weight: bold; color: var(--success);">${item.name}</td>
               <td style="font-family: \'Outfit\';">${item.count}</td>
               <td style="font-family: \'Outfit\'; color: var(--pink-glow); font-weight: bold;">${item.spent.toLocaleString()}</td>
@@ -3081,7 +3081,11 @@
     }
 
     function formatPhone(phone) {
-      if (phone.length > 10) {
+      if (!phone) return '-';
+      if (phone.startsWith('lid')) {
+        return phone.replace(/@.*/, '');
+      }
+      if (phone.length > 10 && phone.includes('@')) {
         return '+' + phone.replace(/@.*/, '');
       }
       return phone;

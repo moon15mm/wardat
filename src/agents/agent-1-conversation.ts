@@ -370,12 +370,20 @@ async function handleCollectName(
   const name = intent.extractedData?.name || text.trim();
 
   session.orderData.customerName = name;
-  session.orderData.customerPhone = phone;
-
-  const reply = `شكراً ${name} 🙏\n\nهل الهدية لشخص آخر؟ ما اسم المستلم؟\n(إذا كانت لك شخصياً، اكتب "لي")`;
-  await sendTextMessage(whatsappConfig, phone, reply);
-  session.messages.push({ role: 'assistant', content: reply });
-  session.state = 'COLLECTING_RECIPIENT';
+  
+  if (phone.startsWith('lid')) {
+    session.orderData.customerPhone = '';
+    const reply = `شكراً ${name} 🙏\n\nفضلاً، ما هو رقم الجوال الخاص بك للتواصل؟`;
+    await sendTextMessage(whatsappConfig, phone, reply);
+    session.messages.push({ role: 'assistant', content: reply });
+    session.state = 'COLLECTING_PHONE';
+  } else {
+    session.orderData.customerPhone = phone;
+    const reply = `شكراً ${name} 🙏\n\nهل الهدية لشخص آخر؟ ما اسم المستلم؟\n(إذا كانت لك شخصياً، اكتب "لي")`;
+    await sendTextMessage(whatsappConfig, phone, reply);
+    session.messages.push({ role: 'assistant', content: reply });
+    session.state = 'COLLECTING_RECIPIENT';
+  }
 }
 
 async function handleCollectPhone(
