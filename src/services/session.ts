@@ -13,15 +13,19 @@ export async function getSession(phone: string, shopId: string): Promise<Session
     }
   });
 
-  if (dbSession && (now - Number(dbSession.lastActivity) > SESSION_TIMEOUT)) {
-    logger.info(`Session expired for ${phone} in shop ${shopId}`);
-    await prisma.session.delete({
-      where: { id: dbSession.id }
+  if (dbSession && (now - Number(dbSession.lastActivity) > SESSION_TIMEOUT || dbSession.state === 'ARCHIVED')) {
+    logger.info(`Session reset/unarchived for ${phone} in shop ${shopId}`);
+    dbSession = await prisma.session.update({
+      where: { id: dbSession.id },
+      data: {
+        state: 'GREETING',
+        orderData: JSON.stringify({}),
+        selectedProductId: null,
+        botPaused: false,
+        lastActivity: BigInt(now)
+      }
     });
-    dbSession = null;
-  }
-
-  if (!dbSession) {
+  } else if (!dbSession) {
     dbSession = await prisma.session.create({
       data: {
         phone,
@@ -91,8 +95,8 @@ export async function addMessage(
 ): Promise<void> {
   const session = await getSession(phone, shopId);
   session.messages.push(message);
-  if (session.messages.length > 20) {
-    session.messages = session.messages.slice(-10);
+  if (session.messages.length > 50) {
+    session.messages = session.messages.slice(-30);
   }
 
   await prisma.session.update({
@@ -123,10 +127,16 @@ export async function updateSessionOrderData(
 }
 
 export async function clearSession(phone: string, shopId: string): Promise<void> {
-  await prisma.session.deleteMany({
-    where: { phone, shopId }
+  await prisma.session.updateMany({
+    where: { phone, shopId },
+    data: {
+      state: 'ARCHIVED',
+      orderData: JSON.stringify({}),
+      selectedProductId: null,
+      botPaused: false
+    }
   });
-  logger.info(`Session cleared for ${phone} in shop ${shopId}`);
+  logger.info(`Session archived for ${phone} in shop ${shopId}`);
 }
 
 export async function getActiveSessionCount(): Promise<number> {
