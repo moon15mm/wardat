@@ -77,6 +77,19 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
   const intent = await classifyIntent(userText, session.state, shop);
   logger.info(`[Agent1] Intent: ${intent.intent}`);
 
+  // Intelligent Q&A overlay: if the customer asks an open question at any point in
+  // the flow, answer it with AI (product + delivery aware) instead of the scripted
+  // reply, then keep them in the same step so the order flow resumes naturally.
+  const isQuestion =
+    /[؟?]/.test(userText) ||
+    /^\s*(كم|هل|وش|ايش|أيش|إيش|متى|اين|أين|وين|كيف|ليه|ليش|ماهي|ما هي|ما هو|عندكم|عندك|في عندكم|تقدر|ممكن|do you|how|what|when|where)/i.test(userText.trim());
+  const aiAnswerStates = ['BROWSING', 'SELECTING_PRODUCT', 'COLLECTING_NAME', 'COLLECTING_PHONE', 'COLLECTING_RECIPIENT', 'CONFIRMING_ORDER'];
+  if (isQuestion && intent.intent !== 'confirm' && intent.intent !== 'cancel' && aiAnswerStates.includes(session.state)) {
+    await handleWithAI(phone, shopId, whatsappConfig, session);
+    await saveSession(session, shopId);
+    return;
+  }
+
   switch (session.state) {
     case 'GREETING':
       await handleGreeting(phone, shopId, whatsappConfig, userText, intent.intent, session);
@@ -421,7 +434,19 @@ async function handleWithAI(
     logger.error(`[Agent1] Shop not found in handleWithAI: ${shopId}`);
     return;
   }
-  const productContext = `المنتجات المتوفرة:\n${await formatProductList(shopId)}`;
+  // Rich context so the AI answers accurately about products, prices, delivery,
+  // and (if mid-order) gently steers the customer back to completing their order.
+  const stepHint: Record<string, string> = {
+    SELECTING_PRODUCT: 'العميل يتصفّح المنتجات؛ بعد الإجابة شجّعه على اختيار رقم المنتج.',
+    COLLECTING_NAME: 'نحن بانتظار اسم العميل؛ بعد الإجابة اطلب اسمه بلطف.',
+    COLLECTING_RECIPIENT: 'نحن بانتظار اسم المستلم؛ بعد الإجابة اطلب اسم المستلم.',
+    CONFIRMING_ORDER: 'الطلب بانتظار تأكيد العميل (نعم/لا)؛ بعد الإجابة اطلب التأكيد.',
+  };
+  const productContext =
+    `متجر: ${shop.name}\n` +
+    `ساعات التوصيل/الاستلام: من ${shop.deliveryStartHour} إلى ${shop.deliveryEndHour}\n` +
+    `المنتجات المتوفرة وأسعارها:\n${await formatProductList(shopId)}\n` +
+    (stepHint[session.state] ? `\nملاحظة للسياق: ${stepHint[session.state]}` : '');
   const reply = await getAIResponse(session.messages, productContext, shop);
   await sendTextMessage(whatsappConfig, phone, reply);
   session.messages.push({ role: 'assistant', content: reply });
