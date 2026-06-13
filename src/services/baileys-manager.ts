@@ -196,6 +196,12 @@ export async function startBaileysSession(shopId: string): Promise<void> {
             }
           }
 
+          // Ignore empty or system messages completely before passing to handleMessage
+          if (!text && !isLocation && !isImage) {
+            logger.info(`[Baileys] Ignored empty/system message from ${from}`);
+            continue;
+          }
+
           // Structure WhatsAppMessage
           const formattedMsg: any = {
             from,
