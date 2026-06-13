@@ -1557,6 +1557,27 @@
               </div>
             </div>
 
+            <h4 style="margin: 20px 0 10px 0; color: var(--success); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">خيارات الاستلام والدفع</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+              <div class="form-group" style="margin-bottom:0; display:flex; align-items:center; gap:10px;">
+                <input type="checkbox" id="enableDeliveryInput" style="width:auto;">
+                <label for="enableDeliveryInput" style="margin:0;">تفعيل خدمة التوصيل</label>
+              </div>
+              <div class="form-group" style="margin-bottom:0; display:flex; align-items:center; gap:10px;">
+                <input type="checkbox" id="enablePickupInput" style="width:auto;">
+                <label for="enablePickupInput" style="margin:0;">تفعيل الاستلام من المحل</label>
+              </div>
+              <div class="form-group" style="margin-bottom:0; display:flex; align-items:center; gap:10px;">
+                <input type="checkbox" id="enableOnlinePaymentInput" style="width:auto;">
+                <label for="enableOnlinePaymentInput" style="margin:0;">تفعيل الدفع الإلكتروني</label>
+              </div>
+              <div class="form-group" style="margin-bottom:0; display:flex; align-items:center; gap:10px;">
+                <input type="checkbox" id="enableCashPaymentInput" style="width:auto;">
+                <label for="enableCashPaymentInput" style="margin:0;">تفعيل الدفع النقدي (عند الاستلام)</label>
+              </div>
+            </div>
+
+
             <!-- Change Password -->
             <h4 style="margin: 20px 0 10px 0; color: var(--text-main); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">تغيير كلمة المرور</h4>
             <div class="form-group">
@@ -2182,6 +2203,12 @@
         document.getElementById('openaiApiKeyInput').value = shop.openaiApiKey || '';
         document.getElementById('deliveryStartInput').value = shop.deliveryStartHour || '09:00';
         document.getElementById('deliveryEndInput').value = shop.deliveryEndHour || '22:00';
+        
+        const safeBool = (val, def) => val !== undefined && val !== null ? val : def;
+        document.getElementById('enableDeliveryInput').checked = safeBool(shop.enableDelivery, true);
+        document.getElementById('enablePickupInput').checked = safeBool(shop.enablePickup, true);
+        document.getElementById('enableOnlinePaymentInput').checked = safeBool(shop.enableOnlinePayment, true);
+        document.getElementById('enableCashPaymentInput').checked = safeBool(shop.enableCashPayment, false);
 
         toggleShopWhatsappFields();
         toggleShopAiFields();
@@ -2366,6 +2393,10 @@
         openaiApiKey: document.getElementById('openaiApiKeyInput').value.trim() || null,
         deliveryStartHour: document.getElementById('deliveryStartInput').value,
         deliveryEndHour: document.getElementById('deliveryEndInput').value,
+        enableDelivery: document.getElementById('enableDeliveryInput').checked,
+        enablePickup: document.getElementById('enablePickupInput').checked,
+        enableOnlinePayment: document.getElementById('enableOnlinePaymentInput').checked,
+        enableCashPayment: document.getElementById('enableCashPaymentInput').checked,
       };
 
       const newPassword = document.getElementById('shopPasswordInput').value;

@@ -959,6 +959,10 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
     ultramsgToken,
     deliveryStartHour,
     deliveryEndHour,
+    enableDelivery,
+    enablePickup,
+    enableOnlinePayment,
+    enableCashPayment,
     password,
   } = req.body;
 
@@ -976,6 +980,10 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
       ultramsgInstanceId: ultramsgInstanceId || null,
       deliveryStartHour: deliveryStartHour || '09:00',
       deliveryEndHour: deliveryEndHour || '22:00',
+      enableDelivery: enableDelivery !== undefined ? enableDelivery : true,
+      enablePickup: enablePickup !== undefined ? enablePickup : true,
+      enableOnlinePayment: enableOnlinePayment !== undefined ? enableOnlinePayment : true,
+      enableCashPayment: enableCashPayment !== undefined ? enableCashPayment : false,
     };
 
     // Email update (kept valid + unique so password recovery keeps working).
