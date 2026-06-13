@@ -172,7 +172,7 @@ export async function startBaileysSession(shopId: string): Promise<void> {
           // received from — reconstructing "<id>@s.whatsapp.net" from a LID sends to a
           // non-existent address (the customer never gets a reply). So keep the full
           // JID for LID senders, and the clean number for normal senders.
-          const from = fromJid.endsWith('@lid') ? fromJid : fromJid.split('@')[0];
+          const from = fromJid.endsWith('@lid') ? fromJid : fromJid.split('@')[0].split(':')[0];
           const text = rawMsg.conversation || rawMsg.extendedTextMessage?.text || rawMsg.imageMessage?.caption || '';
           const isLocation = !!rawMsg.locationMessage;
           const isImage = !!rawMsg.imageMessage;
@@ -305,12 +305,15 @@ export async function postWhatsAppStatus(shopId: string, product: any): Promise<
     throw new Error('لا يوجد عملاء سابقين لنشر الحالة لهم.');
   }
 
-  // Baileys needs JIDs for status viewers
-  let jidList = sessions.map(s => {
-    let phone = s.phone.replace(/\D/g, '');
-    if (!phone.includes('@')) phone = `${phone}@s.whatsapp.net`;
-    return phone;
-  });
+  let jidList = sessions
+    .filter(s => !s.phone.endsWith('@lid'))
+    .map(s => {
+      let phone = s.phone;
+      // Strip device ID if present (e.g. 966...:1 -> 966...) then remove non-digits
+      phone = phone.split(':')[0].replace(/\D/g, '');
+      if (!phone.includes('@')) phone = `${phone}@s.whatsapp.net`;
+      return phone;
+    });
 
   // Always include the sender's own JID so the status appears in "My Status" on their phone
   if (sock.user && sock.user.id) {
