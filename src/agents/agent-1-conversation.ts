@@ -109,7 +109,14 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
   }
 
   const userText = msg.text?.body || '';
-  if (!userText) return;
+  if (!userText) {
+    if (msg.type === 'audio' || msg.type === 'voice' || msg.type === 'ptt') {
+      await sendTextMessage(whatsappConfig, phone, 'عذراً، لا أستطيع الاستماع للمقاطع الصوتية حالياً. يرجى كتابة طلبك نصياً 🌹');
+    } else if (msg.type !== 'location') {
+      await sendTextMessage(whatsappConfig, phone, 'عذراً، لا يمكنني معالجة هذا النوع من الملفات. يرجى مراسلتي نصياً 🌹');
+    }
+    return;
+  }
 
   // Append user message in-memory
   session.messages.push({ role: 'user', content: userText });
@@ -216,7 +223,16 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
       await handleCollectFulfillment(phone, shopId, whatsappConfig, userText, session);
       break;
     case 'COLLECTING_LOCATION':
-      await sendLocationRequest(whatsappConfig, phone);
+      if (intent.intent === 'provide_location' || userText.length > 5) {
+        session.orderData.locationUrl = userText.trim();
+        session.orderData.fulfillmentType = 'DELIVERY';
+        await sendTextMessage(whatsappConfig, phone, 'تم تسجيل العنوان ✅');
+        const { askPreferredTime } = require('./agent-1-conversation');
+        await askPreferredTime(phone, shopId, whatsappConfig, session, 'التوصيل');
+        session.state = 'COLLECTING_TIME';
+      } else {
+        await sendLocationRequest(whatsappConfig, phone);
+      }
       break;
     case 'COLLECTING_TIME':
       await handleCollectTime(phone, shopId, whatsappConfig, userText, session);
