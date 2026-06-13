@@ -144,6 +144,46 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
     return;
   }
 
+  const lowerText = userText.trim().toLowerCase();
+  const isCancelMatch = intent.intent === 'cancel' || ['لا', 'إلغاء', 'الغاء', 'كنسل', 'cancel'].includes(lowerText);
+  if (isCancelMatch) {
+    let cancelledDbOrder = false;
+
+    // If the user just completed an order (or is awaiting payment) and wants to cancel it.
+    if (session.state === 'GREETING' || session.state === 'AWAITING_PAYMENT') {
+      const recentOrder = await prisma.order.findFirst({
+        where: {
+          shopId: shopId,
+          customerPhone: phone,
+          paymentStatus: { in: ['PENDING', 'CONFIRMED'] },
+          timestamp: { gte: new Date(Date.now() - 2 * 60 * 60 * 1000) } // within last 2 hours
+        },
+        orderBy: { timestamp: 'desc' }
+      });
+
+      if (recentOrder) {
+        await prisma.order.update({
+          where: { id: recentOrder.id },
+          data: { paymentStatus: 'CANCELLED' }
+        });
+        cancelledDbOrder = true;
+      }
+    }
+
+    if (cancelledDbOrder) {
+      await sendTextMessage(whatsappConfig, phone, 'تم إلغاء طلبك بنجاح. يمكنك بدء طلب جديد في أي وقت! 🙏');
+    } else {
+      await sendTextMessage(whatsappConfig, phone, 'تم إلغاء العملية الحالية. يمكنك البدء من جديد في أي وقت! 🙏');
+    }
+    
+    session.state = 'GREETING';
+    session.orderData = {};
+    session.selectedProduct = undefined;
+    await saveSession(session, shopId);
+    return;
+  }
+
+
   // Image request: send the ACTUAL product image(s) instead of letting the text AI
   // wrongly claim there is no image.
   const wantsImage = /صور[ةه]|الصور|اشوف|أشوف|أبي اشوف|ابي اشوف|شكله|شكلها|ورّني|ورني|أرني|ارني|بالصور|picture|image|photo/i.test(userText);
