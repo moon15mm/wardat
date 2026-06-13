@@ -193,7 +193,7 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
       await handleCollectTime(phone, shopId, whatsappConfig, userText, session);
       break;
     case 'CONFIRMING_ORDER':
-      await handleConfirmation(phone, shopId, whatsappConfig, userText, intent.intent, session);
+      await handleConfirmation(phone, shopId, whatsappConfig, userText, intent.intent, session, shop);
       break;
     case 'AWAITING_PAYMENT': {
       const l = userText.trim().toLowerCase();
@@ -547,7 +547,8 @@ async function handleConfirmation(
   whatsappConfig: WhatsAppConfig,
   text: string,
   intent: string,
-  session: Session
+  session: Session,
+  shop: any
 ): Promise<void> {
   const lower = text.trim().toLowerCase();
 
@@ -567,29 +568,67 @@ async function handleConfirmation(
       recipientName: session.orderData.recipientName || '',
       product: session.orderData.product || '',
       price: session.orderData.price || 0,
-      paymentStatus: 'PENDING',
+      paymentStatus: shop.paymentOnline ? 'PENDING' : 'CONFIRMED',
       locationUrl: session.orderData.locationUrl || '',
       fulfillmentType: session.orderData.fulfillmentType,
       preferredTime: session.orderData.preferredTime,
-      cardLast4: '',
+      cardLast4: shop.paymentOnline ? '' : 'CASH',
       productImageUrl: session.orderData.productImageUrl || '',
       notes: '',
       productId: session.orderData.productId,
     });
 
-    await sendTextMessage(whatsappConfig, phone, 'تم تأكيد طلبك! ✅\n\nجاري إعداد رابط الدفع...');
-    session.messages.push({ role: 'assistant', content: 'تم تأكيد الطلب وإعداد رابط الدفع' });
-    session.state = 'AWAITING_PAYMENT';
+    if (shop.paymentOnline) {
+      await sendTextMessage(whatsappConfig, phone, 'تم تأكيد طلبك! ✅\n\nجاري إعداد رابط الدفع...');
+      session.messages.push({ role: 'assistant', content: 'تم تأكيد الطلب وإعداد رابط الدفع' });
+      session.state = 'AWAITING_PAYMENT';
 
-    await processPayment({
-      orderId,
-      shopId: shopId,
-      customerPhone: phone,
-      customerName: session.orderData.customerName || '',
-      product: session.orderData.product || '',
-      price: session.orderData.price || 0,
-      currency: 'SAR',
-    });
+      await processPayment({
+        orderId,
+        shopId: shopId,
+        customerPhone: phone,
+        customerName: session.orderData.customerName || '',
+        product: session.orderData.product || '',
+        price: session.orderData.price || 0,
+        currency: 'SAR',
+      });
+    } else {
+      const isPickup = session.orderData.fulfillmentType === 'PICKUP';
+      const timeLine = session.orderData.preferredTime ? `\nالوقت المطلوب: ${session.orderData.preferredTime}` : '';
+      const summaryMsg =
+        `تم تأكيد طلبك بنجاح! ✅\n\n` +
+        `رقم الطلب: ${orderId}\n` +
+        `المبلغ: ${session.orderData.price} ريال (الدفع عند الاستلام)\n` +
+        (isPickup ? `📦 الاستلام: من المحل${timeLine}` : `🚚 التوصيل: إلى موقعك${timeLine}`) +
+        `\n\nشكراً لتسوقك معنا! 🌹`;
+
+      await sendTextMessage(whatsappConfig, phone, summaryMsg);
+      
+      const { sendToAdminGroup } = require('../services/whatsapp');
+      const adminMsg =
+        `🆕 NEW ORDER (${shop.name})\n` +
+        `━━━━━━━━━━━━━━\n` +
+        `📱 Customer Phone: ${phone}\n` +
+        `👤 Customer Name: ${session.orderData.customerName || ''}\n` +
+        `🌹 Product: ${session.orderData.product || 'N/A'}\n` +
+        `💰 Price: ${session.orderData.price} SAR (CASH)\n` +
+        `${isPickup ? '🏬 الاستلام: من المحل' : '🚚 التوصيل: إلى الموقع'}${session.orderData.preferredTime ? ' | الوقت: ' + session.orderData.preferredTime : ''}\n` +
+        (!isPickup && session.orderData.locationUrl && session.orderData.locationUrl.startsWith('http') ? `📍 الموقع: ${session.orderData.locationUrl}\n` : '') +
+        `✅ Payment: CASH ON DELIVERY\n` +
+        `📋 Order ID: ${orderId}\n` +
+        `━━━━━━━━━━━━━━`;
+        
+      try {
+        await sendToAdminGroup(whatsappConfig, adminMsg);
+      } catch (err) {
+        logger.warn(`[Agent1] Failed to send admin notification for COD order ${orderId}: ${err}`);
+      }
+      
+      const { clearSession } = require('../services/session');
+      await clearSession(phone, shopId);
+      // Exit here to prevent saving the session again below
+      return;
+    }
   } else if (intent === 'cancel' || lower === 'لا' || lower === 'إلغاء') {
     await sendTextMessage(whatsappConfig, phone, 'تم إلغاء الطلب. يمكنك البدء من جديد في أي وقت! 🙏');
     session.state = 'GREETING';

@@ -120,11 +120,14 @@ export async function handlePaymentSuccess(session: Stripe.Checkout.Session): Pr
     `${isPickup ? '🏬 الاستلام: من المحل' : '🚚 التوصيل: إلى الموقع'}${order.preferredTime ? ' | الوقت: ' + order.preferredTime : ''}\n` +
     (!isPickup && order.locationUrl && order.locationUrl.startsWith('http') ? `📍 الموقع: ${order.locationUrl}\n` : '') +
     `💳 Card: ****${cardLast4}\n` +
-    `✅ Payment: CONFIRMED\n` +
     `📋 Order ID: ${orderId}\n` +
     `━━━━━━━━━━━━━━`;
 
-  await sendToAdminGroup(whatsappConfig, adminMsg);
+  try {
+    await sendToAdminGroup(whatsappConfig, adminMsg);
+  } catch (err) {
+    logger.warn(`[Agent4] Failed to send admin notification for order ${orderId}: ${err}`);
+  }
 
   await clearSession(customerPhone, shopId);
   logger.info(`[Agent4] Order ${orderId} fully processed`);
