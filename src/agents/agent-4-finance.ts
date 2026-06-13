@@ -114,7 +114,7 @@ export async function handleGenericPaymentSuccess(details: GenericPaymentDetails
     `━━━━━━━━━━━━━━\n` +
     `📱 Customer Phone: ${customerPhone}\n` +
     `👤 Customer Name: ${customerName || ''}\n` +
-    `🌹 Product: ${session.metadata?.product || 'N/A'}\n` +
+    `🌹 Product: ${order.productName || 'N/A'}\n` +
     `💰 Price: ${amount} SAR\n` +
     `${isPickup ? '🏬 الاستلام: من المحل' : '🚚 التوصيل: إلى الموقع'}${order.preferredTime ? ' | الوقت: ' + order.preferredTime : ''}\n` +
     (!isPickup && order.locationUrl && order.locationUrl.startsWith('http') ? `📍 الموقع: ${order.locationUrl}\n` : '') +
