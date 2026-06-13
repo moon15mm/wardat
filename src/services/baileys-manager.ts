@@ -325,7 +325,7 @@ export async function postWhatsAppStatus(shopId: string, product: any): Promise<
   
   let content: any = { 
     text: caption,
-    backgroundColor: '#7b2cbf', 
+    backgroundColor: 4286260415, // ARGB format for #7b2cbf (0xFF7B2CBF)
     font: 1 
   };
 
