@@ -13,128 +13,154 @@ import axios from 'axios';
 interface OwnerSession {
   shopId: string;
   shopName: string;
-  state: 'IDLE' | 'WAITING_NAME' | 'WAITING_PRICE' | 'WAITING_DESC';
+  state: 'IDLE' | 'WAITING_NAME' | 'WAITING_PRICE' | 'WAITING_DESC' | 'WAITING_STOCK';
   tempImageUrl?: string;
   tempName?: string;
   tempPrice?: number;
+  tempDesc?: string;
 }
 
 const ownerSessions = new Map<string, OwnerSession>();
-
-let bot: TelegramBot | null = null;
+let bot: any = null;
 
 export function initTelegramBot(token: string): void {
   if (bot) return;
 
   bot = new TelegramBot(token, { polling: true });
-  logger.info('[Telegram] Bot started successfully ✅');
+  logger.info('[Telegram] Bot started successfully');
 
   // -------------------------------------------------------------------
-  // /start — ربط الحساب بالمتجر
+  // /start
   // -------------------------------------------------------------------
-  bot.onText(/\/start/, async (msg) => {
+  bot.onText(/\/start/, async (msg: any) => {
     const chatId = String(msg.chat.id);
     const firstName = msg.from?.first_name || 'مدير';
-
-    // تحقق إذا كان مرتبطاً بمتجر
     const shop = await prisma.shop.findFirst({ where: { ownerTelegramId: chatId } });
 
     if (shop) {
-      bot!.sendMessage(chatId,
-        `مرحباً بك مجدداً يا ${firstName}! 👑\n\n` +
-        `متجرك: *${shop.name}*\n\n` +
-        `📸 أرسل صورة أي منتج لإضافته للكتالوج فوراً!\n` +
-        `📋 أرسل /products لعرض منتجاتك\n` +
-        `❌ أرسل /cancel لإلغاء أي عملية`,
+      bot.sendMessage(chatId,
+        `مرحباً ${firstName}! متجرك: *${shop.name}*\n\n` +
+        `📸 أرسل صورة منتج لإضافته\n` +
+        `📋 /products — قائمة المنتجات\n` +
+        `⚙️ /settings — إعدادات المتجر\n` +
+        `❌ /cancel — إلغاء`,
         { parse_mode: 'Markdown' }
       );
       return;
     }
 
-    bot!.sendMessage(chatId,
+    bot.sendMessage(chatId,
       `مرحباً ${firstName}! 👋\n\n` +
-      `هذا البوت خاص بإدارة كتالوج متجرك.\n\n` +
-      `لربط حسابك، أرسل:\n` +
-      `\`/link اسم_المستخدم كلمة_المرور\`\n\n` +
-      `مثال:\n` +
-      `\`/link myshop 123456\``,
+      `لربط حسابك أرسل:\n\`/link اسم_المستخدم كلمة_المرور\``,
       { parse_mode: 'Markdown' }
     );
   });
 
   // -------------------------------------------------------------------
-  // /link — ربط حساب التلجرام بالمتجر عبر بيانات الدخول
+  // /link
   // -------------------------------------------------------------------
-  bot.onText(/\/link (.+)/, async (msg, match) => {
+  bot.onText(/\/link (.+)/, async (msg: any, match: any) => {
     const chatId = String(msg.chat.id);
-    const parts = match![1].trim().split(/\s+/);
-
+    const parts = match[1].trim().split(/\s+/);
     if (parts.length < 2) {
-      bot!.sendMessage(chatId, '❌ صيغة خاطئة. أرسل:\n`/link اسم_المستخدم كلمة_المرور`', { parse_mode: 'Markdown' });
+      bot.sendMessage(chatId, '❌ الصيغة: `/link اسم_المستخدم كلمة_المرور`', { parse_mode: 'Markdown' });
+      return;
+    }
+    const [username, password] = parts;
+    try {
+      const shop = await prisma.shop.findUnique({ where: { username } });
+      if (!shop) { bot.sendMessage(chatId, '❌ اسم المستخدم غير موجود.'); return; }
+      const bcrypt = require('bcryptjs');
+      const isValid = await bcrypt.compare(password, shop.password);
+      if (!isValid) { bot.sendMessage(chatId, '❌ كلمة المرور غير صحيحة.'); return; }
+      await prisma.shop.update({ where: { id: shop.id }, data: { ownerTelegramId: chatId } });
+      logger.info(`[Telegram] Owner linked: chatId=${chatId} shop=${shop.id}`);
+      bot.sendMessage(chatId,
+        `✅ *تم الربط بنجاح!*\nمتجرك: *${shop.name}*\n\n` +
+        `📸 أرسل صورة منتج لإضافته\n⚙️ /settings — إعدادات المتجر`,
+        { parse_mode: 'Markdown' }
+      );
+    } catch (e: any) {
+      logger.error(`[Telegram] Link error: ${e.message}`);
+      bot.sendMessage(chatId, '❌ حدث خطأ. يرجى المحاولة مجدداً.');
+    }
+  });
+
+  // -------------------------------------------------------------------
+  // /settings — عرض إعدادات الاستلام والدفع
+  // -------------------------------------------------------------------
+  bot.onText(/\/settings/, async (msg: any) => {
+    const chatId = String(msg.chat.id);
+    const shop = await prisma.shop.findFirst({ where: { ownerTelegramId: chatId } });
+    if (!shop) { bot.sendMessage(chatId, '❌ أرسل /start للبدء.'); return; }
+    const s = (v: boolean) => v ? '✅ مفعّل' : '❌ موقوف';
+    bot.sendMessage(chatId,
+      `⚙️ *إعدادات ${shop.name}*\n\n` +
+      `🚚 *الاستلام:*\n` +
+      `• التوصيل: ${s(shop.enableDelivery)}\n` +
+      `• الاستلام من المحل: ${s(shop.enablePickup)}\n\n` +
+      `💳 *الدفع:*\n` +
+      `• الدفع الإلكتروني: ${s(shop.enableOnlinePayment)}\n` +
+      `• الدفع نقداً: ${s(shop.enableCashPayment)}\n\n` +
+      `للتغيير السريع:\n` +
+      `\`/toggle delivery\` — تبديل التوصيل\n` +
+      `\`/toggle pickup\` — تبديل الاستلام من المحل\n` +
+      `\`/toggle online\` — تبديل الدفع الإلكتروني\n` +
+      `\`/toggle cash\` — تبديل الدفع النقدي`,
+      { parse_mode: 'Markdown' }
+    );
+  });
+
+  // -------------------------------------------------------------------
+  // /toggle — تبديل إعداد معين
+  // -------------------------------------------------------------------
+  bot.onText(/\/toggle (.+)/, async (msg: any, match: any) => {
+    const chatId = String(msg.chat.id);
+    const shop = await prisma.shop.findFirst({ where: { ownerTelegramId: chatId } });
+    if (!shop) { bot.sendMessage(chatId, '❌ أرسل /start للبدء.'); return; }
+
+    const opt = match[1].trim().toLowerCase();
+    const map: Record<string, { field: string; label: string }> = {
+      delivery: { field: 'enableDelivery',     label: 'التوصيل' },
+      pickup:   { field: 'enablePickup',        label: 'الاستلام من المحل' },
+      online:   { field: 'enableOnlinePayment', label: 'الدفع الإلكتروني' },
+      cash:     { field: 'enableCashPayment',   label: 'الدفع النقدي' },
+    };
+
+    const t = map[opt];
+    if (!t) {
+      bot.sendMessage(chatId, '❌ خيار غير صحيح. جرب: delivery / pickup / online / cash');
       return;
     }
 
-    const [username, password] = parts;
+    const newVal = !(shop as any)[t.field];
 
-    try {
-      const shop = await prisma.shop.findUnique({ where: { username } });
+    // حماية: لا يمكن إيقاف كلا خياري نفس النوع
+    if (t.field === 'enableDelivery'     && !newVal && !shop.enablePickup)        { bot.sendMessage(chatId, '⚠️ لا يمكن إيقاف التوصيل والاستلام معاً.'); return; }
+    if (t.field === 'enablePickup'        && !newVal && !shop.enableDelivery)      { bot.sendMessage(chatId, '⚠️ لا يمكن إيقاف الاستلام والتوصيل معاً.'); return; }
+    if (t.field === 'enableOnlinePayment' && !newVal && !shop.enableCashPayment)   { bot.sendMessage(chatId, '⚠️ لا يمكن إيقاف الدفع الإلكتروني والنقدي معاً.'); return; }
+    if (t.field === 'enableCashPayment'   && !newVal && !shop.enableOnlinePayment) { bot.sendMessage(chatId, '⚠️ لا يمكن إيقاف الدفع النقدي والإلكتروني معاً.'); return; }
 
-      if (!shop) {
-        bot!.sendMessage(chatId, '❌ اسم المستخدم غير موجود.');
-        return;
-      }
+    await prisma.shop.update({ where: { id: shop.id }, data: { [t.field]: newVal } });
+    logger.info(`[Telegram] Toggled ${t.field}=${newVal} for shop ${shop.id}`);
 
-      // التحقق من كلمة المرور
-      const bcrypt = require('bcryptjs');
-      const isValid = await bcrypt.compare(password, shop.password);
-
-      if (!isValid) {
-        bot!.sendMessage(chatId, '❌ كلمة المرور غير صحيحة.');
-        return;
-      }
-
-      // حفظ الـ Telegram Chat ID
-      await prisma.shop.update({
-        where: { id: shop.id },
-        data: { ownerTelegramId: chatId },
-      });
-
-      logger.info(`[Telegram] Owner linked: chatId=${chatId} → shopId=${shop.id}`);
-
-      bot!.sendMessage(chatId,
-        `✅ *تم الربط بنجاح!*\n\n` +
-        `متجرك: *${shop.name}*\n\n` +
-        `الآن يمكنك:\n` +
-        `📸 إرسال صورة المنتج لإضافته للكتالوج\n` +
-        `📋 /products — عرض المنتجات\n` +
-        `❌ /cancel — إلغاء العملية الحالية`,
-        { parse_mode: 'Markdown' }
-      );
-    } catch (err: any) {
-      logger.error(`[Telegram] Link error: ${err.message}`);
-      bot!.sendMessage(chatId, '❌ حدث خطأ. يرجى المحاولة مجدداً.');
-    }
+    bot.sendMessage(chatId,
+      `${newVal ? '✅' : '❌'} *${t.label}* أصبح ${newVal ? 'مفعّلاً' : 'موقوفاً'}\n\nأرسل /settings لعرض جميع الإعدادات.`,
+      { parse_mode: 'Markdown' }
+    );
   });
 
   // -------------------------------------------------------------------
   // /products — عرض قائمة المنتجات
   // -------------------------------------------------------------------
-  bot.onText(/\/products/, async (msg) => {
+  bot.onText(/\/products/, async (msg: any) => {
     const chatId = String(msg.chat.id);
     const shop = await prisma.shop.findFirst({ where: { ownerTelegramId: chatId } });
+    if (!shop) { bot.sendMessage(chatId, '❌ أرسل /start للبدء.'); return; }
 
-    if (!shop) {
-      bot!.sendMessage(chatId, '❌ لم يتم ربط حسابك بعد. أرسل /start للبدء.');
-      return;
-    }
-
-    const products = await prisma.product.findMany({
-      where: { shopId: shop.id },
-      orderBy: { name: 'asc' },
-    });
-
+    const products = await prisma.product.findMany({ where: { shopId: shop.id }, orderBy: { name: 'asc' } });
     if (!products.length) {
-      bot!.sendMessage(chatId, '📭 لا توجد منتجات في الكتالوج بعد.\n\nأرسل صورة منتج لإضافته!');
+      bot.sendMessage(chatId, '📭 لا توجد منتجات بعد.\n\nأرسل صورة منتج لإضافته!');
       return;
     }
 
@@ -142,41 +168,35 @@ export function initTelegramBot(token: string): void {
       `${i + 1}. *${p.name}* — ${p.price} ريال ${p.available ? '✅' : '❌'}`
     ).join('\n');
 
-    bot!.sendMessage(chatId,
+    bot.sendMessage(chatId,
       `📋 *منتجات ${shop.name}* (${products.length})\n\n${list}`,
       { parse_mode: 'Markdown' }
     );
   });
 
   // -------------------------------------------------------------------
-  // /cancel — إلغاء العملية الحالية
+  // /cancel
   // -------------------------------------------------------------------
-  bot.onText(/\/cancel/, (msg) => {
+  bot.onText(/\/cancel/, (msg: any) => {
     const chatId = String(msg.chat.id);
     ownerSessions.delete(chatId);
-    bot!.sendMessage(chatId, '❌ تم الإلغاء. أرسل صورة منتج جديد في أي وقت.');
+    bot.sendMessage(chatId, '❌ تم الإلغاء. أرسل صورة منتج جديد في أي وقت.');
   });
 
   // -------------------------------------------------------------------
   // استقبال الصور
   // -------------------------------------------------------------------
-  bot.on('photo', async (msg) => {
+  bot.on('photo', async (msg: any) => {
     const chatId = String(msg.chat.id);
     const shop = await prisma.shop.findFirst({ where: { ownerTelegramId: chatId } });
-
-    if (!shop) {
-      bot!.sendMessage(chatId, '❌ لم يتم ربط حسابك. أرسل /start أولاً.');
-      return;
-    }
+    if (!shop) { bot.sendMessage(chatId, '❌ أرسل /start أولاً.'); return; }
 
     try {
-      // أكبر جودة متاحة
-      const photos = msg.photo!;
+      const photos = msg.photo;
       const bestPhoto = photos[photos.length - 1];
-      const fileInfo = await bot!.getFile(bestPhoto.file_id);
+      const fileInfo = await bot.getFile(bestPhoto.file_id);
       const fileUrl = `https://api.telegram.org/file/bot${token}/${fileInfo.file_path}`;
 
-      // تحميل وحفظ الصورة
       const uploadsDir = path.join(__dirname, '../../public/uploads/products');
       if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
@@ -188,58 +208,39 @@ export function initTelegramBot(token: string): void {
       fs.writeFileSync(localPath, Buffer.from(response.data));
 
       const imageUrl = `/uploads/products/${filename}`;
-
-      // حفظ الجلسة مع رابط الصورة
-      ownerSessions.set(chatId, {
-        shopId: shop.id,
-        shopName: shop.name,
-        state: 'WAITING_NAME',
-        tempImageUrl: imageUrl,
-      });
-
-      // إذا كان فيه caption مع الصورة استخدمه كاسم مؤقت
       const caption = msg.caption?.trim();
+
       if (caption) {
-        ownerSessions.get(chatId)!.tempName = caption;
-        ownerSessions.get(chatId)!.state = 'WAITING_PRICE';
-        bot!.sendMessage(chatId,
-          `✅ تم استلام الصورة!\n` +
-          `📝 الاسم: *${caption}*\n\n` +
-          `💰 كم سعر المنتج؟ (أرسل رقماً مثل: 50)`,
+        ownerSessions.set(chatId, { shopId: shop.id, shopName: shop.name, state: 'WAITING_PRICE', tempImageUrl: imageUrl, tempName: caption });
+        bot.sendMessage(chatId,
+          `✅ تم استلام الصورة!\n📝 الاسم: *${caption}*\n\n💰 كم سعر المنتج؟`,
           { parse_mode: 'Markdown' }
         );
       } else {
-        bot!.sendMessage(chatId,
-          `✅ تم استلام الصورة! 📸\n\n` +
-          `ما اسم هذا المنتج؟`,
-        );
+        ownerSessions.set(chatId, { shopId: shop.id, shopName: shop.name, state: 'WAITING_NAME', tempImageUrl: imageUrl });
+        bot.sendMessage(chatId, '✅ تم استلام الصورة! 📸\n\nما اسم هذا المنتج؟');
       }
-    } catch (err: any) {
-      logger.error(`[Telegram] Photo handling error: ${err.message}`);
-      bot!.sendMessage(chatId, '❌ فشل تحميل الصورة. يرجى المحاولة مجدداً.');
+    } catch (e: any) {
+      logger.error(`[Telegram] Photo error: ${e.message}`);
+      bot.sendMessage(chatId, '❌ فشل تحميل الصورة. يرجى المحاولة مجدداً.');
     }
   });
 
   // -------------------------------------------------------------------
   // استقبال النصوص (دورة إضافة المنتج)
   // -------------------------------------------------------------------
-  bot.on('text', async (msg) => {
-    if (msg.text?.startsWith('/')) return; // الأوامر تُعالج بالأعلى
-
+  bot.on('text', async (msg: any) => {
+    if (msg.text?.startsWith('/')) return;
     const chatId = String(msg.chat.id);
     const text = msg.text?.trim() || '';
     const session = ownerSessions.get(chatId);
 
     if (!session) {
-      // لا توجد جلسة نشطة
       const shop = await prisma.shop.findFirst({ where: { ownerTelegramId: chatId } });
       if (shop) {
-        bot!.sendMessage(chatId,
-          `📸 أرسل صورة المنتج لإضافته للكتالوج\n` +
-          `📋 أو أرسل /products لعرض منتجاتك`
-        );
+        bot.sendMessage(chatId, '📸 أرسل صورة منتج لإضافته\n⚙️ /settings — إعدادات المتجر\n📋 /products — قائمة المنتجات');
       } else {
-        bot!.sendMessage(chatId, 'أرسل /start للبدء.');
+        bot.sendMessage(chatId, 'أرسل /start للبدء.');
       }
       return;
     }
@@ -248,61 +249,55 @@ export function initTelegramBot(token: string): void {
       case 'WAITING_NAME':
         session.tempName = text;
         session.state = 'WAITING_PRICE';
-        bot!.sendMessage(chatId,
-          `✅ الاسم: *${text}*\n\n💰 كم سعر المنتج؟ (رقم فقط مثل: 50)`,
-          { parse_mode: 'Markdown' }
-        );
+        bot.sendMessage(chatId, `✅ الاسم: *${text}*\n\n💰 كم سعر المنتج؟ (رقم فقط مثل: 50)`, { parse_mode: 'Markdown' });
         break;
 
       case 'WAITING_PRICE': {
         const price = parseFloat(text.replace(/[^\d.]/g, ''));
-        if (isNaN(price) || price <= 0) {
-          bot!.sendMessage(chatId, '❌ يرجى إدخال سعر صحيح (مثال: 50 أو 29.99)');
-          return;
-        }
+        if (isNaN(price) || price <= 0) { bot.sendMessage(chatId, '❌ يرجى إدخال سعر صحيح (مثال: 50)'); return; }
         session.tempPrice = price;
         session.state = 'WAITING_DESC';
-        bot!.sendMessage(chatId,
-          `✅ السعر: *${price} ريال*\n\n` +
-          `📝 أضف وصفاً قصيراً للمنتج\n` +
-          `(أو أرسل "تخطي" إذا لم تريد وصفاً)`,
-          { parse_mode: 'Markdown' }
-        );
+        bot.sendMessage(chatId, `✅ السعر: *${price} ريال*\n\n📝 أضف وصفاً قصيراً\n(أو أرسل "تخطي")`, { parse_mode: 'Markdown' });
         break;
       }
 
       case 'WAITING_DESC': {
-        const desc = text === 'تخطي' ? '' : text;
+        session.tempDesc = text === 'تخطي' ? '' : text;
+        session.state = 'WAITING_STOCK';
+        bot.sendMessage(chatId, `✅ الوصف: ${session.tempDesc || 'لا يوجد'}\n\n📦 كم عدد الوحدات المتاحة في المخزون؟ (مثال: 10)`);
+        break;
+      }
 
+      case 'WAITING_STOCK': {
+        const stock = parseInt(text.replace(/[^\d]/g, ''));
+        if (isNaN(stock) || stock < 0) { bot.sendMessage(chatId, '❌ يرجى إدخال عدد صحيح (مثال: 10)'); return; }
         try {
           const product = await prisma.product.create({
             data: {
               shopId: session.shopId,
               name: session.tempName!,
               price: session.tempPrice!,
-              description: desc,
+              description: session.tempDesc || '',
               imageUrl: session.tempImageUrl!,
               category: 'عام',
               available: true,
-              stock: 10,
+              stock,
             },
           });
-
           ownerSessions.delete(chatId);
-
           logger.info(`[Telegram] Product created: ${product.name} for shop ${session.shopId}`);
-
-          bot!.sendMessage(chatId,
+          bot.sendMessage(chatId,
             `🎉 *تم إضافة المنتج بنجاح!*\n\n` +
             `📦 *${session.tempName}*\n` +
             `💰 ${session.tempPrice} ريال\n` +
-            (desc ? `📝 ${desc}\n` : '') +
-            `\nأرسل صورة منتج آخر لإضافته، أو /products لعرض الكتالوج.`,
+            (session.tempDesc ? `📝 ${session.tempDesc}\n` : '') +
+            `🔢 الكمية: ${stock}\n\n` +
+            `أرسل صورة منتج آخر، أو /products لعرض الكتالوج.`,
             { parse_mode: 'Markdown' }
           );
-        } catch (err: any) {
-          logger.error(`[Telegram] Product save error: ${err.message}`);
-          bot!.sendMessage(chatId, '❌ فشل حفظ المنتج. يرجى المحاولة مجدداً.');
+        } catch (e: any) {
+          logger.error(`[Telegram] Product save error: ${e.message}`);
+          bot.sendMessage(chatId, '❌ فشل حفظ المنتج. يرجى المحاولة مجدداً.');
           ownerSessions.delete(chatId);
         }
         break;
@@ -310,11 +305,11 @@ export function initTelegramBot(token: string): void {
     }
   });
 
-  bot.on('polling_error', (err) => {
+  bot.on('polling_error', (err: any) => {
     logger.error(`[Telegram] Polling error: ${err.message}`);
   });
 }
 
-export function getTelegramBot(): TelegramBot | null {
+export function getTelegramBot(): any {
   return bot;
 }

@@ -56,6 +56,14 @@ model Shop {
   deliveryStartHour   String    @default("09:00")
   deliveryEndHour     String    @default("22:00")
 
+  // خيارات الاستلام
+  enableDelivery      Boolean   @default(true)  // تفعيل/إيقاف خيار التوصيل
+  enablePickup        Boolean   @default(true)  // تفعيل/إيقاف خيار الاستلام من المحل
+
+  // خيارات الدفع
+  enableOnlinePayment Boolean   @default(true)  // دفع إلكتروني (Stripe)
+  enableCashPayment   Boolean   @default(false) // دفع نقدًا عند الاستلام
+
   createdAt           DateTime  @default(now())
   products            Product[]
   orders              Order[]

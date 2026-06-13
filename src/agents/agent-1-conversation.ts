@@ -409,9 +409,28 @@ async function handleCollectRecipient(
       ? session.orderData.customerName || 'نفس العميل'
       : text.trim();
 
-  const reply = 'رائع! ✨\nكيف تفضّل استلام طلبك؟\n\n🚚 *1* - توصيل إلى موقعك\n🏬 *2* - استلام من المحل\n\n(اكتب 1 أو 2)';
-  await sendTextMessage(whatsappConfig, phone, reply);
-  session.messages.push({ role: 'assistant', content: reply });
+  // بناء خيارات الاستلام حسب إعدادات المتجر
+  const shopSettings = await prisma.shop.findUnique({ where: { id: shopId } });
+  const canDeliver = shopSettings?.enableDelivery ?? true;
+  const canPickup = shopSettings?.enablePickup ?? true;
+
+  if (!canDeliver && !canPickup) {
+    // كلاهما معطّل — حالة غير طبيعية
+    const reply = 'عذراً، خيارات الاستلام غير متاحة حالياً. يرجى التواصل معنا لاحقاً.';
+    await sendTextMessage(whatsappConfig, phone, reply);
+    session.messages.push({ role: 'assistant', content: reply });
+    return;
+  }
+
+  let replyOptions = 'رائع! ✨\nكيف تفضّل استلام طلبك؟\n\n';
+  const opts: string[] = [];
+  if (canDeliver) opts.push('🚚 *1* - توصيل إلى موقعك');
+  if (canPickup) opts.push('🏬 *' + (canDeliver ? '2' : '1') + '* - استلام من المحل');
+  replyOptions += opts.join('\n');
+  if (canDeliver && canPickup) replyOptions += '\n\n(اكتب 1 أو 2)';
+
+  await sendTextMessage(whatsappConfig, phone, replyOptions);
+  session.messages.push({ role: 'assistant', content: replyOptions });
   session.state = 'COLLECTING_FULFILLMENT';
 }
 
