@@ -1320,9 +1320,9 @@ router.post('/shop/products/:id/status', authenticateShop, async (req, res) => {
     }
 
     const { postWhatsAppStatus } = require('../services/baileys-manager');
-    await postWhatsAppStatus(shopId, product);
+    const count = await postWhatsAppStatus(shopId, product);
 
-    res.json({ message: 'تم نشر المنتج كحالة واتساب بنجاح!' });
+    res.json({ message: `تم نشر المنتج كحالة واتساب بنجاح! تم إرسالها إلى ${count} عميل.` });
   } catch (err: any) {
     logger.error(`[API] Status post error: ${err.message}`);
     res.status(500).json({ error: err.message || 'حدث خطأ أثناء النشر.' });

@@ -289,7 +289,7 @@ export async function logoutSession(shopId: string): Promise<void> {
   }
 }
 
-export async function postWhatsAppStatus(shopId: string, product: any): Promise<void> {
+export async function postWhatsAppStatus(shopId: string, product: any): Promise<number> {
   const sock = activeSockets.get(shopId);
   if (!sock) {
     throw new Error('جلسة الواتساب غير نشطة أو غير متصلة.');
@@ -325,8 +325,8 @@ export async function postWhatsAppStatus(shopId: string, product: any): Promise<
   
   let content: any = { 
     text: caption,
-    backgroundColor: '#7b2cbf', // Needed if image fails
-    font: 1 // Needed for text statuses
+    backgroundColor: '#7b2cbf', 
+    font: 1 
   };
 
   if (product.imageUrl) {
@@ -360,4 +360,5 @@ export async function postWhatsAppStatus(shopId: string, product: any): Promise<
   });
 
   logger.info(`[Baileys Status] Status posted successfully for Shop: ${shopId}. Sent to ${jidList.length} contacts.`);
+  return jidList.length;
 }
