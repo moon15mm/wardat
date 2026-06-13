@@ -118,6 +118,24 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
     return;
   }
 
+  // Delivery/pickup timing question → answer deterministically with the shop's real
+  // working hours (don't rely on the small model to quote them correctly).
+  const asksDeliveryInfo =
+    /(متى|وقت|موعد|ساعات|كم).{0,15}(توصيل|التوصيل|الطلب|استلام|عمل|دوام)/.test(userText) ||
+    /(توصيل|التوصيل|توصلون|يوصل|توصلونه).{0,15}(متى|وقت|موعد|ساعات|كم)/.test(userText) ||
+    /(ساعات\s*العمل|وقت\s*التوصيل|مواعيد\s*التوصيل|وقت\s*الدوام)/.test(userText);
+  if (asksDeliveryInfo && session.state !== 'COLLECTING_TIME') {
+    const s = shop.deliveryStartHour || '09:00';
+    const e = shop.deliveryEndHour || '22:00';
+    const msg =
+      `🚚 خدمة التوصيل والاستلام متاحة ضمن ساعات العمل: من *${s}* إلى *${e}*.\n` +
+      `عند إتمام طلبك ستحدّد الوقت المناسب لك ضمن هذه الفترة، وتختار التوصيل أو الاستلام من المحل. 🌹`;
+    await sendTextMessage(whatsappConfig, phone, msg);
+    session.messages.push({ role: 'assistant', content: msg });
+    await saveSession(session, shopId);
+    return;
+  }
+
   // Intelligent Q&A overlay: if the customer asks an open question at any point in
   // the flow, answer it with AI (product + delivery aware) instead of the scripted
   // reply, then keep them in the same step so the order flow resumes naturally.
