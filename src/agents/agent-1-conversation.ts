@@ -682,6 +682,19 @@ async function handleConfirmation(
   const lower = text.trim().toLowerCase();
 
   if (intent === 'confirm' || lower === 'نعم' || lower === 'اي' || lower === 'تمام' || lower === 'أكيد') {
+    if (shop.subscriptionPlan === 'SILVER') {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      const ordersCount = await prisma.order.count({
+        where: { shopId, timestamp: { gte: startOfMonth } }
+      });
+      if (ordersCount >= 500) {
+        await sendTextMessage(whatsappConfig, phone, 'عذراً، وصل المتجر للحد الأقصى للطلبات هذا الشهر. يرجى مراجعة إدارة المتجر لاحقاً.');
+        return;
+      }
+    }
+
     const orderId = generateOrderId();
     session.orderData.id = orderId;
     session.orderData.shopId = shopId;

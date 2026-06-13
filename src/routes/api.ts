@@ -967,13 +967,37 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
   } = req.body;
 
   try {
+    const shop = await prisma.shop.findUnique({ where: { id: shopId } });
+    if (!shop) return res.status(404).json({ error: 'المتجر غير موجود' });
+    const plan = shop.subscriptionPlan || 'SILVER';
+
+    let finalStripeSecretKey = stripeSecretKey;
+    let finalStripeWebhookSecret = stripeWebhookSecret;
+    let finalWhatsappAdminGroupId = whatsappAdminGroupId;
+    let finalOpenaiApiKey = openaiApiKey;
+    let finalGeminiApiKey = geminiApiKey;
+    let finalAutoPostStatus = req.body.autoPostStatus !== undefined ? req.body.autoPostStatus : false;
+
+    if (plan === 'SILVER') {
+      finalStripeSecretKey = undefined;
+      finalStripeWebhookSecret = undefined;
+      finalWhatsappAdminGroupId = undefined;
+      finalOpenaiApiKey = undefined;
+      finalGeminiApiKey = undefined;
+      finalAutoPostStatus = false;
+    } else if (plan === 'GOLD') {
+      finalOpenaiApiKey = undefined;
+      finalGeminiApiKey = undefined;
+      finalAutoPostStatus = false;
+    }
+
     const updateData: any = {
       name,
       whatsappType: whatsappType || 'BUSINESS',
       whatsappPhoneId: whatsappPhoneId || null,
       stripeSuccessUrl: stripeSuccessUrl || null,
       stripeCancelUrl: stripeCancelUrl || null,
-      whatsappAdminGroupId: whatsappAdminGroupId || null,
+      whatsappAdminGroupId: finalWhatsappAdminGroupId || null,
       aiProvider: aiProvider || 'OPENAI',
       logoUrl: logoUrl !== undefined ? (logoUrl || null) : undefined,
       ownerPhone: ownerPhone !== undefined ? (ownerPhone || null) : undefined,
@@ -984,7 +1008,7 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
       enablePickup: enablePickup !== undefined ? enablePickup : true,
       enableOnlinePayment: enableOnlinePayment !== undefined ? enableOnlinePayment : true,
       enableCashPayment: enableCashPayment !== undefined ? enableCashPayment : false,
-      autoPostStatus: req.body.autoPostStatus !== undefined ? req.body.autoPostStatus : false,
+      autoPostStatus: finalAutoPostStatus,
       autoPostStatusTime: req.body.autoPostStatusTime || '10:00',
     };
 
@@ -1017,10 +1041,10 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
 
     applySecret('whatsappToken', whatsappToken);
     applySecret('whatsappVerifyToken', whatsappVerifyToken);
-    applySecret('stripeSecretKey', stripeSecretKey);
-    applySecret('stripeWebhookSecret', stripeWebhookSecret);
-    applySecret('geminiApiKey', geminiApiKey);
-    applySecret('openaiApiKey', openaiApiKey);
+    applySecret('stripeSecretKey', finalStripeSecretKey);
+    applySecret('stripeWebhookSecret', finalStripeWebhookSecret);
+    applySecret('geminiApiKey', finalGeminiApiKey);
+    applySecret('openaiApiKey', finalOpenaiApiKey);
     applySecret('ultramsgToken', ultramsgToken);
 
     if (password) {
