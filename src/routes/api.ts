@@ -27,6 +27,20 @@ function hashResetToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+// Configurable free-trial length in days (default 14).
+function trialDays(): number {
+  const n = parseInt(settings.raw('TRIAL_DAYS') || '14', 10);
+  return isNaN(n) ? 14 : Math.min(90, Math.max(1, n));
+}
+
+// Compute a subscription end date: TRIAL is measured in days, paid plans in months.
+function computeSubscriptionEnd(plan: string, months: number, base: Date = new Date()): Date {
+  if (plan === 'TRIAL') {
+    return new Date(base.getTime() + trialDays() * 24 * 60 * 60 * 1000);
+  }
+  return new Date(base.getTime() + months * 30 * 24 * 60 * 60 * 1000);
+}
+
 // Constant-time string comparison to avoid timing attacks on admin credentials.
 function safeEqual(a: string, b: string): boolean {
   const bufA = Buffer.from(a);
@@ -375,7 +389,7 @@ router.post('/admin/shops', authenticateSuperAdmin, async (req, res) => {
     }
 
     const months = subscriptionDurationMonths ? parseInt(subscriptionDurationMonths) : 1;
-    const subscriptionEnd = new Date(Date.now() + months * 30 * 24 * 60 * 60 * 1000);
+    const subscriptionEnd = computeSubscriptionEnd(subscriptionPlan, months);
 
     const shop = await prisma.shop.create({
       data: {
@@ -441,7 +455,11 @@ router.put('/admin/shops/:id', authenticateSuperAdmin, async (req, res) => {
     if (subscriptionPlan) updateData.subscriptionPlan = subscriptionPlan;
     if (subscriptionStatus) updateData.subscriptionStatus = subscriptionStatus;
 
-    if (subscriptionDurationMonths) {
+    if (subscriptionPlan === 'TRIAL') {
+      // Trial always starts fresh from now for the configured number of days.
+      updateData.subscriptionEnd = computeSubscriptionEnd('TRIAL', 0);
+      updateData.subscriptionStatus = 'ACTIVE';
+    } else if (subscriptionDurationMonths) {
       const months = parseInt(subscriptionDurationMonths);
       const baseDate = shop.subscriptionEnd && new Date(shop.subscriptionEnd) > new Date()
         ? new Date(shop.subscriptionEnd)

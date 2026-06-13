@@ -537,6 +537,7 @@
           <div class="form-group">
             <label for="subscriptionPlan">خطة الاشتراك</label>
             <select id="subscriptionPlan" required>
+              <option value="TRIAL">🎁 باقة التجربة (مجانية - تتوقف بعد المدة)</option>
               <option value="SILVER">🥈 الباقة الفضية (Silver)</option>
               <option value="GOLD">🥇 الباقة الذهبية (Gold)</option>
               <option value="PLATINUM">💎 الباقة البلاتينية (Platinum)</option>
@@ -653,6 +654,7 @@
         <div class="form-group">
           <label for="renewPlan">تغيير باقة الاشتراك</label>
           <select id="renewPlan" required>
+            <option value="TRIAL">🎁 باقة التجربة (مجانية)</option>
             <option value="SILVER">🥈 الباقة الفضية (Silver)</option>
             <option value="GOLD">🥇 الباقة الذهبية (Gold)</option>
             <option value="PLATINUM">💎 الباقة البلاتينية (Platinum)</option>
@@ -700,11 +702,12 @@
           <div class="form-group"><label>الباقة البلاتينية (Platinum)</label><input type="number" min="0" id="set_PLAN_PRICE_PLATINUM" required></div>
         </div>
 
-        <h4 style="margin:18px 0 12px; color: var(--pink-glow); border-bottom:1px solid var(--glass-border); padding-bottom:6px;">🎁 نسب الخصم حسب المدة (%)</h4>
+        <h4 style="margin:18px 0 12px; color: var(--pink-glow); border-bottom:1px solid var(--glass-border); padding-bottom:6px;">🎁 نسب الخصم ومدة التجربة</h4>
         <div class="form-grid">
-          <div class="form-group"><label>خصم 3 أشهر</label><input type="number" min="0" max="90" id="set_PLAN_DISCOUNT_3"></div>
-          <div class="form-group"><label>خصم 6 أشهر</label><input type="number" min="0" max="90" id="set_PLAN_DISCOUNT_6"></div>
-          <div class="form-group"><label>خصم 12 شهر</label><input type="number" min="0" max="90" id="set_PLAN_DISCOUNT_12"></div>
+          <div class="form-group"><label>خصم 3 أشهر (%)</label><input type="number" min="0" max="90" id="set_PLAN_DISCOUNT_3"></div>
+          <div class="form-group"><label>خصم 6 أشهر (%)</label><input type="number" min="0" max="90" id="set_PLAN_DISCOUNT_6"></div>
+          <div class="form-group"><label>خصم 12 شهر (%)</label><input type="number" min="0" max="90" id="set_PLAN_DISCOUNT_12"></div>
+          <div class="form-group"><label>مدة باقة التجربة (أيام)</label><input type="number" min="1" max="90" id="set_TRIAL_DAYS" placeholder="14"></div>
         </div>
 
         <h4 style="margin:18px 0 12px; color: var(--pink-glow); border-bottom:1px solid var(--glass-border); padding-bottom:6px;">💳 بوابة دفع المنصة (Stripe) — لتجديد الاشتراكات</h4>
@@ -793,7 +796,7 @@
     // ---- System Settings ----
     const SETTING_KEYS = [
       'PLAN_PRICE_SILVER','PLAN_PRICE_GOLD','PLAN_PRICE_PLATINUM',
-      'PLAN_DISCOUNT_3','PLAN_DISCOUNT_6','PLAN_DISCOUNT_12',
+      'PLAN_DISCOUNT_3','PLAN_DISCOUNT_6','PLAN_DISCOUNT_12','TRIAL_DAYS',
       'STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET','STRIPE_SUCCESS_URL','STRIPE_CANCEL_URL',
       'WHATSAPP_APP_SECRET','APP_BASE_URL','ULTRAMSG_WEBHOOK_TOKEN',
       'SMTP_HOST','SMTP_PORT','SMTP_SECURE','SMTP_USER','SMTP_PASS','SMTP_FROM',
