@@ -442,7 +442,7 @@ router.delete('/admin/shops/:id', authenticateSuperAdmin, async (req, res) => {
 });
 
 router.put('/admin/shops/:id', authenticateSuperAdmin, async (req, res) => {
-  const { subscriptionPlan, subscriptionDurationMonths, subscriptionStatus } = req.body;
+  const { subscriptionPlan, subscriptionDurationMonths, subscriptionStatus, openaiApiKey } = req.body;
 
   try {
     const shop = await prisma.shop.findUnique({
@@ -456,6 +456,9 @@ router.put('/admin/shops/:id', authenticateSuperAdmin, async (req, res) => {
     const updateData: any = {};
     if (subscriptionPlan) updateData.subscriptionPlan = subscriptionPlan;
     if (subscriptionStatus) updateData.subscriptionStatus = subscriptionStatus;
+    if (openaiApiKey !== undefined) {
+      updateData.openaiApiKey = openaiApiKey.trim() || null;
+    }
 
     if (subscriptionPlan === 'TRIAL') {
       // Trial always starts fresh from now for the configured number of days.
@@ -908,6 +911,13 @@ router.get('/shop/details', authenticateShop, async (req, res) => {
     // Do not return hashed password or raw secrets. Mask sensitive fields so the
     // dashboard can show "configured / not configured" without exposing live keys.
     const { password, resetToken, resetTokenExpiry, ...rest } = shop;
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const monthlyOrdersCount = await prisma.order.count({
+      where: { shopId, timestamp: { gte: startOfMonth } }
+    });
+
     const details = {
       ...rest,
       whatsappToken: maskSecret(shop.whatsappToken),
@@ -917,6 +927,7 @@ router.get('/shop/details', authenticateShop, async (req, res) => {
       geminiApiKey: maskSecret(shop.geminiApiKey),
       openaiApiKey: maskSecret(shop.openaiApiKey),
       ultramsgToken: maskSecret(shop.ultramsgToken),
+      monthlyOrdersCount,
     };
 
     const now = Date.now();

@@ -1224,8 +1224,9 @@
           <div class="stat-value" id="statSales" style="color: var(--pink-glow);">-</div>
         </div>
         <div class="stat-card">
-          <div class="stat-title">إجمالي الطلبات المستلمة</div>
+          <div class="stat-title">إجمالي الطلبات المكتملة</div>
           <div class="stat-value" id="statOrders" style="color: var(--purple-glow);">-</div>
+          <div id="statOrdersRemaining" style="font-size: 0.8rem; color: var(--text-sub); margin-top: 5px; font-weight: bold; display: none;"></div>
         </div>
         <div class="stat-card">
           <div class="stat-title">باقة الاشتراك والمدة المتبقية</div>
@@ -2371,6 +2372,19 @@
           subDetailsHtml = `<span style="color: var(--success); font-weight: bold;">${planText}</span><br><span style="font-size: 0.95rem; color: var(--text-sub);">متبقي ${shop.daysRemaining} يوم</span>`;
         }
         document.getElementById('statSubscription').innerHTML = subDetailsHtml;
+
+        // Handle Remaining Orders for Silver
+        const statOrdersRemaining = document.getElementById('statOrdersRemaining');
+        if (shop.subscriptionPlan === 'SILVER') {
+          const limit = 500;
+          const remaining = Math.max(0, limit - (shop.monthlyOrdersCount || 0));
+          statOrdersRemaining.textContent = `المتبقي هذا الشهر: ${remaining} / ${limit}`;
+          statOrdersRemaining.style.display = 'block';
+          if (remaining <= 50) statOrdersRemaining.style.color = 'var(--warning)';
+          if (remaining === 0) statOrdersRemaining.style.color = 'var(--danger)';
+        } else {
+          statOrdersRemaining.style.display = 'none';
+        }
 
         // Pre-select the current plan in the billing tab
         if (shop.subscriptionPlan) {

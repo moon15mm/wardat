@@ -677,6 +677,10 @@
             <option value="SUSPENDED">موقوف مؤقتاً (Suspended)</option>
           </select>
         </div>
+        <div class="form-group">
+          <label for="renewOpenaiApiKey">مفتاح OpenAI المخصص (اختياري)</label>
+          <input type="text" id="renewOpenaiApiKey" placeholder="مطلوب فقط إذا كان المتجر يريد استخدام مفتاحه الخاص" style="direction: ltr;">
+        </div>
         <div class="modal-actions">
           <button type="button" class="btn-cancel" onclick="closeRenewModal()">إلغاء</button>
           <button type="submit" class="btn-save">حفظ التغييرات</button>
@@ -909,7 +913,7 @@
             <td>${shop.productsCount}</td>
             <td>${shop.ordersCount}</td>
             <td>
-              <button class="btn-edit" onclick="openRenewModal('${shop.id}', '${shop.name}', '${shop.subscriptionPlan}', '${shop.subscriptionStatus}')" style="margin-left: 5px;">إدارة / تجديد</button>
+              <button class="btn-edit" onclick="openRenewModal('${shop.id}', '${shop.name}', '${shop.subscriptionPlan}', '${shop.subscriptionStatus}', '${shop.openaiApiKey || ''}')" style="margin-left: 5px;">تجديد / تعديل</button>
               <button class="btn-delete" onclick="deleteShop('${shop.id}', '${shop.name}')">حذف</button>
             </td>
           `;
@@ -1026,12 +1030,13 @@
       }
     }
 
-    function openRenewModal(id, name, currentPlan, currentStatus) {
+    function openRenewModal(id, name, currentPlan, currentStatus, openaiApiKey) {
       document.getElementById('renewShopId').value = id;
-      document.getElementById('renewShopName').textContent = `متجر: ${name}`;
+      document.getElementById('renewShopName').textContent = `المتجر: ${name}`;
       document.getElementById('renewPlan').value = currentPlan;
       document.getElementById('renewStatus').value = currentStatus;
       document.getElementById('renewDuration').value = '0';
+      document.getElementById('renewOpenaiApiKey').value = openaiApiKey || '';
       document.getElementById('renewModal').style.display = 'flex';
     }
 
@@ -1045,6 +1050,7 @@
       const payload = {
         subscriptionPlan: document.getElementById('renewPlan').value,
         subscriptionStatus: document.getElementById('renewStatus').value,
+        openaiApiKey: document.getElementById('renewOpenaiApiKey').value,
       };
 
       const duration = document.getElementById('renewDuration').value;
