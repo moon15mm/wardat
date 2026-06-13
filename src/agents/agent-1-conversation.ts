@@ -201,9 +201,28 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
   }
 
   switch (session.state) {
-    case 'GREETING':
+    case 'GREETING': {
+      // Spam Protection: Limit active orders per customer
+      const recentOrdersCount = await prisma.order.count({
+        where: {
+          shopId,
+          customerPhone: phone,
+          paymentStatus: { in: ['PENDING', 'CONFIRMED'] },
+          timestamp: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+        }
+      });
+      
+      if (recentOrdersCount >= 3) {
+        const spamMsg = 'عذراً، لقد وصلت للحد الأقصى للطلبات قيد التنفيذ اليوم. 🚫\nنرجو انتظار توصيل طلباتك الحالية أو التواصل مع خدمة العملاء للمساعدة.';
+        await sendTextMessage(whatsappConfig, phone, spamMsg);
+        session.messages.push({ role: 'assistant', content: spamMsg });
+        // Pause the bot so the shop owner can review
+        session.botPaused = true;
+        break;
+      }
       await handleGreeting(phone, shopId, whatsappConfig, userText, intent.intent, session);
       break;
+    }
     case 'BROWSING':
       await handleBrowsing(phone, shopId, whatsappConfig, userText, intent, session);
       break;
@@ -244,6 +263,23 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
       const l = userText.trim().toLowerCase();
       const restartWords = ['جديد', 'طلب جديد', 'ابدأ', 'ابدا', 'البداية', 'القائمة', 'الغاء', 'إلغاء', 'الغاء الطلب', 'إلغاء الطلب', 'cancel', 'menu', 'start'];
       if (restartWords.includes(l)) {
+        // Spam Protection
+        const recentOrdersCount = await prisma.order.count({
+          where: {
+            shopId,
+            customerPhone: phone,
+            paymentStatus: { in: ['PENDING', 'CONFIRMED'] },
+            timestamp: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+          }
+        });
+        if (recentOrdersCount >= 3) {
+          const spamMsg = 'عذراً، لقد وصلت للحد الأقصى للطلبات قيد التنفيذ. 🚫\nنرجو التواصل مع خدمة العملاء للمساعدة.';
+          await sendTextMessage(whatsappConfig, phone, spamMsg);
+          session.messages.push({ role: 'assistant', content: spamMsg });
+          session.botPaused = true;
+          break;
+        }
+
         // Let the customer escape a stuck/abandoned payment and start over.
         session.orderData = {};
         session.selectedProduct = undefined;
