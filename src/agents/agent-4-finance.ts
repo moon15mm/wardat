@@ -6,19 +6,26 @@ import { clearSession } from '../services/session';
 import prisma from '../services/db';
 import logger from '../utils/logger';
 
-export async function handlePaymentSuccess(session: Stripe.Checkout.Session): Promise<void> {
-  const sessionId = session.id;
-  const orderId = session.metadata?.orderId;
-  const customerPhone = session.metadata?.customerPhone;
-  const customerName = session.metadata?.customerName;
-  const shopId = session.metadata?.shopId;
+export interface GenericPaymentDetails {
+  sessionId: string;
+  orderId: string;
+  shopId: string;
+  customerPhone: string;
+  customerName: string;
+  amount: number;
+  cardLast4?: string;
+  gatewayName?: string;
+}
+
+export async function handleGenericPaymentSuccess(details: GenericPaymentDetails): Promise<void> {
+  const { sessionId, orderId, customerPhone, customerName, shopId, amount, cardLast4 = '', gatewayName = 'Unknown' } = details;
 
   if (!orderId || !customerPhone || !shopId) {
-    logger.error(`[Agent4] Missing metadata in Stripe session ${sessionId}`);
+    logger.error(`[Agent4] Missing metadata in ${gatewayName} session ${sessionId}`);
     return;
   }
 
-  logger.info(`[Agent4] Payment succeeded for order ${orderId} in shop ${shopId}`);
+  logger.info(`[Agent4] Payment succeeded for order ${orderId} in shop ${shopId} via ${gatewayName}`);
 
   // SECURITY: verify the order actually belongs to the shop named in the metadata.
   // Without this, a shop owner could sign a valid webhook (with their own secret)
@@ -65,15 +72,8 @@ export async function handlePaymentSuccess(session: Stripe.Checkout.Session): Pr
     ultramsgToken: shop.ultramsgToken,
   };
 
-  let cardLast4 = '';
-  try {
-    const details = await getSessionDetails(stripeConfig, sessionId);
-    const pi = details.payment_intent as Stripe.PaymentIntent | undefined;
-    const charge = pi?.latest_charge as Stripe.Charge | undefined;
-    cardLast4 = charge?.payment_method_details?.card?.last4 || '';
-  } catch (err: any) {
-    logger.warn(`[Agent4] Could not retrieve card details for ${sessionId}: ${err.message}`);
-  }
+  // No need to query stripe here anymore if cardLast4 is passed.
+  // We already have cardLast4.
 
   await updateOrderStatus(orderId, 'CONFIRMED', cardLast4);
 
@@ -95,7 +95,6 @@ export async function handlePaymentSuccess(session: Stripe.Checkout.Session): Pr
     logger.error(`[Agent4] Failed to decrement product stock for order ${orderId}: ${err.message}`);
   }
 
-  const amount = (session.amount_total || 0) / 100;
   await addFinanceRecord(orderId, amount, customerName || '');
 
   const isPickup = order.fulfillmentType === 'PICKUP';
@@ -207,4 +206,31 @@ export async function handleSubscriptionRenewalSuccess(session: Stripe.Checkout.
   });
 
   logger.info(`[Agent4] Shop ${shop.name} subscription successfully updated/extended to ${newEnd.toISOString()}`);
+}
+
+export async function handlePaymentSuccess(session: Stripe.Checkout.Session): Promise<void> {
+  const shopId = session.metadata?.shopId;
+  let cardLast4 = '';
+  try {
+    if (shopId) {
+      const shop = await prisma.shop.findUnique({ where: { id: shopId } });
+      if (shop?.stripeSecretKey) {
+        const details = await getSessionDetails({ secretKey: shop.stripeSecretKey, webhookSecret: null, successUrl: null, cancelUrl: null }, session.id);
+        const pi = details.payment_intent as Stripe.PaymentIntent | undefined;
+        const charge = pi?.latest_charge as Stripe.Charge | undefined;
+        cardLast4 = charge?.payment_method_details?.card?.last4 || '';
+      }
+    }
+  } catch (e) {}
+
+  await handleGenericPaymentSuccess({
+    sessionId: session.id,
+    orderId: session.metadata?.orderId || '',
+    shopId: session.metadata?.shopId || '',
+    customerPhone: session.metadata?.customerPhone || '',
+    customerName: session.metadata?.customerName || '',
+    amount: (session.amount_total || 0) / 100,
+    cardLast4,
+    gatewayName: 'STRIPE'
+  });
 }

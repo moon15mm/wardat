@@ -50,10 +50,14 @@ model Shop {
   openaiApiKey        String?
   
   // Stripe settings per shop
+  paymentGateway      String    @default("STRIPE") // STRIPE, MOYASAR, TAP, MYFATOORAH
   stripeSecretKey     String?
   stripeWebhookSecret String?
   stripeSuccessUrl    String?
-  stripeCancelUrl    String?
+  stripeCancelUrl     String?
+  moyasarApiKey       String?
+  tapApiKey           String?
+  myfatoorahApiKey    String?
 
   logoUrl             String?   // شعار/أيقونة المتجر
 

@@ -1,5 +1,8 @@
 import { PaymentRequest } from '../types';
 import { createCheckoutSession, StripeConfig } from '../services/stripe-service';
+import { createMoyasarInvoice, MoyasarConfig } from '../services/moyasar-service';
+import { createTapCharge, TapConfig } from '../services/tap-service';
+import { createMyFatoorahInvoice, MyFatoorahConfig } from '../services/myfatoorah-service';
 import { sendTextMessage, WhatsAppConfig } from '../services/whatsapp';
 import { updateOrderPaymentSession } from './agent-3-excel';
 import prisma from '../services/db';
@@ -18,13 +21,6 @@ export async function processPayment(payment: PaymentRequest): Promise<void> {
     return;
   }
 
-  const stripeConfig: StripeConfig = {
-    secretKey: shop.stripeSecretKey,
-    webhookSecret: shop.stripeWebhookSecret,
-    successUrl: shop.stripeSuccessUrl,
-    cancelUrl: shop.stripeCancelUrl,
-  };
-
   const whatsappConfig: WhatsAppConfig = {
     whatsappType: shop.whatsappType as 'BUSINESS' | 'NORMAL',
     shopId: shop.id,
@@ -36,7 +32,47 @@ export async function processPayment(payment: PaymentRequest): Promise<void> {
   };
 
   try {
-    const { url, sessionId } = await createCheckoutSession(stripeConfig, payment);
+    let url = '';
+    let sessionId = '';
+    const gateway = shop.paymentGateway || 'STRIPE';
+
+    if (gateway === 'MOYASAR') {
+      const config: MoyasarConfig = {
+        apiKey: shop.moyasarApiKey,
+        successUrl: shop.stripeSuccessUrl,
+      };
+      const res = await createMoyasarInvoice(config, payment);
+      url = res.url;
+      sessionId = res.sessionId;
+    } else if (gateway === 'TAP') {
+      const config: TapConfig = {
+        apiKey: shop.tapApiKey,
+        successUrl: shop.stripeSuccessUrl,
+      };
+      const res = await createTapCharge(config, payment);
+      url = res.url;
+      sessionId = res.sessionId;
+    } else if (gateway === 'MYFATOORAH') {
+      const config: MyFatoorahConfig = {
+        apiKey: shop.myfatoorahApiKey,
+        successUrl: shop.stripeSuccessUrl,
+        cancelUrl: shop.stripeCancelUrl,
+      };
+      const res = await createMyFatoorahInvoice(config, payment);
+      url = res.url;
+      sessionId = res.sessionId;
+    } else {
+      // Default to STRIPE
+      const config: StripeConfig = {
+        secretKey: shop.stripeSecretKey,
+        webhookSecret: shop.stripeWebhookSecret,
+        successUrl: shop.stripeSuccessUrl,
+        cancelUrl: shop.stripeCancelUrl,
+      };
+      const res = await createCheckoutSession(config, payment);
+      url = res.url;
+      sessionId = res.sessionId;
+    }
 
     await updateOrderPaymentSession(payment.orderId, sessionId);
 
@@ -45,17 +81,17 @@ export async function processPayment(payment: PaymentRequest): Promise<void> {
       `المنتج: ${payment.product}\n` +
       `المبلغ: ${payment.price} ريال\n\n` +
       `اضغط على الرابط التالي للدفع:\n${url}\n\n` +
-      `⏰ الرابط صالح لمدة 30 دقيقة`;
+      `⏰ الرابط صالح لفترة محدودة`;
 
     await sendTextMessage(whatsappConfig, payment.customerPhone, message);
-    logger.info(`[Agent2] Payment link sent to ${payment.customerPhone}`);
+    logger.info(`[Agent2] Payment link sent to ${payment.customerPhone} via ${gateway}`);
   } catch (err: any) {
     logger.error(`[Agent2] Payment processing failed: ${err.message}`);
     try {
       await sendTextMessage(
         whatsappConfig,
         payment.customerPhone,
-        'عذراً، حدث خطأ في إعداد رابط الدفع. سيتواصل معك فريقنا قريباً.'
+        'عذراً، حدث خطأ في إعداد رابط الدفع. يرجى إبلاغ المتجر أو المحاولة لاحقاً.'
       );
     } catch (sendErr) {
       logger.error(`[Agent2] Failed to send error message to customer: ${sendErr}`);

@@ -924,6 +924,9 @@ router.get('/shop/details', authenticateShop, async (req, res) => {
       whatsappVerifyToken: maskSecret(shop.whatsappVerifyToken),
       stripeSecretKey: maskSecret(shop.stripeSecretKey),
       stripeWebhookSecret: maskSecret(shop.stripeWebhookSecret),
+      moyasarApiKey: maskSecret(shop.moyasarApiKey),
+      tapApiKey: maskSecret(shop.tapApiKey),
+      myfatoorahApiKey: maskSecret(shop.myfatoorahApiKey),
       geminiApiKey: maskSecret(shop.geminiApiKey),
       openaiApiKey: maskSecret(shop.openaiApiKey),
       ultramsgToken: maskSecret(shop.ultramsgToken),
@@ -956,10 +959,14 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
     whatsappPhoneId,
     whatsappToken,
     whatsappVerifyToken,
+    paymentGateway,
     stripeSecretKey,
     stripeWebhookSecret,
     stripeSuccessUrl,
     stripeCancelUrl,
+    moyasarApiKey,
+    tapApiKey,
+    myfatoorahApiKey,
     whatsappAdminGroupId,
     aiProvider,
     geminiApiKey,
@@ -984,6 +991,9 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
 
     let finalStripeSecretKey = stripeSecretKey;
     let finalStripeWebhookSecret = stripeWebhookSecret;
+    let finalMoyasarApiKey = moyasarApiKey;
+    let finalTapApiKey = tapApiKey;
+    let finalMyfatoorahApiKey = myfatoorahApiKey;
     let finalWhatsappAdminGroupId = whatsappAdminGroupId;
     let finalOpenaiApiKey = openaiApiKey;
     let finalGeminiApiKey = geminiApiKey;
@@ -992,6 +1002,9 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
     if (plan === 'SILVER') {
       finalStripeSecretKey = undefined;
       finalStripeWebhookSecret = undefined;
+      finalMoyasarApiKey = undefined;
+      finalTapApiKey = undefined;
+      finalMyfatoorahApiKey = undefined;
       finalWhatsappAdminGroupId = undefined;
       finalOpenaiApiKey = undefined;
       finalGeminiApiKey = undefined;
@@ -1054,6 +1067,9 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
     applySecret('whatsappVerifyToken', whatsappVerifyToken);
     applySecret('stripeSecretKey', finalStripeSecretKey);
     applySecret('stripeWebhookSecret', finalStripeWebhookSecret);
+    applySecret('moyasarApiKey', finalMoyasarApiKey);
+    applySecret('tapApiKey', finalTapApiKey);
+    applySecret('myfatoorahApiKey', finalMyfatoorahApiKey);
     applySecret('geminiApiKey', finalGeminiApiKey);
     applySecret('openaiApiKey', finalOpenaiApiKey);
     applySecret('ultramsgToken', ultramsgToken);
@@ -1914,6 +1930,84 @@ router.delete('/shop/chats/:phone/block', authenticateShop, async (req, res) => 
   } catch (err: any) {
     logger.error(`[API] Unblock user error: ${err.message}`);
     res.status(500).json({ error: 'حدث خطأ أثناء إزالة الحظر.' });
+  }
+});
+
+import { handleGenericPaymentSuccess } from '../agents/agent-4-finance';
+
+// ==========================================
+// Webhooks for Payment Gateways
+// ==========================================
+
+router.post('/webhook/moyasar', async (req, res) => {
+  try {
+    const { id, status, amount, metadata } = req.body;
+    if (status === 'paid' && metadata?.orderId && metadata?.shopId) {
+      await handleGenericPaymentSuccess({
+        sessionId: id,
+        orderId: metadata.orderId,
+        shopId: metadata.shopId,
+        customerPhone: metadata.customerPhone || '',
+        customerName: 'Customer', // Moyasar metadata might not have name
+        amount: amount / 100, // Moyasar returns halalas
+        gatewayName: 'MOYASAR'
+      });
+    }
+    res.json({ received: true });
+  } catch (err: any) {
+    logger.error(`[Moyasar Webhook] Error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/webhook/tap', async (req, res) => {
+  try {
+    const { id, status, amount, metadata, reference } = req.body;
+    // Tap uses status 'CAPTURED' or 'AUTHORIZED'
+    if ((status === 'CAPTURED' || status === 'AUTHORIZED') && metadata?.orderId && metadata?.shopId) {
+      await handleGenericPaymentSuccess({
+        sessionId: id,
+        orderId: metadata.orderId,
+        shopId: metadata.shopId,
+        customerPhone: metadata.customerPhone || '',
+        customerName: 'Customer',
+        amount: amount, // Tap returns normal units
+        gatewayName: 'TAP'
+      });
+    }
+    res.json({ received: true });
+  } catch (err: any) {
+    logger.error(`[Tap Webhook] Error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/webhook/myfatoorah', async (req, res) => {
+  try {
+    const { Event, Data } = req.body;
+    // MyFatoorah sends Event = 'TransactionsStatusChanged'
+    if (Event === 'TransactionsStatusChanged' && Data?.TransactionStatus === 'SUCCESS') {
+      const orderId = Data.CustomerReference;
+      const shopId = Data.UserDefinedField;
+      const invoiceId = Data.InvoiceId;
+      const amount = Data.InvoiceValue;
+
+      if (orderId && shopId) {
+        await handleGenericPaymentSuccess({
+          sessionId: invoiceId.toString(),
+          orderId: orderId,
+          shopId: shopId,
+          customerPhone: '', // Not always sent back in webhook body
+          customerName: Data.CustomerName || 'Customer',
+          amount: amount,
+          gatewayName: 'MYFATOORAH'
+        });
+      }
+    }
+    res.json({ received: true });
+  } catch (err: any) {
+    logger.error(`[MyFatoorah Webhook] Error: ${err.message}`);
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -1544,6 +1544,60 @@
               </div>
             </div>
 
+            <!-- Payment Gateway Configuration -->
+            <h4 style="margin: 20px 0 10px 0; color: var(--purple-glow); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+              إعدادات بوابة الدفع (Payment Gateway)
+            </h4>
+            <div class="form-group">
+              <label for="paymentGatewayInput">بوابة الدفع المفضلة</label>
+              <select id="paymentGatewayInput" onchange="togglePaymentFields()" style="background: rgba(0,0,0,0.3); color: var(--text-main); border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; width: 100%;">
+                <option value="STRIPE">Stripe (عالمي)</option>
+                <option value="MOYASAR">Moyasar (مُيسّر - السعودية)</option>
+                <option value="TAP">Tap Payments (تاب - الخليج)</option>
+                <option value="MYFATOORAH">MyFatoorah (ماي فاتورة)</option>
+              </select>
+            </div>
+            
+            <div id="stripeFieldsGroup">
+              <div class="form-group">
+                <label for="stripeSecretKeyInput">Stripe Secret Key</label>
+                <input type="text" id="stripeSecretKeyInput">
+              </div>
+              <div class="form-group">
+                <label for="stripeWebhookSecretInput">Stripe Webhook Secret</label>
+                <input type="text" id="stripeWebhookSecretInput">
+              </div>
+              <div class="form-group">
+                <label for="stripeSuccessUrlInput">Redirect Success URL (رابط نجاح الدفع)</label>
+                <input type="text" id="stripeSuccessUrlInput">
+              </div>
+              <div class="form-group">
+                <label for="stripeCancelUrlInput">Redirect Cancel URL (رابط إلغاء الدفع)</label>
+                <input type="text" id="stripeCancelUrlInput">
+              </div>
+            </div>
+
+            <div id="moyasarFieldsGroup" style="display: none;">
+              <div class="form-group">
+                <label for="moyasarApiKeyInput">Moyasar API Key (sk_...)</label>
+                <input type="text" id="moyasarApiKeyInput">
+              </div>
+            </div>
+
+            <div id="tapFieldsGroup" style="display: none;">
+              <div class="form-group">
+                <label for="tapApiKeyInput">Tap API Key (sk_...)</label>
+                <input type="text" id="tapApiKeyInput">
+              </div>
+            </div>
+
+            <div id="myfatoorahFieldsGroup" style="display: none;">
+              <div class="form-group">
+                <label for="myfatoorahApiKeyInput">MyFatoorah API Token</label>
+                <input type="text" id="myfatoorahApiKeyInput">
+              </div>
+            </div>
+
             <!-- Auto-post WhatsApp Status Settings -->
             <div id="statusSettingsSection" style="background: rgba(37, 211, 102, 0.05); border: 1px solid rgba(37, 211, 102, 0.2); padding: 20px; border-radius: 12px; margin-bottom: 15px; display: none;">
               <h4 style="color: #25D366; margin-top: 0;">🤖 نشر الحالات (الستوري) التلقائي</h4>
@@ -2419,6 +2473,14 @@
       }
     }
 
+    function togglePaymentFields() {
+      const gateway = document.getElementById('paymentGatewayInput').value;
+      document.getElementById('stripeFieldsGroup').style.display = gateway === 'STRIPE' ? 'block' : 'none';
+      document.getElementById('moyasarFieldsGroup').style.display = gateway === 'MOYASAR' ? 'block' : 'none';
+      document.getElementById('tapFieldsGroup').style.display = gateway === 'TAP' ? 'block' : 'none';
+      document.getElementById('myfatoorahFieldsGroup').style.display = gateway === 'MYFATOORAH' ? 'block' : 'none';
+    }
+
     async function checkWaStatus() {
       try {
         const res = await fetch('/api/shop/whatsapp/status', { headers });
@@ -2533,10 +2595,14 @@
         whatsappVerifyToken: document.getElementById('whatsappVerifyTokenInput').value.trim() || null,
         whatsappToken: document.getElementById('whatsappTokenInput').value.trim() || null,
         whatsappAdminGroupId: document.getElementById('whatsappAdminGroupIdInput').value.trim() || null,
+        paymentGateway: document.getElementById('paymentGatewayInput').value,
         stripeSecretKey: document.getElementById('stripeSecretKeyInput').value.trim() || null,
         stripeWebhookSecret: document.getElementById('stripeWebhookSecretInput').value.trim() || null,
         stripeSuccessUrl: document.getElementById('stripeSuccessUrlInput').value.trim() || null,
         stripeCancelUrl: document.getElementById('stripeCancelUrlInput').value.trim() || null,
+        moyasarApiKey: document.getElementById('moyasarApiKeyInput').value.trim() || null,
+        tapApiKey: document.getElementById('tapApiKeyInput').value.trim() || null,
+        myfatoorahApiKey: document.getElementById('myfatoorahApiKeyInput').value.trim() || null,
         aiProvider: document.getElementById('aiProviderInput').value,
         geminiApiKey: document.getElementById('geminiApiKeyInput').value.trim() || null,
         openaiApiKey: document.getElementById('openaiApiKeyInput').value.trim() || null,
