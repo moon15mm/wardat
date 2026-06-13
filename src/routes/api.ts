@@ -1136,13 +1136,6 @@ router.get('/shop/whatsapp/debug', authenticateShop, async (req, res) => {
   res.json({
     shopId,
     sessionStatus: session.status,
-router.get('/shop/whatsapp/debug', authenticateShop, async (req, res) => {
-  const shopId = (req as any).shopId;
-  const { getSessionStatus, activeSockets, lastErrors } = require('../services/baileys-manager');
-  const session = getSessionStatus(shopId);
-  res.json({
-    shopId,
-    sessionStatus: session.status,
     hasQr: !!session.qr,
     hasSocket: !!activeSockets?.get?.(shopId),
     lastError: lastErrors?.get?.(shopId) || 'No error recorded'
