@@ -42,7 +42,24 @@ function badgeSvg(n: number): Buffer {
 async function buildCell(product: Product, index: number): Promise<Buffer> {
   let base: Buffer | null = null;
   if (product.imageUrl && product.imageUrl.trim()) {
-    const buf = await fetchImage(product.imageUrl);
+    const urlOrPath = product.imageUrl.trim();
+    let buf: Buffer | null = null;
+    
+    try {
+      if (urlOrPath.startsWith('/uploads/')) {
+        // Local file
+        const localPath = path.join(__dirname, '../../public', urlOrPath);
+        if (fs.existsSync(localPath)) {
+          buf = fs.readFileSync(localPath);
+        }
+      } else if (urlOrPath.startsWith('http')) {
+        // External URL
+        buf = await fetchImage(urlOrPath);
+      }
+    } catch (e) {
+      logger.error(`[Catalog] Error reading image ${urlOrPath}: ${e}`);
+    }
+
     if (buf) {
       try {
         base = await sharp(buf).resize(CELL, CELL, { fit: 'cover' }).toBuffer();
