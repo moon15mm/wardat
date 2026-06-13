@@ -120,10 +120,9 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
 
   // Delivery/pickup timing question → answer deterministically with the shop's real
   // working hours (don't rely on the small model to quote them correctly).
-  const asksDeliveryInfo =
-    /(متى|وقت|موعد|ساعات|كم).{0,15}(توصيل|التوصيل|الطلب|استلام|عمل|دوام)/.test(userText) ||
-    /(توصيل|التوصيل|توصلون|يوصل|توصلونه).{0,15}(متى|وقت|موعد|ساعات|كم)/.test(userText) ||
-    /(ساعات\s*العمل|وقت\s*التوصيل|مواعيد\s*التوصيل|وقت\s*الدوام)/.test(userText);
+  const asksTiming = /(متى|وقت|موعد|مواعيد|ساعات|كم ساعة|كم يوم|كم ياخذ|كم يأخذ|بكم)/.test(userText);
+  const mentionsFulfillment = /(توصيل|التوصيل|توصلون|توصلونه|يوصل|توصل|استلام|الطلب|الدوام|العمل)/.test(userText);
+  const asksDeliveryInfo = asksTiming && mentionsFulfillment;
   if (asksDeliveryInfo && session.state !== 'COLLECTING_TIME') {
     const s = shop.deliveryStartHour || '09:00';
     const e = shop.deliveryEndHour || '22:00';
@@ -452,41 +451,16 @@ async function handleCollectTime(
   text: string,
   session: Session
 ): Promise<void> {
-  const shop = await prisma.shop.findUnique({ where: { id: shopId } });
-  const within = isTimeWithinWindow(text, shop?.deliveryStartHour || '09:00', shop?.deliveryEndHour || '22:00');
-  if (within === false) {
-    await sendTextMessage(
-      whatsappConfig,
-      phone,
-      `عذراً، هذا الوقت خارج ساعات العمل (من ${shop?.deliveryStartHour || '09:00'} إلى ${shop?.deliveryEndHour || '22:00'}). يرجى اختيار وقت ضمن هذا النطاق. 🕒`
-    );
-    return; // stay in COLLECTING_TIME
+  if (!text.trim()) {
+    await sendTextMessage(whatsappConfig, phone, 'يرجى كتابة الوقت المناسب لك (مثال: 6 مساءً). 🕒');
+    return;
   }
+  // Accept the customer's stated time as-is (Arabic time phrasing is too varied to
+  // validate reliably; the allowed window was already shown, and the merchant
+  // confirms the order). Store it for the summary + admin notice.
   session.orderData.preferredTime = text.trim();
   await sendOrderSummary(phone, shopId, whatsappConfig, session);
   session.state = 'CONFIRMING_ORDER';
-}
-
-// Best-effort: returns false ONLY when a clearly-parsed time falls outside the
-// window; otherwise true (accept) — Arabic time phrasing is too varied to reject safely.
-function isTimeWithinWindow(text: string, start: string, end: string): boolean {
-  const digits = text.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
-  const m = digits.match(/(\d{1,2})(?:\s*[:٫.]\s*(\d{2}))?/);
-  if (!m) return true;
-  let h = parseInt(m[1], 10);
-  const min = m[2] ? parseInt(m[2], 10) : 0;
-  if (isNaN(h) || h > 23) return true;
-  const pm = /(مساء|مساءً|ليل|عصر|العصر|المغرب|pm)/i.test(text);
-  const am = /(صباح|صباحاً|am|الفجر|الضحى)/i.test(text);
-  if (h <= 12) {
-    if (pm && h < 12) h += 12;
-    if (am && h === 12) h = 0;
-  }
-  const toMin = (hm: string) => { const [a, b] = hm.split(':').map((x) => parseInt(x, 10)); return a * 60 + (b || 0); };
-  const cur = h * 60 + min;
-  const s = toMin(start), e = toMin(end);
-  if (s === e) return true;
-  return cur >= s && cur <= e;
 }
 
 // Final order summary (delivery or pickup) before confirmation.
