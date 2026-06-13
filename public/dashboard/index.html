@@ -3090,12 +3090,6 @@
 
     // ==================== LIVE CHAT FUNCTIONS ====================
 
-    async function fetchChatList() {
-      try {
-        const res = await fetch('/api/shop/chats', { headers });
-        if (!res.ok) throw new Error();
-        chatListData = await res.json();
-
     let currentChatFilter = 'ACTIVE';
 
     function setChatFilter(filterType) {
