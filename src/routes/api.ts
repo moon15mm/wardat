@@ -988,7 +988,7 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
     } else if (plan === 'GOLD') {
       finalOpenaiApiKey = undefined;
       finalGeminiApiKey = undefined;
-      finalAutoPostStatus = false;
+      // GOLD now has Auto Status Post, so we don't disable it here.
     }
 
     const updateData: any = {

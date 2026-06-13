@@ -2303,6 +2303,49 @@
         document.getElementById('autoPostStatusTimeInput').value = shop.autoPostStatusTime || '10:00';
 
         toggleShopWhatsappFields();
+        // Apply Subscription Restrictions in UI
+        const plan = shop.subscriptionPlan || 'SILVER';
+        
+        // Stripe Restrictions
+        const isStripeAllowed = plan === 'GOLD' || plan === 'PLATINUM';
+        const stripeInputs = [
+          'stripeSecretKeyInput', 'stripeWebhookSecretInput', 'stripeSuccessUrlInput', 'stripeCancelUrlInput'
+        ];
+        stripeInputs.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.disabled = !isStripeAllowed;
+            if (!isStripeAllowed) el.placeholder = 'متاح في الباقة الذهبية أو البلاتينية';
+          }
+        });
+
+        // AI Provider Restrictions
+        const isAiAllowed = plan === 'PLATINUM';
+        const aiInputs = ['openaiApiKeyInput', 'geminiApiKeyInput'];
+        aiInputs.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.disabled = !isAiAllowed;
+            if (!isAiAllowed) el.placeholder = 'متاح فقط في الباقة البلاتينية';
+          }
+        });
+
+        // Auto Status Restrictions
+        const isAutoStatusAllowed = plan === 'GOLD' || plan === 'PLATINUM';
+        const autoStatusInputs = ['autoPostStatusInput', 'autoPostStatusTimeInput'];
+        autoStatusInputs.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.disabled = !isAutoStatusAllowed;
+        });
+
+        // WhatsApp Admin Group Restrictions
+        const isAdminGroupAllowed = plan === 'GOLD' || plan === 'PLATINUM';
+        const adminGroupInput = document.getElementById('whatsappAdminGroupIdInput');
+        if (adminGroupInput) {
+          adminGroupInput.disabled = !isAdminGroupAllowed;
+          if (!isAdminGroupAllowed) adminGroupInput.placeholder = 'متاح في الباقة الذهبية والبلاتينية';
+        }
+
         toggleShopAiFields();
 
         // Render Subscription Card Info
@@ -2599,6 +2642,8 @@
           grid.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color: var(--text-sub); padding:40px;">لا يوجد منتجات معروضة حالياً. اضغط على "إضافة منتج جديد" للبدء!</p>`;
           return;
         }
+
+        // Removed misplaced Auto Status logic
 
         products.forEach(p => {
           const card = document.createElement('div');
