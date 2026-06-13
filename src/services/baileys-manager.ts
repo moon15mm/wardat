@@ -251,10 +251,25 @@ export async function logoutSession(shopId: string): Promise<void> {
   connectionStatuses.set(shopId, 'DISCONNECTED');
 
   const shopSessionPath = path.join(sessionsDir, shopId);
-  try {
-    fs.rmSync(shopSessionPath, { recursive: true, force: true });
-    logger.info(`[Baileys] Session folder cleared for Shop: ${shopId}`);
-  } catch (e) {
-    logger.error(`[Baileys] Error clearing session folder for ${shopId}: ${e}`);
+  
+  if (fs.existsSync(shopSessionPath)) {
+    try {
+      // Instantly rename the folder to avoid race conditions if the user immediately starts a new session
+      const trashPath = shopSessionPath + '_trash_' + Date.now();
+      fs.renameSync(shopSessionPath, trashPath);
+      logger.info(`[Baileys] Session folder moved to trash for Shop: ${shopId}`);
+      
+      // Asynchronously delete the trash folder
+      setTimeout(() => {
+        try {
+          fs.rmSync(trashPath, { recursive: true, force: true });
+        } catch (err) {}
+      }, 5000);
+    } catch (e) {
+      logger.error(`[Baileys] Error moving session folder to trash for ${shopId}: ${e}`);
+      try {
+        fs.rmSync(shopSessionPath, { recursive: true, force: true });
+      } catch (err) {}
+    }
   }
 }
