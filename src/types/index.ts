@@ -69,7 +69,7 @@ export interface ChatMessage {
 
 export interface WhatsAppMessage {
   from: string;
-  type: 'text' | 'location' | 'image' | 'interactive';
+  type: string;
   text?: { body: string };
   location?: { latitude: number; longitude: number; name?: string; address?: string };
   image?: { id?: string; mime_type: string; buffer?: Buffer; caption?: string };
