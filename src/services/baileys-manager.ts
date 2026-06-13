@@ -13,7 +13,9 @@ export const activeSockets = new Map<string, any>();
 // Latest QR code strings map
 const latestQrCodes = new Map<string, string>();
 // Connection statuses map
-const connectionStatuses = new Map<string, 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'QR_READY'>();
+export const connectionStatuses = new Map<string, 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'QR_READY'>();
+// Last errors map
+export const lastErrors = new Map<string, any>();
 // Pending reconnect timeouts
 const reconnectTimeouts = new Map<string, NodeJS.Timeout>();
 
@@ -87,6 +89,7 @@ export async function startBaileysSession(shopId: string): Promise<void> {
     if (connection === 'close') {
       const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
       logger.warn(`[Baileys] Connection closed for ${shopId}. Reason: ${lastDisconnect?.error}. Reconnecting: ${shouldReconnect}`);
+      lastErrors.set(shopId, lastDisconnect?.error?.message || lastDisconnect?.error?.toString());
       
       activeSockets.delete(shopId);
       latestQrCodes.delete(shopId);

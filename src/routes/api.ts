@@ -1131,13 +1131,14 @@ router.get('/shop/whatsapp/status', authenticateShop, async (req, res) => {
 
 router.get('/shop/whatsapp/debug', authenticateShop, async (req, res) => {
   const shopId = (req as any).shopId;
-  const { getSessionStatus, activeSockets } = require('../services/baileys-manager');
+  const { getSessionStatus, activeSockets, lastErrors } = require('../services/baileys-manager');
   const session = getSessionStatus(shopId);
   res.json({
     shopId,
     sessionStatus: session.status,
     hasQr: !!session.qr,
-    hasSocket: !!activeSockets?.get?.(shopId)
+    hasSocket: !!activeSockets?.get?.(shopId),
+    lastError: lastErrors?.get?.(shopId) || 'No error recorded'
   });
 });
 
