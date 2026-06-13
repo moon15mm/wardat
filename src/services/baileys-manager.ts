@@ -9,7 +9,7 @@ import { handleMessage } from '../agents/agent-1-conversation';
 import pino from 'pino';
 
 // Active sockets map
-const activeSockets = new Map<string, any>();
+export const activeSockets = new Map<string, any>();
 // Latest QR code strings map
 const latestQrCodes = new Map<string, string>();
 // Connection statuses map
@@ -67,7 +67,7 @@ export async function startBaileysSession(shopId: string): Promise<void> {
     const sock = makeWASocket({
       auth: state,
       printQRInTerminal: false,
-      logger: pino({ level: 'silent' }) as any,
+      logger: pino({ level: 'warn' }) as any,
       browser: Browsers.macOS('Desktop'),
       connectTimeoutMs: 60000,
       keepAliveIntervalMs: 15000,
