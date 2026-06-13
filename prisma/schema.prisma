@@ -68,6 +68,7 @@ model Shop {
   products            Product[]
   orders              Order[]
   sessions            Session[]
+  blockedCustomers    BlockedCustomer[]
 }
 
 model PlatformSetting {
