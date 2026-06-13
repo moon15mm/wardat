@@ -17,6 +17,7 @@ model Shop {
 
   ownerPhone          String?   // رقم هاتف صاحب المتجر (لإدارة الكتالوج)
   ownerJid            String?   // WhatsApp JID الفعلي للمالك (يُحفظ تلقائياً)
+  ownerTelegramId     String?   // Telegram Chat ID للمالك (لإدارة الكتالوج)
 
   // Password reset
   resetToken          String?   // SHA-256 hash of the reset token

@@ -20,6 +20,7 @@ import { runSerialized, isDuplicate } from './utils/concurrency';
 import * as settings from './services/settings';
 import cron from 'node-cron';
 import { runAcquisitionCycle } from './services/agent-acquisition';
+import { initTelegramBot } from './services/telegram-catalog-bot';
 
 // -------------------------------------------------------------
 // Boot-time safety checks
@@ -441,6 +442,18 @@ const server = app.listen(PORT, async () => {
   await settings.loadSettings();
 
   await initAllSessions();
+
+  // تشغيل بوت التلجرام لأصحاب المتاجر (إدارة الكتالوج)
+  const tgToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (tgToken) {
+    try {
+      initTelegramBot(tgToken);
+    } catch (err: any) {
+      logger.error(`[Telegram] Failed to start bot: ${err.message}`);
+    }
+  } else {
+    logger.warn('[Telegram] TELEGRAM_BOT_TOKEN not set — catalog bot disabled.');
+  }
 
   // Daily Cron Job to expire shops past their subscription end date
   cron.schedule('0 0 * * *', async () => {
