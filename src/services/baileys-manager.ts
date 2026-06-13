@@ -14,6 +14,8 @@ const activeSockets = new Map<string, any>();
 const latestQrCodes = new Map<string, string>();
 // Connection statuses map
 const connectionStatuses = new Map<string, 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'QR_READY'>();
+// Pending reconnect timeouts
+const reconnectTimeouts = new Map<string, NodeJS.Timeout>();
 
 const sessionsDir = path.join(__dirname, '../../data/whatsapp-sessions');
 
@@ -91,11 +93,13 @@ export async function startBaileysSession(shopId: string): Promise<void> {
 
       if (shouldReconnect) {
         logger.info(`[Baileys] Scheduling reconnection in 10 seconds for Shop: ${shopId}...`);
-        setTimeout(() => {
+        const tid = setTimeout(() => {
+          reconnectTimeouts.delete(shopId);
           startBaileysSession(shopId).catch((err) => {
             logger.error(`[Baileys] Reconnection failed for Shop ${shopId}: ${err.message}`);
           });
         }, 10000);
+        reconnectTimeouts.set(shopId, tid);
       } else {
         connectionStatuses.set(shopId, 'DISCONNECTED');
         // Logged out: clean session folder
@@ -227,6 +231,12 @@ export async function generateQrCodeImage(qrString: string): Promise<string> {
 }
 
 export async function logoutSession(shopId: string): Promise<void> {
+  const tid = reconnectTimeouts.get(shopId);
+  if (tid) {
+    clearTimeout(tid);
+    reconnectTimeouts.delete(shopId);
+  }
+
   const sock = activeSockets.get(shopId);
   if (sock) {
     try {
