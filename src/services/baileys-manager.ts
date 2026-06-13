@@ -1,4 +1,4 @@
-import makeWASocket, { useMultiFileAuthState, DisconnectReason, downloadMediaMessage } from '@whiskeysockets/baileys';
+import makeWASocket, { useMultiFileAuthState, DisconnectReason, downloadMediaMessage, Browsers } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 const qrcode = require('qrcode');
 import fs from 'fs';
@@ -68,6 +68,7 @@ export async function startBaileysSession(shopId: string): Promise<void> {
       auth: state,
       printQRInTerminal: false,
       logger: pino({ level: 'silent' }) as any,
+      browser: Browsers.macOS('Desktop'),
       connectTimeoutMs: 60000,
       keepAliveIntervalMs: 15000,
     });
