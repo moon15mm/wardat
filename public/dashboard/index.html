@@ -2297,14 +2297,14 @@
           statusEl.style.color = 'var(--warning)';
           btnGen.style.display = 'inline-block';
           btnGen.textContent = 'تحديث كود QR';
-          btnLogout.style.display = 'none';
+          btnLogout.style.display = 'inline-block';
           fetchWaQrImage();
         } else if (data.status === 'CONNECTING') {
           statusEl.textContent = 'الحالة: جاري الاتصال... ⏳';
           statusEl.style.color = '#38ef7d';
           qrContainer.style.display = 'none';
           btnGen.style.display = 'none';
-          btnLogout.style.display = 'none';
+          btnLogout.style.display = 'inline-block';
         } else {
           statusEl.textContent = 'الحالة: غير متصل ❌';
           statusEl.style.color = 'var(--danger)';
