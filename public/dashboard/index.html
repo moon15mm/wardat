@@ -1326,24 +1326,31 @@
           </div>
         </div>
 
-        <!-- Popular Products Table -->
-        <div class="card-panel">
-          <h3>📊 أداء مبيعات المنتجات</h3>
-          <div style="overflow-x: auto; margin-top: 15px;">
-            <table>
-              <thead>
-                <tr>
-                  <th>اسم المنتج</th>
-                  <th>عدد الوحدات المباعة</th>
-                  <th>إجمالي الإيرادات (ريال)</th>
-                </tr>
-              </thead>
-              <tbody id="productSalesTableBody">
-                <tr>
-                  <td colspan="3" style="text-align: center; color: var(--text-sub);">جاري تحميل التحليلات...</td>
-                </tr>
-              </tbody>
-            </table>
+        <!-- Popular Products and Fulfillment Table -->
+        <div class="analytics-layout-grid-equal">
+          <div class="card-panel">
+            <h3>📊 أداء مبيعات المنتجات</h3>
+            <div style="overflow-x: auto; margin-top: 15px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>اسم المنتج</th>
+                    <th>الكمية المباعة</th>
+                    <th>الإيرادات (ريال)</th>
+                  </tr>
+                </thead>
+                <tbody id="productSalesTableBody">
+                  <tr><td colspan="3" style="text-align: center; color: var(--text-sub);">جاري تحميل التحليلات...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div class="card-panel">
+            <h3>🚚 توزيع طرق الاستلام</h3>
+            <div style="width: 100%; height: 220px; position: relative; margin-top: 15px; display: flex; justify-content: center;">
+              <canvas id="fulfillmentChart"></canvas>
+            </div>
           </div>
         </div>
       </div>
@@ -1381,6 +1388,26 @@
             </div>
           </div>
         </div>
+
+        <!-- VIP Customers Table -->
+        <div class="card-panel" style="margin-top: 30px;">
+          <h3 style="color: var(--success);">🌟 أفضل العملاء (VIP)</h3>
+          <div style="overflow-x: auto; margin-top: 15px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>رقم الجوال</th>
+                  <th>اسم العميل</th>
+                  <th>عدد الطلبات</th>
+                  <th>إجمالي المدفوعات (ريال)</th>
+                </tr>
+              </thead>
+              <tbody id="vipCustomersTableBody">
+                <tr><td colspan="4" style="text-align: center; color: var(--text-sub);">جاري تحميل التحليلات...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- Sub-Tab 3: Inventory Forecasts -->
@@ -1413,6 +1440,23 @@
                   <tr>
                     <td colspan="4" style="text-align: center; color: var(--text-sub);">جاري تحميل التوقعات...</td>
                   </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Stagnant Products -->
+            <h3 style="margin-top: 30px; color: var(--danger);">⚠️ منتجات راكدة (0 مبيعات آخر 30 يوماً)</h3>
+            <div style="overflow-x: auto; margin-top: 15px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>المنتج</th>
+                    <th>المخزون المتبقي (المجمد)</th>
+                    <th>إجراء مقترح</th>
+                  </tr>
+                </thead>
+                <tbody id="stagnantProductsTableBody">
+                  <tr><td colspan="3" style="text-align: center; color: var(--text-sub);">جاري التحميل...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -2845,6 +2889,65 @@
               <td style="font-weight: 500; color: ${item.stock <= 3 ? 'var(--danger)' : (item.daysToStockOut.includes('أيام') ? 'var(--warning)' : 'var(--success)')};">${item.daysToStockOut}</td>
             `;
             stockTbody.appendChild(row);
+          });
+        }
+
+        // VIP Customers
+        const vipTbody = document.getElementById('vipCustomersTableBody');
+        vipTbody.innerHTML = '';
+        if (data.topCustomers && data.topCustomers.length === 0) {
+          vipTbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-sub);">لا يوجد بيانات كافية</td></tr>';
+        } else if (data.topCustomers) {
+          data.topCustomers.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td style="font-family: \'Outfit\';">${item.phone}</td>
+              <td style="font-weight: bold; color: var(--success);">${item.name}</td>
+              <td style="font-family: \'Outfit\';">${item.count}</td>
+              <td style="font-family: \'Outfit\'; color: var(--pink-glow); font-weight: bold;">${item.spent.toLocaleString()}</td>
+            `;
+            vipTbody.appendChild(row);
+          });
+        }
+
+        // Stagnant Products
+        const stagnantTbody = document.getElementById('stagnantProductsTableBody');
+        stagnantTbody.innerHTML = '';
+        if (data.stagnantProducts && data.stagnantProducts.length === 0) {
+          stagnantTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--success); font-weight: bold;">ممتاز! لا يوجد منتجات راكدة.</td></tr>';
+        } else if (data.stagnantProducts) {
+          data.stagnantProducts.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td style="font-weight: bold;">${item.name}</td>
+              <td style="font-family: \'Outfit\'; color: var(--danger); font-weight: bold;">${item.stock} حبة</td>
+              <td style="font-size: 0.8rem; color: var(--warning);">يفضل عمل خصم 10% أو عرض ترويجي</td>
+            `;
+            stagnantTbody.appendChild(row);
+          });
+        }
+
+        // Fulfillment Breakdown Chart
+        if (data.fulfillmentBreakdown) {
+          const fCtx = document.getElementById('fulfillmentChart').getContext('2d');
+          if (window.fulfillmentChartInstance) window.fulfillmentChartInstance.destroy();
+          window.fulfillmentChartInstance = new Chart(fCtx, {
+            type: 'doughnut',
+            data: {
+              labels: ['توصيل', 'استلام من المحل'],
+              datasets: [{
+                data: [data.fulfillmentBreakdown.delivery, data.fulfillmentBreakdown.pickup],
+                backgroundColor: ['#8e2de2', '#ff2d81'],
+                borderWidth: 0
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { position: 'bottom', labels: { color: tickColor, font: { family: 'Tajawal' } } }
+              }
+            }
           });
         }
 

@@ -1136,10 +1136,38 @@ router.get('/shop/whatsapp/debug', authenticateShop, async (req, res) => {
   res.json({
     shopId,
     sessionStatus: session.status,
+router.get('/shop/whatsapp/debug', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  const { getSessionStatus, activeSockets, lastErrors } = require('../services/baileys-manager');
+  const session = getSessionStatus(shopId);
+  res.json({
+    shopId,
+    sessionStatus: session.status,
     hasQr: !!session.qr,
     hasSocket: !!activeSockets?.get?.(shopId),
     lastError: lastErrors?.get?.(shopId) || 'No error recorded'
   });
+});
+
+router.get('/shop/whatsapp/groups', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  const { activeSockets } = require('../services/baileys-manager');
+  const sock = activeSockets?.get?.(shopId);
+  
+  if (!sock) {
+    return res.status(400).json({ error: 'WhatsApp is not connected' });
+  }
+
+  try {
+    const groups = await sock.groupFetchAllParticipating();
+    const groupList = Object.values(groups).map((g: any) => ({
+      id: g.id,
+      subject: g.subject
+    }));
+    res.json(groupList);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to fetch groups', details: err.message });
+  }
 });
 
 router.get('/shop/whatsapp/qr', authenticateShop, async (req, res) => {
@@ -1480,10 +1508,25 @@ router.get('/shop/analytics', authenticateShop, async (req, res) => {
     const repeatCustomers = Object.values(customerOrdersMap).filter((count) => count > 1).length;
     const repeatCustomerRate = uniqueCustomers > 0 ? parseFloat(((repeatCustomers / uniqueCustomers) * 100).toFixed(2)) : 0;
 
+    const topCustomers = Object.keys(customerOrdersMap)
+      .map((phone) => {
+        const custOrders = confirmedOrders.filter(o => o.customerPhone === phone);
+        const name = custOrders[0]?.customerName || 'غير معروف';
+        const spent = custOrders.reduce((sum, o) => sum + o.price, 0);
+        return { phone, name, spent, count: custOrders.length };
+      })
+      .sort((a, b) => b.spent - a.spent)
+      .slice(0, 5);
+
     // Order status percentages
     const confirmedPercentage = totalOrders > 0 ? parseFloat(((confirmedCount / totalOrders) * 100).toFixed(2)) : 0;
     const pendingPercentage = totalOrders > 0 ? parseFloat(((pendingCount / totalOrders) * 100).toFixed(2)) : 0;
     const failedPercentage = totalOrders > 0 ? parseFloat(((failedCount / totalOrders) * 100).toFixed(2)) : 0;
+
+    const fulfillmentBreakdown = {
+      pickup: confirmedOrders.filter(o => o.fulfillmentType === 'PICKUP').length,
+      delivery: confirmedOrders.filter(o => o.fulfillmentType === 'DELIVERY').length
+    };
 
     // Restock alerts and detailed product stock out forecasts
     const restockAlerts: string[] = [];
@@ -1507,6 +1550,11 @@ router.get('/shop/analytics', authenticateShop, async (req, res) => {
         daysToStockOut: daysToStockOut === 999 ? 'غير متوقع نفاد الكمية قريباً' : `${Math.ceil(daysToStockOut)} أيام`,
       };
     });
+
+    const stagnantProducts = products.filter(p => {
+      const productOrdersLast30 = confirmedOrders.filter((o) => o.productName === p.name && new Date(o.timestamp) >= thirtyDaysAgo).length;
+      return productOrdersLast30 === 0 && p.stock > 0;
+    }).map(p => ({ name: p.name, stock: p.stock }));
 
     // Forecast next month (30 days) revenue
     const forecastedSalesNextMonth = parseFloat((avgDailySalesLast30 * 30).toFixed(2));
@@ -1535,6 +1583,9 @@ router.get('/shop/analytics', authenticateShop, async (req, res) => {
       salesByDayOfWeek,
       salesByHour,
       productProjections,
+      topCustomers,
+      stagnantProducts,
+      fulfillmentBreakdown,
       predictiveAnalytics: {
         forecastedSalesNextWeek,
         forecastedSalesNextMonth,
