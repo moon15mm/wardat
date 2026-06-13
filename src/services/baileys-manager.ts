@@ -1,4 +1,4 @@
-import makeWASocket, { useMultiFileAuthState, DisconnectReason, downloadMediaMessage, Browsers } from '@whiskeysockets/baileys';
+import makeWASocket, { useMultiFileAuthState, DisconnectReason, downloadMediaMessage, Browsers, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 const qrcode = require('qrcode');
 import fs from 'fs';
@@ -65,14 +65,26 @@ export async function startBaileysSession(shopId: string): Promise<void> {
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(shopSessionPath);
+    
+    let version: [number, number, number] = [2, 3000, 1015901307];
+    try {
+      const fetched = await fetchLatestBaileysVersion();
+      version = fetched.version;
+      logger.info(`[Baileys] Using WA v${version.join('.')}`);
+    } catch (verErr) {
+      logger.warn(`[Baileys] Failed to fetch latest version, using fallback: ${verErr}`);
+    }
 
     const sock = makeWASocket({
+      version,
       auth: state,
       printQRInTerminal: false,
       logger: pino({ level: 'warn' }) as any,
       browser: Browsers.macOS('Desktop'),
       connectTimeoutMs: 60000,
       keepAliveIntervalMs: 15000,
+      syncFullHistory: false,
+      markOnlineOnConnect: false
     });
 
     activeSockets.set(shopId, sock);
