@@ -146,3 +146,14 @@ model Session {
   @@index([shopId, lastActivity])
   @@index([lastActivity])
 }
+
+model BlockedCustomer {
+  id        String   @id @default(uuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  phone     String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@unique([shopId, phone])
+}

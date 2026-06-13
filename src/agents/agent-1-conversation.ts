@@ -74,7 +74,16 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
     return;
   }
 
-  // 2. Fetch session from DB
+  // 1.2 Check if user is blocked
+  const isBlocked = await prisma.blockedCustomer.findUnique({
+    where: { shopId_phone: { shopId, phone } }
+  });
+  if (isBlocked) {
+    logger.info(`[Agent1] Ignored message from blocked user ${phone} for shop ${shopId}`);
+    return;
+  }
+
+  // 2. Load or create Session from DB
   const session = await getSession(phone, shopId);
 
   logger.info(`[Agent1] Message from ${phone} for shop ${shop.name} (${shopId}), state: ${session.state}, type: ${msg.type}, botPaused: ${session.botPaused}`);
@@ -107,6 +116,26 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
 
   const intent = await classifyIntent(userText, session.state, shop);
   logger.info(`[Agent1] Intent: ${intent.intent}`);
+
+  if (intent.intent === 'abuse') {
+    const reply = 'تم إيقاف الرد الآلي وتحويل محادثتك للإدارة لمراجعة السلوك غير المصرح به. نرجو الانتظار.';
+    await sendTextMessage(whatsappConfig, phone, reply);
+    session.messages.push({ role: 'assistant', content: reply });
+    
+    session.botPaused = true;
+    await saveSession(session, shopId);
+
+    // Notify Admin
+    if (whatsappConfig.adminGroupId) {
+      try {
+        const adminMsg = `🚨 *تنبيه أمني*: نظام الذكاء الاصطناعي رصد سلوكاً مسيئاً أو غير لائق من الرقم:\n${phone.split('@')[0]}\n\nتم إيقاف البوت تلقائياً لهذا العميل. يرجى الدخول للوحة التحكم لمراجعة المحادثة وحظره إن لزم الأمر.`;
+        await sendTextMessage(whatsappConfig, whatsappConfig.adminGroupId, adminMsg);
+      } catch (err) {
+        logger.error(`[Agent1] Failed to notify admin group about abuse: ${err}`);
+      }
+    }
+    return;
+  }
 
   // Image request: send the ACTUAL product image(s) instead of letting the text AI
   // wrongly claim there is no image.

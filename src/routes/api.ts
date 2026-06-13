@@ -1797,4 +1797,61 @@ router.post('/shop/chats/:phone/send', authenticateShop, async (req, res) => {
   }
 });
 
+// GET /api/shop/blocked-customers - List blocked customers
+router.get('/shop/blocked-customers', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  try {
+    const blocked = await prisma.blockedCustomer.findMany({
+      where: { shopId },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(blocked);
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم.' });
+  }
+});
+
+// POST /api/shop/chats/:phone/block - Block a customer
+router.post('/shop/chats/:phone/block', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  const phone = req.params.phone as string;
+  const { reason } = req.body || {};
+
+  try {
+    await prisma.blockedCustomer.upsert({
+      where: { shopId_phone: { shopId, phone } },
+      update: { reason },
+      create: { shopId, phone, reason }
+    });
+
+    // Delete their active session so bot won't even see them
+    await prisma.session.deleteMany({
+      where: { shopId, phone }
+    });
+
+    res.json({ message: 'تم حظر المستخدم بنجاح ولن يستطيع استخدام الخدمة.' });
+  } catch (err: any) {
+    logger.error(`[API] Block user error: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ أثناء حظر المستخدم.' });
+  }
+});
+
+// DELETE /api/shop/chats/:phone/block - Unblock a customer
+router.delete('/shop/chats/:phone/block', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  const phone = req.params.phone as string;
+
+  try {
+    await prisma.blockedCustomer.deleteMany({
+      where: { shopId, phone }
+    });
+    res.json({ message: 'تم إزالة الحظر عن المستخدم.' });
+  } catch (err: any) {
+    logger.error(`[API] Unblock user error: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ أثناء إزالة الحظر.' });
+  }
+});
+
 export default router;
+

@@ -65,8 +65,9 @@ async function classifyIntentGemini(
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   
   const systemInstruction = `حلل رسالة العميل وحدد النية. الحالة الحالية: ${state}
+إذا كانت رسالة العميل تتضمن ألفاظاً مسيئة، سب وشتم، أو سلوكاً عبثياً وتخريبياً (مثل إرسال رسائل عشوائية متكررة لغرض الإزعاج وعدم الرغبة في الطلب)، حدد النية كـ "abuse".
 أرجع JSON فقط بهذا الشكل وبدون أي تنسيق markdown أو علامات اقتباس مائلة:
-{"intent": "greeting|browse|select_product|provide_name|provide_phone|provide_recipient|provide_location|confirm|cancel|question|other", "extractedData": {"key": "value"}}`;
+{"intent": "greeting|browse|select_product|provide_name|provide_phone|provide_recipient|provide_location|confirm|cancel|question|abuse|other", "extractedData": {"key": "value"}}`;
 
   const body = {
     contents: [
@@ -169,8 +170,9 @@ export async function classifyIntent(
         {
           role: 'system',
           content: `حلل رسالة العميل وحدد النية. الحالة الحالية: ${state}
+إذا كانت رسالة العميل تتضمن ألفاظاً مسيئة، سب وشتم، أو سلوكاً عبثياً وتخريبياً (مثل إرسال رسائل عشوائية متكررة لغرض الإزعاج وعدم الرغبة في الطلب)، حدد النية كـ "abuse".
 أرجع JSON فقط بهذا الشكل:
-{"intent": "greeting|browse|select_product|provide_name|provide_phone|provide_recipient|provide_location|confirm|cancel|question|other", "extractedData": {"key": "value"}}`,
+{"intent": "greeting|browse|select_product|provide_name|provide_phone|provide_recipient|provide_location|confirm|cancel|question|abuse|other", "extractedData": {"key": "value"}}`,
         },
         { role: 'user', content: message },
       ],

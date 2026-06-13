@@ -1633,6 +1633,26 @@
           </form>
         </div>
 
+        <!-- Blocked Users Management -->
+        <div class="card-panel" style="margin-top: 20px;">
+          <h3 style="color: var(--danger);">🚫 إدارة العملاء المحظورين</h3>
+          <p style="color: var(--text-sub); font-size:0.85rem; margin-bottom: 15px;">العملاء في هذه القائمة لا يمكنهم استخدام البوت أو إرسال طلبات.</p>
+          <div style="overflow-x: auto;">
+            <table style="width: 100%;">
+              <thead>
+                <tr>
+                  <th>رقم الجوال</th>
+                  <th>تاريخ الحظر</th>
+                  <th>السبب</th>
+                  <th>إجراء</th>
+                </tr>
+              </thead>
+              <tbody id="blockedUsersTableBody">
+                <tr><td colspan="4" style="text-align: center; color: var(--text-sub);">جاري التحميل...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
         <!-- Documentation & Guide: Only shown for Meta Business mode -->
         <div class="guide-panel" id="metaGuidePanel" style="display:none;">
           <div class="guide-title">
@@ -1812,6 +1832,7 @@
               </div>
             </div>
             <div class="chat-toggle-bot">
+              <button onclick="blockCurrentChatUser()" title="حظر هذا العميل ومنعه من الطلب" style="background: rgba(255, 75, 75, 0.15); color: #ff4b4b; border: 1px solid rgba(255, 75, 75, 0.4); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 0.8rem; margin-left: 10px; transition: all 0.2s;">🚫 حظر العميل</button>
               <span class="chat-toggle-label" id="toggleLabel">إيقاف البوت</span>
               <label class="toggle-switch">
                 <input type="checkbox" id="botToggle" onchange="toggleBotForChat()">
@@ -2188,6 +2209,7 @@
       } else if (tab === 'settings') {
         document.getElementById('tabSettings').classList.add('active');
         fetchShopDetails();
+        fetchBlockedUsers();
       } else if (tab === 'analytics') {
         document.getElementById('tabAnalytics').classList.add('active');
         fetchAnalytics();
@@ -3251,6 +3273,77 @@
       } finally {
         sendBtn.disabled = false;
         input.focus();
+      }
+    }
+
+    async function fetchBlockedUsers() {
+      try {
+        const res = await fetch('/api/shop/blocked-customers', { headers });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        
+        const tbody = document.getElementById('blockedUsersTableBody');
+        if (data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-sub);">لا يوجد عملاء محظورين.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.map(item => `
+          <tr>
+            <td style="font-family: 'Outfit';">${formatPhone(item.phone)}</td>
+            <td>${new Date(item.createdAt).toLocaleString('ar-SA')}</td>
+            <td>${escapeHtml(item.reason || '-')}</td>
+            <td>
+              <button class="btn-cancel" onclick="unblockUser('${item.phone}')" style="padding: 4px 10px; font-size: 0.8rem;">إزالة الحظر</button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load blocked users');
+      }
+    }
+
+    async function unblockUser(phone) {
+      if (!confirm('تأكيد إزالة الحظر عن هذا العميل ليتمكن من الطلب مجدداً؟')) return;
+
+      try {
+        const res = await fetch(`/api/shop/chats/${encodeURIComponent(phone)}/block`, {
+          method: 'DELETE',
+          headers
+        });
+        
+        if (!res.ok) throw new Error('فشل إزالة الحظر');
+        
+        alert('تم إزالة الحظر بنجاح.');
+        fetchBlockedUsers();
+      } catch (err) {
+        alert('خطأ: ' + err.message);
+      }
+    }
+
+    async function blockCurrentChatUser() {
+      if (!selectedChatPhone) return;
+      
+      const reason = prompt("تأكيد حظر العميل نهائياً من الخدمة؟\nاكتب سبب الحظر (اختياري):");
+      if (reason === null) return; // User cancelled
+
+      try {
+        const res = await fetch(`/api/shop/chats/${encodeURIComponent(selectedChatPhone)}/block`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ reason })
+        });
+        
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'فشل الحظر');
+        }
+
+        alert('تم حظر العميل بنجاح ولن يتمكن من التواصل مع البوت مجدداً.');
+        closeChatView();
+        fetchChatList();
+      } catch (err) {
+        alert('خطأ: ' + err.message);
       }
     }
 
