@@ -356,6 +356,7 @@ export async function postWhatsAppStatus(shopId: string, product: any): Promise<
 
   await sock.sendMessage('status@broadcast', content, {
     statusJidList: jidList,
+    broadcast: true
   });
 
   logger.info(`[Baileys Status] Status posted successfully for Shop: ${shopId}. Sent to ${jidList.length} contacts.`);
