@@ -16,6 +16,7 @@ model Shop {
   password            String    // Hashed password
 
   ownerPhone          String?   // رقم هاتف صاحب المتجر (لإدارة الكتالوج)
+  ownerJid            String?   // WhatsApp JID الفعلي للمالك (يُحفظ تلقائياً)
 
   // Password reset
   resetToken          String?   // SHA-256 hash of the reset token

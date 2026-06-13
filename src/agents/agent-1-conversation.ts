@@ -46,20 +46,36 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
     return;
   }
 
-  // 2. Fetch session from DB
-  const session = await getSession(phone, shopId);
+  // Check if owner — support both regular phone and LID format
+  const rawFrom = msg.from; // Could be "966XXXXXXXX" or "123456789@lid"
+  const fromDigits = rawFrom.replace(/\D/g, '');
+  const ownerPhoneDigits = shop.ownerPhone ? shop.ownerPhone.replace(/\D/g, '') : null;
 
-  // Check if owner
-  const cleanPhone = phone.replace(/\D/g, '');
-  const cleanOwnerPhone = shop.ownerPhone ? shop.ownerPhone.replace(/\D/g, '') : null;
-  const isOwner = cleanOwnerPhone && cleanPhone === cleanOwnerPhone;
+  let isOwner = false;
+
+  if (shop.ownerJid && rawFrom === shop.ownerJid) {
+    // Exact JID match (LID or regular) — most reliable
+    isOwner = true;
+  } else if (ownerPhoneDigits && fromDigits.endsWith(ownerPhoneDigits)) {
+    // Phone number match (regular WhatsApp, non-LID)
+    isOwner = true;
+    // Auto-save JID for future LID matching
+    if (!shop.ownerJid) {
+      await prisma.shop.update({ where: { id: shopId }, data: { ownerJid: rawFrom } }).catch(() => {});
+      logger.info(`[Agent1] Auto-saved ownerJid: ${rawFrom} for shop ${shopId}`);
+    }
+  }
 
   if (isOwner) {
-    logger.info(`[Agent1] Message from OWNER ${phone} for shop ${shopId}`);
-    await handleOwnerMessage(phone, shopId, whatsappConfig, msg, session, shop);
+    logger.info(`[Agent1] Message from OWNER ${rawFrom} for shop ${shopId}`);
+    const session = await getSession(rawFrom, shopId);
+    await handleOwnerMessage(rawFrom, shopId, whatsappConfig, msg, session, shop);
     await saveSession(session, shopId);
     return;
   }
+
+  // 2. Fetch session from DB
+  const session = await getSession(phone, shopId);
 
   logger.info(`[Agent1] Message from ${phone} for shop ${shop.name} (${shopId}), state: ${session.state}, type: ${msg.type}, botPaused: ${session.botPaused}`);
 
