@@ -984,6 +984,8 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
       enablePickup: enablePickup !== undefined ? enablePickup : true,
       enableOnlinePayment: enableOnlinePayment !== undefined ? enableOnlinePayment : true,
       enableCashPayment: enableCashPayment !== undefined ? enableCashPayment : false,
+      autoPostStatus: req.body.autoPostStatus !== undefined ? req.body.autoPostStatus : false,
+      autoPostStatusTime: req.body.autoPostStatusTime || '10:00',
     };
 
     // Email update (kept valid + unique so password recovery keeps working).
@@ -1300,6 +1302,33 @@ router.delete('/shop/products/:id', authenticateShop, async (req, res) => {
     res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
   }
 });
+
+router.post('/shop/products/:id/status', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  try {
+    const shop = await prisma.shop.findUnique({ where: { id: shopId } });
+    if (!shop || shop.whatsappType !== 'NORMAL') {
+      return res.status(400).json({ error: 'ميزة الحالات متوفرة فقط عند ربط الواتساب عبر مسح الكود (Baileys).' });
+    }
+
+    const product = await prisma.product.findFirst({
+      where: { id: req.params.id as string, shopId },
+    });
+
+    if (!product) {
+      return res.status(404).json({ error: 'المنتج غير موجود' });
+    }
+
+    const { postWhatsAppStatus } = require('../services/baileys-manager');
+    await postWhatsAppStatus(shopId, product);
+
+    res.json({ message: 'تم نشر المنتج كحالة واتساب بنجاح!' });
+  } catch (err: any) {
+    logger.error(`[API] Status post error: ${err.message}`);
+    res.status(500).json({ error: err.message || 'حدث خطأ أثناء النشر.' });
+  }
+});
+
 
 router.get('/shop/orders', authenticateShop, async (req, res) => {
   const shopId = (req as any).shopId;

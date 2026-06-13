@@ -514,6 +514,48 @@ const server = app.listen(PORT, async () => {
       logger.error(`[Cron] Error purging stale sessions: ${err.message}`);
     }
   });
+
+  // Hourly Cron Job to automatically post WhatsApp statuses for opted-in shops
+  cron.schedule('0 * * * *', async () => {
+    try {
+      // Get current local hour in HH format (assuming VPS timezone or UTC, we should match HH:00)
+      const currentHourStr = new Date().getHours().toString().padStart(2, '0');
+      
+      const shops = await prisma.shop.findMany({
+        where: {
+          whatsappType: 'NORMAL',
+          autoPostStatus: true,
+          subscriptionStatus: 'ACTIVE'
+        }
+      });
+
+      for (const shop of shops) {
+        // e.g. "10:00" -> "10"
+        if (!shop.autoPostStatusTime) continue;
+        const targetHour = shop.autoPostStatusTime.split(':')[0].padStart(2, '0');
+        
+        if (targetHour === currentHourStr) {
+          // Find a random available product
+          const products = await prisma.product.findMany({
+            where: { shopId: shop.id, available: true }
+          });
+          
+          if (products.length > 0) {
+            const randomProduct = products[Math.floor(Math.random() * products.length)];
+            const { postWhatsAppStatus } = require('./services/baileys-manager');
+            try {
+              await postWhatsAppStatus(shop.id, randomProduct);
+              logger.info(`[Cron] Auto-posted status for shop ${shop.name} (${shop.id})`);
+            } catch (err: any) {
+              logger.error(`[Cron] Failed to auto-post status for shop ${shop.id}: ${err.message}`);
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      logger.error(`[Cron] Error in auto-post status job: ${err.message}`);
+    }
+  });
 });
 
 // -------------------------------------------------------------

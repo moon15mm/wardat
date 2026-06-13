@@ -288,3 +288,63 @@ export async function logoutSession(shopId: string): Promise<void> {
     }
   }
 }
+
+export async function postWhatsAppStatus(shopId: string, product: any): Promise<void> {
+  const sock = activeSockets.get(shopId);
+  if (!sock) {
+    throw new Error('جلسة الواتساب غير نشطة أو غير متصلة.');
+  }
+
+  // Fetch unique customer phones from sessions
+  const sessions = await prisma.session.findMany({
+    where: { shopId },
+    select: { phone: true }
+  });
+
+  if (sessions.length === 0) {
+    throw new Error('لا يوجد عملاء سابقين لنشر الحالة لهم.');
+  }
+
+  // Baileys needs JIDs for status viewers
+  const jidList = sessions.map(s => {
+    let phone = s.phone.replace(/\D/g, '');
+    if (!phone.includes('@')) phone = `${phone}@s.whatsapp.net`;
+    return phone;
+  });
+
+  const caption = `🌹 *${product.name}*\n💰 السعر: ${product.price} ريال\n\nلطلب المنتج، أرسل اسمه في رسالة خاصة 🛒`;
+  
+  let content: any = { text: caption };
+
+  if (product.imageUrl) {
+    let imageBuffer: Buffer | null = null;
+    try {
+      if (product.imageUrl.startsWith('/uploads')) {
+        const localPath = path.join(__dirname, '../../public', product.imageUrl);
+        if (fs.existsSync(localPath)) {
+          imageBuffer = fs.readFileSync(localPath);
+        }
+      } else if (product.imageUrl.startsWith('http')) {
+        const axios = require('axios');
+        const res = await axios.get(product.imageUrl, { responseType: 'arraybuffer' });
+        imageBuffer = Buffer.from(res.data);
+      }
+
+      if (imageBuffer) {
+        content = {
+          image: imageBuffer,
+          caption
+        };
+      }
+    } catch (e) {
+      logger.error(`[Baileys Status] Failed to load image for product ${product.id}: ${e}`);
+      // Fallback to text if image fails
+    }
+  }
+
+  await sock.sendMessage('status@broadcast', content, {
+    statusJidList: jidList,
+  });
+
+  logger.info(`[Baileys Status] Status posted successfully for Shop: ${shopId}`);
+}

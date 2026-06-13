@@ -29,6 +29,10 @@ model Shop {
   subscriptionStart    DateTime  @default(now())
   subscriptionEnd      DateTime?
   
+  // Automated WhatsApp Status Posts
+  autoPostStatus       Boolean   @default(false)
+  autoPostStatusTime   String?   @default("10:00") // Time of day to post status
+  
   // WhatsApp settings per shop
   whatsappType         String     @default("BUSINESS") // BUSINESS or NORMAL
   whatsappPhoneId      String?    @unique

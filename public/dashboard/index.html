@@ -1543,6 +1543,22 @@
               </div>
             </div>
 
+            <!-- Auto-post WhatsApp Status Settings -->
+            <div id="statusSettingsSection" style="background: rgba(37, 211, 102, 0.05); border: 1px solid rgba(37, 211, 102, 0.2); padding: 20px; border-radius: 12px; margin-bottom: 15px; display: none;">
+              <h4 style="color: #25D366; margin-top: 0;">🤖 نشر الحالات (الستوري) التلقائي</h4>
+              <p style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 15px;">تفعيل هذا الخيار سيجعل البوت ينشر منتجاً عشوائياً يومياً كحالة للعملاء السابقين.</p>
+              
+              <div class="checkbox-group" style="justify-content: flex-start; flex-direction: row; margin-bottom: 15px; border: none; padding: 0;">
+                <input type="checkbox" id="autoPostStatusInput">
+                <label for="autoPostStatusInput" style="margin: 0; font-weight: bold; color: var(--text-main);">تفعيل نشر الحالات التلقائي يومياً</label>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="autoPostStatusTimeInput">وقت النشر (كل يوم)</label>
+                <input type="time" id="autoPostStatusTimeInput" value="10:00">
+              </div>
+            </div>
+
             <div class="form-group">
               <label for="whatsappAdminGroupIdInput">WhatsApp Admin Group ID (جروب الإدارة لإشعار الطلبات)</label>
               <input type="text" id="whatsappAdminGroupIdInput">
@@ -2160,6 +2176,7 @@
       if (type === 'BUSINESS') {
         meta.style.display = 'block';
         ultra.style.display = 'none';
+        document.getElementById('statusSettingsSection').style.display = 'none';
         if (metaGuide) metaGuide.style.display = 'block';
         if (waPollInterval) {
           clearInterval(waPollInterval);
@@ -2168,6 +2185,7 @@
       } else {
         meta.style.display = 'none';
         ultra.style.display = 'block';
+        document.getElementById('statusSettingsSection').style.display = 'block';
         if (metaGuide) metaGuide.style.display = 'none';
         
         checkWaStatus();
@@ -2275,6 +2293,8 @@
         document.getElementById('enablePickupInput').checked = safeBool(shop.enablePickup, true);
         document.getElementById('enableOnlinePaymentInput').checked = safeBool(shop.enableOnlinePayment, true);
         document.getElementById('enableCashPaymentInput').checked = safeBool(shop.enableCashPayment, false);
+        document.getElementById('autoPostStatusInput').checked = safeBool(shop.autoPostStatus, false);
+        document.getElementById('autoPostStatusTimeInput').value = shop.autoPostStatusTime || '10:00';
 
         toggleShopWhatsappFields();
         toggleShopAiFields();
@@ -2463,6 +2483,8 @@
         enablePickup: document.getElementById('enablePickupInput').checked,
         enableOnlinePayment: document.getElementById('enableOnlinePaymentInput').checked,
         enableCashPayment: document.getElementById('enableCashPaymentInput').checked,
+        autoPostStatus: document.getElementById('autoPostStatusInput').checked,
+        autoPostStatusTime: document.getElementById('autoPostStatusTimeInput').value,
       };
 
       const newPassword = document.getElementById('shopPasswordInput').value;
@@ -2591,6 +2613,7 @@
               <div class="product-meta">
                 <span class="product-price">${p.price} ر.س</span>
                 <div class="product-actions">
+                  <button class="btn-edit" onclick="postProductStatus('${p.id}')" title="نشر كحالة واتساب" style="color: #25D366; border-color: #25D366;"><i class="fab fa-whatsapp"></i> الحالة</button>
                   <button class="btn-edit" onclick="editProduct('${p.id}', '${p.name}', '${p.description.replace(/'/g, "\\'")}', ${p.price}, '${p.imageUrl}', '${p.category}', ${p.available}, ${p.stock || 0})">تعديل</button>
                   <button class="btn-p-delete" onclick="deleteProduct('${p.id}', '${p.name}')">حذف</button>
                 </div>
@@ -2601,6 +2624,18 @@
         });
       } catch (err) {
         console.error('Failed to fetch products');
+      }
+    }
+
+    async function postProductStatus(id) {
+      if (!confirm('هل تريد نشر هذا المنتج كحالة واتساب الآن للعملاء؟\nملاحظة: هذا يتطلب استخدام الواتساب العادي (عبر مسح الكود).')) return;
+      try {
+        const res = await fetch(`/api/shop/products/${id}/status`, { method: 'POST', headers });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'فشل النشر');
+        alert('✅ ' + data.message);
+      } catch (e) {
+        alert('❌ خطأ: ' + e.message);
       }
     }
 
