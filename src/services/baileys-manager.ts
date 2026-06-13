@@ -1,4 +1,4 @@
-import makeWASocket, { useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
+import makeWASocket, { useMultiFileAuthState, DisconnectReason, downloadMediaMessage } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 const qrcode = require('qrcode');
 import fs from 'fs';
@@ -155,17 +155,42 @@ export async function startBaileysSession(shopId: string): Promise<void> {
           // JID for LID senders, and the clean number for normal senders.
           const from = fromJid.endsWith('@lid') ? fromJid : fromJid.split('@')[0];
           const text = rawMsg.conversation || rawMsg.extendedTextMessage?.text || rawMsg.imageMessage?.caption || '';
-          const isLocation = rawMsg.locationMessage;
+          const isLocation = !!rawMsg.locationMessage;
+          const isImage = !!rawMsg.imageMessage;
+
+          let imageBuffer: Buffer | undefined;
+          let mimeType = '';
+          if (isImage) {
+            try {
+              imageBuffer = await downloadMediaMessage(
+                msg,
+                'buffer',
+                { },
+                { 
+                  logger: pino({ level: 'silent' }) as any,
+                  reuploadRequest: sock.updateMediaMessage
+                }
+              ) as Buffer;
+              mimeType = rawMsg.imageMessage?.mimetype || 'image/jpeg';
+            } catch (err: any) {
+              logger.error(`[Baileys] Failed to download image from ${from}: ${err.message}`);
+            }
+          }
 
           // Structure WhatsAppMessage
           const formattedMsg: any = {
             from,
-            type: isLocation ? 'location' : 'text',
+            type: isImage ? 'image' : (isLocation ? 'location' : 'text'),
             text: text ? { body: text } : undefined,
             location: isLocation ? {
-              latitude: isLocation.degreesLatitude,
-              longitude: isLocation.degreesLongitude,
+              latitude: rawMsg.locationMessage?.degreesLatitude,
+              longitude: rawMsg.locationMessage?.degreesLongitude,
             } : undefined,
+            image: (isImage && imageBuffer) ? {
+              mime_type: mimeType,
+              buffer: imageBuffer,
+              caption: text
+            } : undefined
           };
 
           logger.info(`[Baileys] Message from ${from} for shop ${shopId}: ${text || (isLocation ? 'Location' : 'Other')}`);

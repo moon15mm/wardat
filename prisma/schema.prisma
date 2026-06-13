@@ -15,6 +15,8 @@ model Shop {
   email               String?   @unique
   password            String    // Hashed password
 
+  ownerPhone          String?   // رقم هاتف صاحب المتجر (لإدارة الكتالوج)
+
   // Password reset
   resetToken          String?   // SHA-256 hash of the reset token
   resetTokenExpiry    DateTime?
@@ -107,6 +109,8 @@ model Order {
   price           Float
   paymentStatus   String   // PENDING, CONFIRMED, FAILED
   locationUrl     String
+  fulfillmentType String?  // DELIVERY (توصيل) or PICKUP (استلام من المحل)
+  preferredTime   String?  // الوقت المطلوب للتوصيل/الاستلام ضمن ساعات المتجر
   stripeSessionId String?
   cardLast4       String?
   productId       String?

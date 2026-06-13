@@ -16,6 +16,8 @@ export async function addOrder(order: Order): Promise<void> {
         price: order.price,
         paymentStatus: order.paymentStatus,
         locationUrl: order.locationUrl,
+        fulfillmentType: order.fulfillmentType,
+        preferredTime: order.preferredTime,
         stripeSessionId: order.stripeSessionId,
         cardLast4: order.cardLast4,
         productId: order.productId,

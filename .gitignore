@@ -14,3 +14,4 @@ marketing/
 backups/
 .env.bak.*
 public/catalogs/
+public/uploads/

@@ -98,11 +98,15 @@ export async function handlePaymentSuccess(session: Stripe.Checkout.Session): Pr
   const amount = (session.amount_total || 0) / 100;
   await addFinanceRecord(orderId, amount, customerName || '');
 
+  const isPickup = order.fulfillmentType === 'PICKUP';
+  const timeLine = order.preferredTime ? `\nالوقت المطلوب: ${order.preferredTime}` : '';
+
   const customerMsg =
     `تم الدفع بنجاح! ✅\n\n` +
     `رقم طلبك: ${orderId}\n` +
-    `المبلغ: ${amount} ريال\n\n` +
-    `سيتم التوصيل في أقرب وقت.\nشكراً لتسوقك معنا! 🌹`;
+    `المبلغ: ${amount} ريال\n` +
+    (isPickup ? `📦 الاستلام: من المحل${timeLine}` : `🚚 التوصيل: إلى موقعك${timeLine}`) +
+    `\n\nشكراً لتسوقك معنا! 🌹`;
 
   await sendTextMessage(whatsappConfig, customerPhone, customerMsg);
 
@@ -113,7 +117,8 @@ export async function handlePaymentSuccess(session: Stripe.Checkout.Session): Pr
     `👤 Customer Name: ${customerName || ''}\n` +
     `🌹 Product: ${session.metadata?.product || 'N/A'}\n` +
     `💰 Price: ${amount} SAR\n` +
-    `🚚 Delivery: YES\n` +
+    `${isPickup ? '🏬 الاستلام: من المحل' : '🚚 التوصيل: إلى الموقع'}${order.preferredTime ? ' | الوقت: ' + order.preferredTime : ''}\n` +
+    (!isPickup && order.locationUrl && order.locationUrl.startsWith('http') ? `📍 الموقع: ${order.locationUrl}\n` : '') +
     `💳 Card: ****${cardLast4}\n` +
     `✅ Payment: CONFIRMED\n` +
     `📋 Order ID: ${orderId}\n` +

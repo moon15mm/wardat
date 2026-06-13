@@ -20,11 +20,18 @@ export interface Order {
   price: number;
   paymentStatus: 'PENDING' | 'CONFIRMED' | 'FAILED';
   locationUrl: string;
+  fulfillmentType?: 'DELIVERY' | 'PICKUP';
+  preferredTime?: string;
   cardLast4: string;
   productImageUrl: string;
   notes: string;
   stripeSessionId?: string;
   productId?: string;
+  // Transient fields used only inside session.orderData for the owner
+  // "add product via WhatsApp" flow (never written to the Order table).
+  tempProductName?: string;
+  tempProductPrice?: number;
+  tempProductImageUrl?: string;
 }
 
 export type ConversationState =
@@ -34,10 +41,15 @@ export type ConversationState =
   | 'COLLECTING_NAME'
   | 'COLLECTING_PHONE'
   | 'COLLECTING_RECIPIENT'
+  | 'COLLECTING_FULFILLMENT'
   | 'COLLECTING_LOCATION'
+  | 'COLLECTING_TIME'
   | 'CONFIRMING_ORDER'
   | 'AWAITING_PAYMENT'
-  | 'COMPLETED';
+  | 'COMPLETED'
+  | 'OWNER_COLLECTING_PRODUCT_NAME'
+  | 'OWNER_COLLECTING_PRODUCT_PRICE'
+  | 'OWNER_COLLECTING_PRODUCT_DESC';
 
 export interface Session {
   phone: string;
@@ -47,6 +59,7 @@ export interface Session {
   lastActivity: number;
   selectedProduct?: Product;
   botPaused?: boolean;
+  tempProductData?: Partial<Product>;
 }
 
 export interface ChatMessage {
@@ -59,7 +72,7 @@ export interface WhatsAppMessage {
   type: 'text' | 'location' | 'image' | 'interactive';
   text?: { body: string };
   location?: { latitude: number; longitude: number; name?: string; address?: string };
-  image?: { id: string; mime_type: string };
+  image?: { id?: string; mime_type: string; buffer?: Buffer; caption?: string };
 }
 
 export interface PaymentRequest {
