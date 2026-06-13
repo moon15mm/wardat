@@ -306,15 +306,28 @@ export async function postWhatsAppStatus(shopId: string, product: any): Promise<
   }
 
   // Baileys needs JIDs for status viewers
-  const jidList = sessions.map(s => {
+  let jidList = sessions.map(s => {
     let phone = s.phone.replace(/\D/g, '');
     if (!phone.includes('@')) phone = `${phone}@s.whatsapp.net`;
     return phone;
   });
 
+  // Always include the sender's own JID so the status appears in "My Status" on their phone
+  if (sock.user && sock.user.id) {
+    const senderJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+    jidList.push(senderJid);
+  }
+
+  // Remove duplicates
+  jidList = [...new Set(jidList)];
+
   const caption = `🌹 *${product.name}*\n💰 السعر: ${product.price} ريال\n\nلطلب المنتج، أرسل اسمه في رسالة خاصة 🛒`;
   
-  let content: any = { text: caption };
+  let content: any = { 
+    text: caption,
+    backgroundColor: '#7b2cbf', // Needed if image fails
+    font: 1 // Needed for text statuses
+  };
 
   if (product.imageUrl) {
     let imageBuffer: Buffer | null = null;
@@ -338,7 +351,6 @@ export async function postWhatsAppStatus(shopId: string, product: any): Promise<
       }
     } catch (e) {
       logger.error(`[Baileys Status] Failed to load image for product ${product.id}: ${e}`);
-      // Fallback to text if image fails
     }
   }
 
@@ -346,5 +358,5 @@ export async function postWhatsAppStatus(shopId: string, product: any): Promise<
     statusJidList: jidList,
   });
 
-  logger.info(`[Baileys Status] Status posted successfully for Shop: ${shopId}`);
+  logger.info(`[Baileys Status] Status posted successfully for Shop: ${shopId}. Sent to ${jidList.length} contacts.`);
 }
