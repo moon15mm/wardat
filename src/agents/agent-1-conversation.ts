@@ -293,7 +293,10 @@ async function handleProductSelection(
   const products = await getAllProducts(shopId);
 
   let selected: Product | null = null;
-  const num = parseInt(text.trim());
+  // Extract a product number even from phrasing like "رقم 1" / "المنتج ٢" / "ابغى 3".
+  const normalized = text.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+  const numMatch = normalized.match(/\d{1,2}/);
+  const num = numMatch ? parseInt(numMatch[0], 10) : NaN;
   if (!isNaN(num) && num >= 1 && num <= products.length) {
     selected = products[num - 1];
   } else {
