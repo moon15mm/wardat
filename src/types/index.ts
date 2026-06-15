@@ -16,9 +16,11 @@ export interface Order {
   customerName: string;
   customerPhone: string;
   recipientName: string;
+  recipientPhone?: string;
   product: string;
   price: number;
   paymentStatus: 'PENDING' | 'CONFIRMED' | 'FAILED';
+  orderStatus?: string;
   locationUrl: string;
   fulfillmentType?: 'DELIVERY' | 'PICKUP';
   preferredTime?: string;
@@ -41,6 +43,7 @@ export type ConversationState =
   | 'COLLECTING_NAME'
   | 'COLLECTING_PHONE'
   | 'COLLECTING_RECIPIENT'
+  | 'COLLECTING_RECIPIENT_PHONE'
   | 'COLLECTING_FULFILLMENT'
   | 'COLLECTING_LOCATION'
   | 'COLLECTING_TIME'

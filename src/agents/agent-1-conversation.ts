@@ -278,6 +278,9 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
     case 'COLLECTING_RECIPIENT':
       await handleCollectRecipient(phone, shopId, whatsappConfig, userText, intent, session);
       break;
+    case 'COLLECTING_RECIPIENT_PHONE':
+      await handleCollectRecipientPhone(phone, shopId, whatsappConfig, userText, session);
+      break;
     case 'COLLECTING_FULFILLMENT':
       await handleCollectFulfillment(phone, shopId, whatsappConfig, userText, session);
       break;
@@ -539,12 +542,38 @@ async function handleCollectRecipient(
   session: Session
 ): Promise<void> {
   const recipient = text.trim().toLowerCase();
+  const isMe = recipient === 'لي' || recipient === 'أنا' || recipient === 'نفسي';
 
-  session.orderData.recipientName =
-    recipient === 'لي' || recipient === 'أنا'
-      ? session.orderData.customerName || 'نفس العميل'
-      : text.trim();
+  session.orderData.recipientName = isMe ? (session.orderData.customerName || 'نفس العميل') : text.trim();
 
+  if (!isMe) {
+    const reply = `بما أن الطلب لشخص آخر، ما هو رقم جوال المستلم (للتواصل معه عند التوصيل)؟`;
+    await sendTextMessage(whatsappConfig, phone, reply);
+    session.messages.push({ role: 'assistant', content: reply });
+    session.state = 'COLLECTING_RECIPIENT_PHONE';
+    return;
+  }
+
+  await askFulfillmentOptions(phone, shopId, whatsappConfig, session);
+}
+
+async function handleCollectRecipientPhone(
+  phone: string,
+  shopId: string,
+  whatsappConfig: WhatsAppConfig,
+  text: string,
+  session: Session
+): Promise<void> {
+  session.orderData.recipientPhone = text.trim();
+  await askFulfillmentOptions(phone, shopId, whatsappConfig, session);
+}
+
+async function askFulfillmentOptions(
+  phone: string,
+  shopId: string,
+  whatsappConfig: WhatsAppConfig,
+  session: Session
+): Promise<void> {
   // بناء خيارات الاستلام حسب إعدادات المتجر
   const shopSettings = await prisma.shop.findUnique({ where: { id: shopId } });
   const canDeliver = shopSettings?.enableDelivery ?? true;
@@ -644,12 +673,14 @@ async function sendOrderSummary(
   const isPickup = session.orderData.fulfillmentType === 'PICKUP';
   const fulfillmentLine = isPickup ? '🏬 الاستلام: من المحل' : '🚚 التوصيل: إلى موقعك';
   const locationLine = isPickup ? '' : '📍 الموقع: تم الاستلام\n';
+  const recipientPhoneLine = session.orderData.recipientPhone ? `📞 جوال المستلم: ${session.orderData.recipientPhone}\n` : '';
   const summary =
     `📋 *ملخص طلبك:*\n\n` +
     `🌹 المنتج: ${session.orderData.product}\n` +
     `💰 السعر: ${formatPrice(session.orderData.price || 0)}\n` +
     `👤 الاسم: ${session.orderData.customerName}\n` +
     `🎁 المستلم: ${session.orderData.recipientName}\n` +
+    recipientPhoneLine +
     `${fulfillmentLine}\n` +
     locationLine +
     `🕒 الوقت المطلوب: ${session.orderData.preferredTime || '-'}\n\n` +
@@ -725,6 +756,7 @@ async function handleConfirmation(
       productImageUrl: session.orderData.productImageUrl || '',
       notes: '',
       productId: session.orderData.productId,
+      recipientPhone: session.orderData.recipientPhone,
     });
 
     if (shop.paymentOnline) {

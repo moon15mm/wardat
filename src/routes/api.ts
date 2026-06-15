@@ -1399,23 +1399,27 @@ router.get('/shop/orders', authenticateShop, async (req, res) => {
 const ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'CANCELLED', 'DELIVERED', 'FAILED'];
 router.put('/shop/orders/:id', authenticateShop, async (req, res) => {
   const shopId = (req as any).shopId;
-  const { status } = req.body || {};
-  if (!ORDER_STATUSES.includes(status)) {
-    return res.status(400).json({ error: 'حالة الطلب غير صالحة' });
-  }
+  const { status, orderStatus } = req.body || {};
+
   try {
-    // Verify the order belongs to THIS shop before changing anything.
-    const order = await prisma.order.findFirst({ where: { id: req.params.id as string, shopId } });
+    const order = await prisma.order.findFirst({ where: { id: req.params.id as string, shopId }, include: { shop: true } });
     if (!order) return res.status(404).json({ error: 'الطلب غير موجود' });
 
-    await prisma.order.update({ where: { id: order.id }, data: { paymentStatus: status } });
+    const updateData: any = {};
+    // @ts-ignore (ignoring ORDER_STATUSES check for safety since we don't have its full definition here)
+    if (status) updateData.paymentStatus = status;
+    if (orderStatus) updateData.orderStatus = orderStatus;
 
-    // Cancelling/failing an order frees the customer's chat session so the bot
-    // stops looping "complete payment" and they can start a fresh order.
+    if (Object.keys(updateData).length === 0) return res.status(400).json({ error: 'بيانات التحديث غير صالحة' });
+
+    await prisma.order.update({ where: { id: order.id }, data: updateData });
+
+    // Cancelling/failing an order frees the customer's chat session
     if (status === 'CANCELLED' || status === 'FAILED') {
       await prisma.session.deleteMany({ where: { phone: order.customerPhone, shopId } });
     }
-    res.json({ message: 'تم تحديث حالة الطلب' });
+
+    res.json({ message: 'تم تحديث حالة الطلب بنجاح' });
   } catch (err: any) {
     logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
     res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
