@@ -227,6 +227,33 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
     return;
   }
 
+  // Check Order Status
+  const asksOrderStatus = /حالة الطلب|حاله الطلب|وين طلبي|وين الطلب|وش صار على|تتبع الطلب|حالة طلبي|متى يوصل طلبي|متابعة الطلب|حالة طلبيتي/i.test(userText);
+  if (asksOrderStatus) {
+    const lastOrder = await prisma.order.findFirst({
+      where: { shopId, customerPhone: phone },
+      orderBy: { timestamp: 'desc' },
+    });
+
+    if (lastOrder) {
+      let statusAr = 'قيد المعالجة ⏳';
+      if (lastOrder.orderStatus === 'DELIVERED') statusAr = 'تم التوصيل/الاستلام بنجاح ✅';
+      else if (lastOrder.orderStatus === 'CANCELLED') statusAr = 'تم الإلغاء ❌';
+      else if (lastOrder.paymentStatus === 'CONFIRMED') statusAr = 'مؤكد وجاري التجهيز 📦';
+      else if (lastOrder.paymentStatus === 'PENDING') statusAr = 'بانتظار تأكيد الدفع 💳';
+
+      const msg = `مرحباً بك! 🌹\nحالة طلبك الأخير (رقم: ${lastOrder.id.slice(-4)}) هي:\n*${statusAr}*`;
+      await sendTextMessage(whatsappConfig, phone, msg);
+      session.messages.push({ role: 'assistant', content: msg });
+    } else {
+      const msg = `عذراً، لم أتمكن من العثور على طلبات سابقة مسجلة برقمك الحالي. 😕`;
+      await sendTextMessage(whatsappConfig, phone, msg);
+      session.messages.push({ role: 'assistant', content: msg });
+    }
+    await saveSession(session, shopId);
+    return;
+  }
+
   // Intelligent Q&A overlay: if the customer asks an open question at any point in
   // the flow, answer it with AI (product + delivery aware) instead of the scripted
   // reply, then keep them in the same step so the order flow resumes naturally.
