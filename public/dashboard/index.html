@@ -2728,7 +2728,11 @@
         const STATUS_OPTS = [['PENDING','معلّق'],['CONFIRMED','مؤكد'],['DELIVERED','تم التوصيل'],['CANCELLED','إلغاء'],['FAILED','فاشل']];
 
         orders.forEach(order => {
-          const opts = STATUS_OPTS.map(([v,l]) => `<option value="${v}" ${order.paymentStatus===v?'selected':''}>${l}</option>`).join('');
+          let currentVal = order.paymentStatus;
+          if (order.orderStatus === 'DELIVERED') currentVal = 'DELIVERED';
+          else if (order.orderStatus === 'CANCELLED') currentVal = 'CANCELLED';
+
+          const opts = STATUS_OPTS.map(([v,l]) => `<option value="${v}" ${currentVal===v?'selected':''}>${l}</option>`).join('');
           
           let cardHtml = `
             <div class="kanban-card" style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 10px; padding: 12px; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
@@ -2750,10 +2754,10 @@
             </div>
           `;
 
-          if (order.paymentStatus === 'DELIVERED') {
+          if (order.orderStatus === 'DELIVERED' || order.paymentStatus === 'DELIVERED') {
             kbDelivered.insertAdjacentHTML('beforeend', cardHtml);
             deliveredCount++;
-          } else if (order.paymentStatus === 'CANCELLED' || order.paymentStatus === 'FAILED') {
+          } else if (order.orderStatus === 'CANCELLED' || order.paymentStatus === 'CANCELLED' || order.paymentStatus === 'FAILED') {
             kbCancelled.insertAdjacentHTML('beforeend', cardHtml);
             cancelledCount++;
           } else {
@@ -2771,10 +2775,16 @@
       }
     }
 
-    async function updateOrderStatus(id, status) {
+    async function updateOrderStatus(id, val) {
       try {
+        let payload = {};
+        if (val === 'DELIVERED' || val === 'CANCELLED') {
+          payload.orderStatus = val;
+        } else {
+          payload.status = val;
+        }
         const res = await fetch('/api/shop/orders/' + id, {
-          method: 'PUT', headers, body: JSON.stringify({ status })
+          method: 'PUT', headers, body: JSON.stringify(payload)
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'فشل'); }
         fetchOrders();

@@ -1416,7 +1416,10 @@ router.put('/shop/orders/:id', authenticateShop, async (req, res) => {
 
     // Cancelling/failing an order frees the customer's chat session
     if (status === 'CANCELLED' || status === 'FAILED') {
-      await prisma.session.deleteMany({ where: { phone: order.customerPhone, shopId } });
+      await prisma.session.updateMany({
+        where: { phone: order.customerPhone, shopId },
+        data: { state: 'GREETING', orderData: '{}', botPaused: false }
+      });
     }
 
     // Send WhatsApp notification when order is delivered
@@ -1510,8 +1513,11 @@ router.delete('/shop/orders/:id', authenticateShop, async (req, res) => {
     if (!order) return res.status(404).json({ error: 'الطلب غير موجود' });
 
     await prisma.order.delete({ where: { id: order.id } });
-    // Also free the customer's chat session so the bot doesn't keep asking for payment.
-    await prisma.session.deleteMany({ where: { phone: order.customerPhone, shopId } });
+    // Also free the customer's chat session so the bot doesn't keep asking for payment, but preserve history.
+    await prisma.session.updateMany({
+      where: { phone: order.customerPhone, shopId },
+      data: { state: 'GREETING', orderData: '{}', botPaused: false }
+    });
     res.json({ message: 'تم حذف الطلب' });
   } catch (err: any) {
     logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
@@ -1533,7 +1539,7 @@ router.get('/shop/analytics', authenticateShop, async (req, res) => {
       where: { shopId },
     });
 
-    const confirmedOrders = orders.filter((o) => o.paymentStatus === 'CONFIRMED');
+    const confirmedOrders = orders.filter((o) => o.paymentStatus === 'CONFIRMED' || o.paymentStatus === 'DELIVERED');
     const totalOrders = orders.length;
     const confirmedCount = confirmedOrders.length;
     const pendingCount = orders.filter((o) => o.paymentStatus === 'PENDING').length;
