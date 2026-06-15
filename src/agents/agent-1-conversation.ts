@@ -373,31 +373,38 @@ async function handleGreeting(
   intent: string,
   session: Session
 ): Promise<void> {
-  // Branded welcome: send the shop logo first if configured.
+  let shopName = 'متجرنا';
+  let logoUrl: string | null = null;
+  
   try {
     const shop = await prisma.shop.findUnique({ where: { id: shopId }, select: { logoUrl: true, name: true } });
-    const greetingText = `أهلاً وسهلاً بك في ${shop?.name || 'متجرنا'}! 🌹\n\nيسعدنا خدمتك. دعنا نعرض لك منتجاتنا 🛒`;
-    if (shop?.logoUrl && shop.logoUrl.trim()) {
-      try {
-        await sendImageMessage(whatsappConfig, phone, shop.logoUrl, greetingText);
-        session.messages.push({ role: 'assistant', content: greetingText });
-        session.state = 'BROWSING';
-        const catalogResult = await sendProductCatalog(shopId, whatsappConfig, phone, sendTextMessage, sendImageMessage);
-        session.messages.push({ role: 'assistant', content: catalogResult });
-        session.state = 'SELECTING_PRODUCT';
-        return;
-      } catch {
-        /* logo send failed — fall through to text greeting */
-      }
+    if (shop) {
+      shopName = shop.name;
+      logoUrl = shop.logoUrl;
     }
   } catch {
     /* ignore */
   }
 
-  const greeting = 'أهلاً وسهلاً بك في متجرنا! 🌹\n\nيسعدنا خدمتك. دعنا نعرض لك منتجاتنا 🛒';
+  const greetingText = `أهلاً وسهلاً بك في ${shopName}! 🌹\n\nيسعدنا خدمتك. دعنا نعرض لك منتجاتنا 🛒`;
 
-  await sendTextMessage(whatsappConfig, phone, greeting);
-  session.messages.push({ role: 'assistant', content: greeting });
+  // Branded welcome: send the shop logo first if configured.
+  if (logoUrl && logoUrl.trim()) {
+    try {
+      await sendImageMessage(whatsappConfig, phone, logoUrl, greetingText);
+      session.messages.push({ role: 'assistant', content: greetingText });
+      session.state = 'BROWSING';
+      const catalogResult = await sendProductCatalog(shopId, whatsappConfig, phone, sendTextMessage, sendImageMessage);
+      session.messages.push({ role: 'assistant', content: catalogResult });
+      session.state = 'SELECTING_PRODUCT';
+      return;
+    } catch {
+      /* logo send failed — fall through to text greeting */
+    }
+  }
+
+  await sendTextMessage(whatsappConfig, phone, greetingText);
+  session.messages.push({ role: 'assistant', content: greetingText });
   session.state = 'BROWSING';
 
   const catalogResult = await sendProductCatalog(shopId, whatsappConfig, phone, sendTextMessage, sendImageMessage);

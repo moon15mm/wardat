@@ -76,8 +76,14 @@ export function initTelegramBot(token: string): void {
       await prisma.shop.update({ where: { id: shop.id }, data: { ownerTelegramId: chatId } });
       logger.info(`[Telegram] Owner linked: chatId=${chatId} shop=${shop.id}`);
       bot.sendMessage(chatId,
-        `✅ *تم الربط بنجاح!*\nمتجرك: *${shop.name}*\n\n` +
-        `📸 أرسل صورة منتج لإضافته\n⚙️ /settings — إعدادات المتجر`,
+        `🎉 *أهلاً بك في بوت الإدارة الخاص بمتجرك!*\n\n` +
+        `✅ تم ربط حسابك بنجاح بمتجر: *${shop.name}*\n\n` +
+        `يمكنك الآن البدء في بناء الكتالوج الخاص بك بسهولة. ` +
+        `كل ما عليك فعله هو إرسال صورة للمنتج، وسأقوم بسؤالك عن تفاصيله (الاسم، السعر، الوصف).\n\n` +
+        `📌 *الأوامر المتاحة لك:*\n` +
+        `📋 /products — عرض قائمة منتجاتك الحالية\n` +
+        `⚙️ /settings — التحكم في إعدادات التوصيل والدفع\n\n` +
+        `أنا جاهز.. 📸 أرسل لي أول صورة متى ما أردت!`,
         { parse_mode: 'Markdown' }
       );
     } catch (e: any) {
