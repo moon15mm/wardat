@@ -21,8 +21,8 @@ function testRecipientLogic() {
   };
 
   // --- Test 1: The user orders for himself ---
-  console.log('\n[الاختبار 1]: العميل يطلب لنفسه (إدخال: "لي" أو "أنا")');
-  const text1 = 'لي';
+  console.log('\\n[الاختبار 1]: العميل يطلب لنفسه (إدخال: "لي" أو "أنا")');
+  const text1: string = 'لي';
   const isMe = text1 === 'لي' || text1 === 'أنا' || text1 === 'نفسي';
   
   session.orderData!.recipientName = isMe ? (session.orderData!.customerName || 'نفس العميل') : text1;
@@ -46,10 +46,10 @@ function testRecipientLogic() {
   }
 
   // --- Test 2: The user orders for someone else ---
-  console.log('\n[الاختبار 2]: العميل يطلب لشخص آخر (إدخال: "سالم")');
+  console.log('\\n[الاختبار 2]: العميل يطلب لشخص آخر (إدخال: "سالم")');
   session.state = 'COLLECTING_RECIPIENT';
   session.orderData!.recipientPhone = undefined; // reset
-  const text2 = 'سالم';
+  const text2: string = 'سالم';
   const isMe2 = text2 === 'لي' || text2 === 'أنا' || text2 === 'نفسي';
   
   session.orderData!.recipientName = isMe2 ? (session.orderData!.customerName || 'نفس العميل') : text2;
