@@ -1419,6 +1419,23 @@ router.put('/shop/orders/:id', authenticateShop, async (req, res) => {
       await prisma.session.deleteMany({ where: { phone: order.customerPhone, shopId } });
     }
 
+    // Send WhatsApp notification when order is delivered
+    if (orderStatus === 'DELIVERED' && order.orderStatus !== 'DELIVERED') {
+      const whatsappConfig = {
+        whatsappType: order.shop.whatsappType,
+        shopId: order.shop.id,
+        token: order.shop.whatsappToken,
+        phoneId: order.shop.whatsappPhoneId,
+      };
+      const deliveredMsg = `مرحباً ${order.customerName}،\n\nيسعدنا إخبارك بأنه قد تم تسليم طلبك بنجاح! 🎉\nنأمل أن ينال إعجابك، ونتمنى رؤيتك قريباً.\n\nمع تحيات: *${order.shop.name}* 🌹`;
+      try {
+        await sendTextMessage(whatsappConfig, order.customerPhone, deliveredMsg);
+        logger.info(`[Delivery Notification] Sent to ${order.customerPhone} for order ${order.id}`);
+      } catch (err: any) {
+        logger.error(`[Delivery Notification] Failed to send to ${order.customerPhone}: ${err.message}`);
+      }
+    }
+
     res.json({ message: 'تم تحديث حالة الطلب بنجاح' });
   } catch (err: any) {
     logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
