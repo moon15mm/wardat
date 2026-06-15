@@ -1443,6 +1443,65 @@ router.put('/shop/orders/:id', authenticateShop, async (req, res) => {
   }
 });
 
+// Broadcast Campaign (WhatsApp)
+router.post('/shop/campaign', authenticateShop, async (req, res) => {
+  const shopId = (req as any).shopId;
+  const { message, audience } = req.body;
+
+  if (!message || typeof message !== 'string') {
+    return res.status(400).json({ error: 'الرسالة مطلوبة' });
+  }
+
+  try {
+    const shop = await prisma.shop.findUnique({ where: { id: shopId } });
+    if (!shop) return res.status(404).json({ error: 'المتجر غير موجود' });
+
+    // Fetch unique customer phones from orders
+    const orders = await prisma.order.findMany({
+      where: { shopId },
+      select: { customerPhone: true },
+      distinct: ['customerPhone'],
+    });
+
+    const phones = orders.map(o => o.customerPhone).filter(Boolean);
+    if (phones.length === 0) {
+      return res.status(400).json({ error: 'لا يوجد عملاء سابقين لإرسال الحملة لهم' });
+    }
+
+    // Acknowledge immediately so the UI doesn't hang
+    res.json({ message: `جاري إرسال الحملة لـ ${phones.length} عميل في الخلفية...` });
+
+    const whatsappConfig = {
+      whatsappType: shop.whatsappType,
+      shopId: shop.id,
+      token: shop.whatsappToken,
+      phoneId: shop.whatsappPhoneId,
+    };
+
+    // Run in background
+    setTimeout(async () => {
+      logger.info(`[Campaign] Starting campaign for shop ${shop.id} to ${phones.length} customers.`);
+      for (const phone of phones) {
+        try {
+          await sendTextMessage(whatsappConfig, phone, message);
+          // Anti-ban delay: Random between 10s and 20s ONLY for NORMAL (Free WhatsApp)
+          if (whatsappConfig.whatsappType !== 'BUSINESS') {
+            const delay = Math.floor(Math.random() * 10000) + 10000;
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        } catch (err: any) {
+          logger.error(`[Campaign] Failed to send to ${phone}: ${err.message}`);
+        }
+      }
+      logger.info(`[Campaign] Completed campaign for shop ${shop.id}.`);
+    }, 0);
+
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    if (!res.headersSent) res.status(500).json({ error: 'حدث خطأ في الخادم' });
+  }
+});
+
 // Delete an order — shop-scoped.
 router.delete('/shop/orders/:id', authenticateShop, async (req, res) => {
   const shopId = (req as any).shopId;

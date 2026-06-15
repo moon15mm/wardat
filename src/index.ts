@@ -442,6 +442,10 @@ const server = app.listen(PORT, async () => {
   await settings.loadSettings();
 
   await initAllSessions();
+  
+  // ابدأ خدمة السلات المتروكة
+  const { startAbandonedCartJob } = require('./services/abandoned-cart');
+  startAbandonedCartJob();
 
   // تشغيل بوت التلجرام لأصحاب المتاجر (إدارة الكتالوج)
   const tgToken = process.env.TELEGRAM_BOT_TOKEN;

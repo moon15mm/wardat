@@ -152,6 +152,7 @@ model Session {
   selectedProductId String?  // Optional selected product ID
   orderData         String   // JSON string of Partial<Order>
   botPaused         Boolean  @default(false)
+  recoverySent      Boolean  @default(false) // Tracks if abandoned cart message was sent
 
   @@unique([phone, shopId])
   @@index([shopId, lastActivity])

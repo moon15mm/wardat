@@ -1236,31 +1236,39 @@
 
       <div class="card-panel">
         <div class="panel-header">
-          <h3>سجل المبيعات والطلبات الأخيرة</h3>
+          <h3>سجل المبيعات ومتابعة الطلبات (Kanban)</h3>
+          <button class="btn-save" onclick="openCampaignModal()" style="background: linear-gradient(to right, #ffb300, #ff4b4b); border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Tajawal'; display: flex; align-items: center; gap: 8px;">إرسال حملة تسويقية 📣</button>
         </div>
-        <div style="overflow-x: auto;">
-          <table>
-            <thead>
-              <tr>
-                <th>رقم الطلب</th>
-                <th>اسم العميل</th>
-                <th>رقم الجوال</th>
-                <th>اسم المستلم</th>
-                <th>المنتج المطلوب</th>
-                <th>المبلغ (ريال)</th>
-                <th>حالة الدفع</th>
-                <th>رقم العملية والبطاقة</th>
-                <th>رابط خرائط جوجل</th>
-                <th>تاريخ الطلب</th>
-                <th>إجراءات</th>
-              </tr>
-            </thead>
-            <tbody id="ordersTableBody">
-              <tr>
-                <td colspan="11" style="text-align: center; color: var(--text-sub);">جاري تحميل سجل الطلبات...</td>
-              </tr>
-            </tbody>
-          </table>
+        
+        <div class="kanban-board" style="display: flex; gap: 20px; overflow-x: auto; padding-bottom: 15px; align-items: flex-start;">
+          <!-- PENDING Column -->
+          <div class="kanban-column" style="flex: 1; min-width: 300px; background: rgba(255, 179, 0, 0.03); border: 1px solid rgba(255, 179, 0, 0.15); border-radius: 12px; padding: 15px;">
+            <h4 style="color: var(--warning); margin-bottom: 15px; border-bottom: 1px solid rgba(255, 179, 0, 0.15); padding-bottom: 10px; display: flex; justify-content: space-between;">
+              <span>⏳ قيد التجهيز</span>
+              <span id="kbCountPending" style="background: rgba(255,179,0,0.2); padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">0</span>
+            </h4>
+            <div id="kb-pending" class="kanban-items" style="display: flex; flex-direction: column; gap: 12px; min-height: 100px;">
+              <p style="text-align: center; color: var(--text-sub); font-size: 0.85rem; margin-top: 20px;">جاري التحميل...</p>
+            </div>
+          </div>
+          
+          <!-- DELIVERED Column -->
+          <div class="kanban-column" style="flex: 1; min-width: 300px; background: rgba(0, 230, 118, 0.03); border: 1px solid rgba(0, 230, 118, 0.15); border-radius: 12px; padding: 15px;">
+            <h4 style="color: var(--success); margin-bottom: 15px; border-bottom: 1px solid rgba(0, 230, 118, 0.15); padding-bottom: 10px; display: flex; justify-content: space-between;">
+              <span>✅ تم التوصيل</span>
+              <span id="kbCountDelivered" style="background: rgba(0,230,118,0.2); padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">0</span>
+            </h4>
+            <div id="kb-delivered" class="kanban-items" style="display: flex; flex-direction: column; gap: 12px; min-height: 100px;"></div>
+          </div>
+          
+          <!-- CANCELLED Column -->
+          <div class="kanban-column" style="flex: 1; min-width: 300px; background: rgba(255, 75, 75, 0.03); border: 1px solid rgba(255, 75, 75, 0.15); border-radius: 12px; padding: 15px;">
+            <h4 style="color: var(--danger); margin-bottom: 15px; border-bottom: 1px solid rgba(255, 75, 75, 0.15); padding-bottom: 10px; display: flex; justify-content: space-between;">
+              <span>❌ ملغي</span>
+              <span id="kbCountCancelled" style="background: rgba(255,75,75,0.2); padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">0</span>
+            </h4>
+            <div id="kb-cancelled" class="kanban-items" style="display: flex; flex-direction: column; gap: 12px; min-height: 100px;"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1930,6 +1938,27 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- CAMPAIGN MODAL -->
+  <div id="campaignModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="color: var(--pink-glow);">📣 إرسال حملة تسويقية عبر الواتساب</h3>
+        <span class="modal-close" onclick="closeCampaignModal()">&times;</span>
+      </div>
+      <form id="campaignForm" onsubmit="sendCampaign(event)">
+        <p style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 15px; line-height: 1.5;">سيتم إرسال هذه الرسالة لجميع عملائك السابقين. النظام سيرسل الرسائل ببطء في الخلفية (كل 10-20 ثانية) لتجنب حظر الرقم.</p>
+        <div class="form-group">
+          <label for="campaignMessage">نص الرسالة</label>
+          <textarea id="campaignMessage" placeholder="اكتب عرضك الترويجي هنا... مثال: خصم 20% بمناسبة العيد! كود الخصم EID20" rows="6" required style="resize:none; padding:10px;"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="closeCampaignModal()">إلغاء</button>
+          <button type="submit" class="btn-save" style="background: linear-gradient(to right, #ffb300, #ff4b4b); box-shadow: 0 4px 15px rgba(255, 75, 75, 0.3);">إطلاق الحملة 🚀</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- PRODUCT EDIT/ADD MODAL -->
@@ -2637,54 +2666,108 @@
       }
     }
 
+    function openCampaignModal() {
+      document.getElementById('campaignModal').style.display = 'flex';
+    }
+
+    function closeCampaignModal() {
+      document.getElementById('campaignModal').style.display = 'none';
+      document.getElementById('campaignMessage').value = '';
+    }
+
+    async function sendCampaign(e) {
+      e.preventDefault();
+      const msg = document.getElementById('campaignMessage').value.trim();
+      if (!msg) return;
+
+      const btn = e.target.querySelector('button[type="submit"]');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = 'جاري الإطلاق... ⏳';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/shop/campaign', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ message: msg })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'فشل إطلاق الحملة');
+        
+        alert('🚀 تم إطلاق الحملة بنجاح! سيتم إرسال الرسائل بالخلفية بشكل آمن (بين 10-20 ثانية لكل رسالة).');
+        closeCampaignModal();
+      } catch (err) {
+        alert('خطأ: ' + err.message);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
     async function fetchOrders() {
       try {
         const res = await fetch('/api/shop/orders', { headers });
         if (!res.ok) throw new Error();
         const orders = await res.json();
 
-        const tbody = document.getElementById('ordersTableBody');
-        tbody.innerHTML = '';
+        const kbPending = document.getElementById('kb-pending');
+        const kbDelivered = document.getElementById('kb-delivered');
+        const kbCancelled = document.getElementById('kb-cancelled');
+        
+        kbPending.innerHTML = '';
+        kbDelivered.innerHTML = '';
+        kbCancelled.innerHTML = '';
+        
+        let pendingCount = 0, deliveredCount = 0, cancelledCount = 0;
 
         if (orders.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--text-sub);">لا يوجد طلبات مسجلة للمحل حالياً</td></tr>`;
+          kbPending.innerHTML = `<p style="text-align: center; color: var(--text-sub); font-size: 0.85rem; margin-top: 20px;">لا يوجد طلبات</p>`;
           return;
         }
 
-        const STATUS_META = {
-          PENDING:   { cls: 'pending',   label: 'معلّق بالدفع' },
-          CONFIRMED: { cls: 'confirmed', label: 'مدفوع ومؤكد' },
-          DELIVERED: { cls: 'confirmed', label: 'تم التوصيل' },
-          CANCELLED: { cls: 'failed',    label: 'ملغى' },
-          FAILED:    { cls: 'failed',    label: 'دفع فاشل' },
-        };
         const STATUS_OPTS = [['PENDING','معلّق'],['CONFIRMED','مؤكد'],['DELIVERED','تم التوصيل'],['CANCELLED','إلغاء'],['FAILED','فاشل']];
 
         orders.forEach(order => {
-          const meta = STATUS_META[order.paymentStatus] || STATUS_META.PENDING;
           const opts = STATUS_OPTS.map(([v,l]) => `<option value="${v}" ${order.paymentStatus===v?'selected':''}>${l}</option>`).join('');
-
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td style="font-family: 'Outfit'; font-weight:bold;">${order.id}</td>
-            <td>${order.customerName}</td>
-            <td style="font-family: 'Outfit';">${order.customerPhone}</td>
-            <td>${order.recipientName}</td>
-            <td style="font-weight: 500;">${order.productName}</td>
-            <td style="font-family: 'Outfit'; color: var(--pink-glow); font-weight: bold;">${order.price}</td>
-            <td><span class="status-tag ${meta.cls}">${meta.label}</span></td>
-            <td style="font-family: 'Outfit'; font-size: 0.8rem; color: var(--text-sub);">${order.cardLast4 ? 'بطاقة: ' + order.cardLast4 : 'لا يوجد'}</td>
-            <td>${order.locationUrl ? `<a href="${order.locationUrl}" target="_blank" style="color:var(--purple-glow); font-size: 0.85rem; font-weight:bold;">عرض الخريطة 📍</a>` : '—'}</td>
-            <td style="font-size: 0.85rem; color: var(--text-sub);">${new Date(order.timestamp).toLocaleString('ar-SA')}</td>
-            <td style="white-space:nowrap;">
-              <select onchange="updateOrderStatus('${order.id}', this.value)" style="padding:5px 8px; border-radius:8px; background:rgba(0,0,0,0.3); color:var(--text-main); border:1px solid var(--glass-border); font-size:0.8rem;">${opts}</select>
-              <button onclick="deleteOrder('${order.id}')" title="حذف الطلب" style="margin-right:6px; background:transparent; border:1px solid rgba(255,75,75,0.4); color:#ff6b6b; border-radius:8px; padding:5px 9px; cursor:pointer; font-size:0.8rem;">🗑️</button>
-            </td>
+          
+          let cardHtml = `
+            <div class="kanban-card" style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 10px; padding: 12px; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <strong style="font-family: 'Outfit'; font-size: 0.9rem;">#${order.id}</strong>
+                <span style="font-size: 0.7rem; color: var(--text-sub);">${new Date(order.timestamp).toLocaleTimeString('ar-SA', {hour: '2-digit', minute:'2-digit'})}</span>
+              </div>
+              <div style="font-size: 0.85rem; margin-bottom: 6px;">👤 ${order.customerName} <br><span style="font-family: 'Outfit'; color: var(--text-sub); font-size: 0.75rem;">${order.customerPhone}</span></div>
+              <div style="font-size: 0.8rem; margin-bottom: 6px; color: var(--pink-glow); font-weight: bold;">🎁 ${order.productName}</div>
+              
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
+                <span style="font-family: 'Outfit'; font-weight: bold; font-size: 0.9rem; color: var(--success);">${order.price} ر.س</span>
+                <div style="display: flex; gap: 5px;">
+                  <select onchange="updateOrderStatus('${order.id}', this.value)" style="padding:4px; border-radius:6px; background:rgba(0,0,0,0.3); color:var(--text-main); border:1px solid var(--glass-border); font-size:0.75rem;">${opts}</select>
+                  ${order.locationUrl ? `<a href="${order.locationUrl}" target="_blank" style="padding: 4px 8px; background: rgba(142, 45, 226, 0.15); color: #a29bfe; border-radius: 6px; text-decoration: none; font-size: 0.8rem;" title="خريطة التوصيل">📍</a>` : ''}
+                  <button onclick="deleteOrder('${order.id}')" style="padding: 4px 8px; background: rgba(255, 75, 75, 0.15); color: #ff6b6b; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem;" title="حذف الطلب">🗑️</button>
+                </div>
+              </div>
+            </div>
           `;
-          tbody.appendChild(row);
+
+          if (order.paymentStatus === 'DELIVERED') {
+            kbDelivered.insertAdjacentHTML('beforeend', cardHtml);
+            deliveredCount++;
+          } else if (order.paymentStatus === 'CANCELLED' || order.paymentStatus === 'FAILED') {
+            kbCancelled.insertAdjacentHTML('beforeend', cardHtml);
+            cancelledCount++;
+          } else {
+            kbPending.insertAdjacentHTML('beforeend', cardHtml);
+            pendingCount++;
+          }
         });
+        
+        document.getElementById('kbCountPending').textContent = pendingCount;
+        document.getElementById('kbCountDelivered').textContent = deliveredCount;
+        document.getElementById('kbCountCancelled').textContent = cancelledCount;
+
       } catch (err) {
-        document.getElementById('ordersTableBody').innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--danger);">فشل تحميل سجل الطلبات</td></tr>`;
+        document.getElementById('kb-pending').innerHTML = `<p style="text-align: center; color: var(--danger); font-size: 0.85rem;">فشل التحميل</p>`;
       }
     }
 
