@@ -2545,13 +2545,19 @@
                 <input type="text" value="${acc.bankName || ''}" onchange="updateBankAccount(${index}, 'bankName', this.value)" style="padding: 6px; font-size: 0.8rem;">
               </div>
               <div>
+                <label style="font-size: 0.75rem;">اسم صاحب الحساب</label>
+                <input type="text" value="${acc.accountName || ''}" onchange="updateBankAccount(${index}, 'accountName', this.value)" style="padding: 6px; font-size: 0.8rem;">
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
                 <label style="font-size: 0.75rem;">رقم الحساب</label>
                 <input type="text" value="${acc.accountNumber || ''}" onchange="updateBankAccount(${index}, 'accountNumber', this.value)" style="padding: 6px; font-size: 0.8rem;" dir="ltr">
               </div>
-            </div>
-            <div>
-              <label style="font-size: 0.75rem;">الآيبان (IBAN)</label>
-              <input type="text" value="${acc.iban || ''}" onchange="updateBankAccount(${index}, 'iban', this.value)" style="padding: 6px; font-size: 0.8rem;" dir="ltr">
+              <div>
+                <label style="font-size: 0.75rem;">الآيبان (IBAN)</label>
+                <input type="text" value="${acc.iban || ''}" onchange="updateBankAccount(${index}, 'iban', this.value)" style="padding: 6px; font-size: 0.8rem;" dir="ltr">
+              </div>
             </div>
             <button type="button" onclick="removeBankAccount(${index})" style="position: absolute; top: 10px; left: 10px; background: rgba(255, 75, 75, 0.2); color: #ff6b6b; border: none; border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; cursor: pointer;">حذف</button>
           </div>
@@ -2562,7 +2568,7 @@
 
     function addBankAccount() {
       window.bankAccountsData = window.bankAccountsData || [];
-      window.bankAccountsData.push({ bankName: '', accountNumber: '', iban: '' });
+      window.bankAccountsData.push({ bankName: '', accountName: '', accountNumber: '', iban: '' });
       renderBankAccounts();
     }
 

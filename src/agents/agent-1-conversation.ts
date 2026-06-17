@@ -870,21 +870,29 @@ async function proceedWithPaymentMethod(
       currency: 'SAR',
     });
   } else if (methodId === 'BANK') {
-    let accountsMsg = 'لإتمام طلبك، يرجى التحويل لأحد الحسابات البنكية التالية:\n\n';
+    await sendTextMessage(whatsappConfig, phone, 'لإتمام طلبك، يرجى التحويل لأحد الحسابات البنكية التالية:');
     try {
       const accounts = JSON.parse(shop.bankAccounts || "[]");
       if (accounts.length === 0) {
-        accountsMsg += 'لا توجد حسابات بنكية مضافة حالياً. يرجى التواصل مع الإدارة.\n';
+        await sendTextMessage(whatsappConfig, phone, 'لا توجد حسابات بنكية مضافة حالياً. يرجى التواصل مع الإدارة.');
       } else {
-        accounts.forEach((acc: any, idx: number) => {
-          accountsMsg += `🏦 *${acc.bankName}*\nرقم الحساب: ${acc.accountNumber}\nالآيبان: ${acc.iban}\n\n`;
-        });
+        for (const acc of accounts) {
+          const accNameStr = acc.accountName ? `\n👤 المستفيد: ${acc.accountName}` : '';
+          const infoMsg = `🏦 بنك: *${acc.bankName}*${accNameStr}\n👇 (يمكنك نسخ الأرقام أدناه)`;
+          await sendTextMessage(whatsappConfig, phone, infoMsg);
+          
+          if (acc.accountNumber) {
+            await sendTextMessage(whatsappConfig, phone, acc.accountNumber);
+          }
+          if (acc.iban) {
+            await sendTextMessage(whatsappConfig, phone, acc.iban);
+          }
+        }
       }
     } catch (e) {
-      accountsMsg += 'خطأ في تحميل الحسابات البنكية.\n';
+      await sendTextMessage(whatsappConfig, phone, 'خطأ في تحميل الحسابات البنكية.');
     }
-    accountsMsg += 'بعد التحويل، أرسل كلمة *تم التحويل* لكي نتمكن من مراجعة الطلب وتأكيده. 🌹';
-    await sendTextMessage(whatsappConfig, phone, accountsMsg);
+    await sendTextMessage(whatsappConfig, phone, 'بعد التحويل، أرسل كلمة *تم التحويل* لكي نتمكن من مراجعة الطلب وتأكيده. 🌹');
     session.state = 'AWAITING_BANK_TRANSFER';
   } else if (methodId === 'CASH') {
     const summaryMsg =
