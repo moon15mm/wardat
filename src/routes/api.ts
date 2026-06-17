@@ -1429,7 +1429,7 @@ router.put('/shop/orders/:id', authenticateShop, async (req, res) => {
     // Send WhatsApp notification when order is delivered
     if (orderStatus === 'DELIVERED' && order.orderStatus !== 'DELIVERED') {
       const whatsappConfig = {
-        whatsappType: order.shop.whatsappType,
+        whatsappType: order.shop.whatsappType as 'BUSINESS' | 'NORMAL',
         shopId: order.shop.id,
         token: order.shop.whatsappToken,
         phoneId: order.shop.whatsappPhoneId,
@@ -1479,7 +1479,7 @@ router.post('/shop/campaign', authenticateShop, async (req, res) => {
     res.json({ message: `جاري إرسال الحملة لـ ${phones.length} عميل في الخلفية...` });
 
     const whatsappConfig = {
-      whatsappType: shop.whatsappType,
+      whatsappType: shop.whatsappType as 'BUSINESS' | 'NORMAL',
       shopId: shop.id,
       token: shop.whatsappToken,
       phoneId: shop.whatsappPhoneId,

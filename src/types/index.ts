@@ -34,6 +34,8 @@ export interface Order {
   tempProductName?: string;
   tempProductPrice?: number;
   tempProductImageUrl?: string;
+  availablePaymentMethods?: string[];
+  paymentMethod?: string;
 }
 
 export type ConversationState =

@@ -32,7 +32,7 @@ export function startAbandonedCartJob() {
         const message = `مرحباً ${customerName}، 👋\n\nلاحظنا أنك ما زلت في منتصف إتمام طلبك من *${session.shop.name}*. هل واجهت أي مشكلة أو تحتاج إلى مساعدة؟\n\nنحن هنا لخدمتك، ويمكنك المتابعة بمجرد إرسال أي رسالة! 🌹`;
 
         const whatsappConfig = {
-          whatsappType: session.shop.whatsappType,
+          whatsappType: session.shop.whatsappType as 'BUSINESS' | 'NORMAL',
           shopId: session.shop.id,
           token: session.shop.whatsappToken,
           phoneId: session.shop.whatsappPhoneId,
