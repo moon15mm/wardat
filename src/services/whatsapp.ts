@@ -168,6 +168,46 @@ export async function sendToAdminGroup(config: WhatsAppConfig, message: string):
   }
 }
 
+export async function forwardMediaToAdminGroup(
+  config: WhatsAppConfig,
+  mediaId: string,
+  mediaType: 'image' | 'document',
+  caption: string
+): Promise<void> {
+  const groupId = config.adminGroupId;
+  if (!groupId) return;
+
+  if (config.whatsappType === 'NORMAL') {
+    await sendTextMessage(config, groupId, caption + '\n\n(عذراً، التوجيه التلقائي للملفات غير مدعوم في واتساب العادي. يرجى مراجعة المحادثة الأصلية.)');
+    return;
+  }
+
+  // BUSINESS (WhatsApp Cloud API)
+  try {
+    const token = config.token || '';
+    const phoneId = config.phoneId || '';
+
+    const payload: any = {
+      messaging_product: 'whatsapp',
+      to: groupId,
+      type: mediaType,
+    };
+
+    if (mediaType === 'image') {
+      payload.image = { id: mediaId, caption };
+    } else {
+      payload.document = { id: mediaId, caption };
+    }
+
+    await axios.post(`${GRAPH_API}/${phoneId}/messages`, payload, { headers: getHeaders(token) });
+    logger.info(`Media forwarded to admin group ${groupId}`);
+  } catch (err: any) {
+    logger.error(`Failed to forward media to admin group: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
+    // Fallback to text message
+    await sendToAdminGroup(config, caption + '\n\n(فشل توجيه الملف المرفق، يرجى مراجعة محادثة العميل الأصلية).');
+  }
+}
+
 export function markAsRead(config: WhatsAppConfig, messageId: string): void {
   if (config.whatsappType === 'NORMAL') {
     return;

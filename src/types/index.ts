@@ -80,6 +80,7 @@ export interface WhatsAppMessage {
   text?: { body: string };
   location?: { latitude: number; longitude: number; name?: string; address?: string };
   image?: { id?: string; mime_type: string; buffer?: Buffer; caption?: string };
+  document?: { id?: string; mime_type: string; filename?: string; caption?: string };
 }
 
 export interface PaymentRequest {

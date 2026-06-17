@@ -108,7 +108,12 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
     return;
   }
 
-  const userText = msg.text?.body || '';
+  let userText = msg.text?.body || '';
+  
+  if ((msg.type === 'image' || msg.type === 'document') && session.state === 'AWAITING_BANK_TRANSFER') {
+    userText = 'تم التحويل (صورة/ملف مرفق)';
+  }
+
   if (!userText) {
     if (msg.type === 'audio' || msg.type === 'voice' || msg.type === 'ptt') {
       await sendTextMessage(whatsappConfig, phone, 'عذراً، لا أستطيع الاستماع للمقاطع الصوتية حالياً. يرجى كتابة طلبك نصياً 🌹');
@@ -333,7 +338,7 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
       await handlePaymentMethodSelection(phone, shopId, whatsappConfig, userText, session, shop);
       break;
     case 'AWAITING_BANK_TRANSFER':
-      await handleAwaitingBankTransfer(phone, shopId, whatsappConfig, userText, session, shop);
+      await handleAwaitingBankTransfer(phone, shopId, whatsappConfig, userText, session, shop, msg);
       break;
     case 'AWAITING_PAYMENT': {
       const l = userText.trim().toLowerCase();
@@ -935,15 +940,18 @@ async function handleAwaitingBankTransfer(
   whatsappConfig: WhatsAppConfig,
   text: string,
   session: Session,
-  shop: any
+  shop: any,
+  msg: any
 ): Promise<void> {
   const lower = text.trim().toLowerCase();
   
-  if (lower.includes('تم التحويل') || lower.includes('حولت') || lower.includes('تم')) {
+  if (lower.includes('تم التحويل') || lower.includes('حولت') || lower.includes('تم') || msg.type === 'image' || msg.type === 'document') {
     await sendTextMessage(whatsappConfig, phone, 'شكراً لك! 🌹\nسنقوم بمراجعة التحويل وتأكيد طلبك في أقرب وقت. سيصلك إشعار بالتأكيد.');
     
-    const { sendToAdminGroup } = require('../services/whatsapp');
+    const { sendToAdminGroup, forwardMediaToAdminGroup } = require('../services/whatsapp');
     const isPickup = session.orderData.fulfillmentType === 'PICKUP';
+    const hasMedia = msg.type === 'image' || msg.type === 'document';
+    
     const adminMsg =
       `🏦 إشعار تحويل بنكي (${shop.name})\n` +
       `━━━━━━━━━━━━━━\n` +
@@ -956,7 +964,16 @@ async function handleAwaitingBankTransfer(
       `━━━━━━━━━━━━━━`;
       
     try {
-      await sendToAdminGroup(whatsappConfig, adminMsg);
+      if (hasMedia) {
+        const mediaId = msg.type === 'image' ? msg.image?.id : msg.document?.id;
+        if (mediaId) {
+          await forwardMediaToAdminGroup(whatsappConfig, mediaId, msg.type, adminMsg);
+        } else {
+          await sendToAdminGroup(whatsappConfig, adminMsg + '\n(ملاحظة: العميل أرسل مرفقاً ولكن تعذر الحصول على هويته، يرجى مراجعة المحادثة الأصلية).');
+        }
+      } else {
+        await sendToAdminGroup(whatsappConfig, adminMsg);
+      }
     } catch (err) {
       logger.warn(`[Agent1] Failed to notify admin group about bank transfer: ${err}`);
     }
