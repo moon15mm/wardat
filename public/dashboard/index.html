@@ -1698,6 +1698,17 @@
                 <input type="checkbox" id="enableCashPaymentInput" style="width:auto;">
                 <label for="enableCashPaymentInput" style="margin:0;">تفعيل الدفع النقدي (عند الاستلام)</label>
               </div>
+              <div class="form-group" style="margin-bottom:0; display:flex; align-items:center; gap:10px;">
+                <input type="checkbox" id="enableBankTransferInput" style="width:auto;" onchange="toggleBankTransferUI()">
+                <label for="enableBankTransferInput" style="margin:0;">تفعيل التحويل البنكي</label>
+              </div>
+            </div>
+
+            <!-- Bank Accounts UI -->
+            <div id="bankAccountsContainer" style="display: none; background: rgba(0,0,0,0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+              <h4 style="margin: 0 0 10px 0; color: var(--pink-glow);">إدارة الحسابات البنكية</h4>
+              <div id="bankAccountsList"></div>
+              <button type="button" onclick="addBankAccount()" style="background: rgba(45, 255, 129, 0.2); color: #2dff81; border: 1px solid rgba(45, 255, 129, 0.5); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-top: 10px;">+ إضافة حساب بنكي</button>
             </div>
 
 
@@ -2383,6 +2394,19 @@
         document.getElementById('enablePickupInput').checked = safeBool(shop.enablePickup, true);
         document.getElementById('enableOnlinePaymentInput').checked = safeBool(shop.enableOnlinePayment, true);
         document.getElementById('enableCashPaymentInput').checked = safeBool(shop.enableCashPayment, false);
+        
+        const enableBankTransferInput = document.getElementById('enableBankTransferInput');
+        if (enableBankTransferInput) {
+          enableBankTransferInput.checked = safeBool(shop.enableBankTransfer, false);
+        }
+        
+        try {
+          window.bankAccountsData = JSON.parse(shop.bankAccounts || "[]");
+        } catch (e) {
+          window.bankAccountsData = [];
+        }
+        if (typeof renderBankAccounts === 'function') renderBankAccounts();
+
         document.getElementById('autoPostStatusInput').checked = safeBool(shop.autoPostStatus, false);
         document.getElementById('autoPostStatusTimeInput').value = shop.autoPostStatusTime || '10:00';
 
@@ -2499,6 +2523,59 @@
         }
       } catch (err) {
         console.error('Failed to fetch shop details');
+      }
+    }
+
+    function toggleBankTransferUI() {
+      const isEnabled = document.getElementById('enableBankTransferInput').checked;
+      document.getElementById('bankAccountsContainer').style.display = isEnabled ? 'block' : 'none';
+    }
+
+    function renderBankAccounts() {
+      const list = document.getElementById('bankAccountsList');
+      if (!list) return;
+      list.innerHTML = '';
+      window.bankAccountsData = window.bankAccountsData || [];
+      window.bankAccountsData.forEach((acc, index) => {
+        list.innerHTML += `
+          <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; margin-bottom: 10px; border: 1px solid var(--glass-border); position: relative;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 5px;">
+              <div>
+                <label style="font-size: 0.75rem;">اسم البنك</label>
+                <input type="text" value="${acc.bankName || ''}" onchange="updateBankAccount(${index}, 'bankName', this.value)" style="padding: 6px; font-size: 0.8rem;">
+              </div>
+              <div>
+                <label style="font-size: 0.75rem;">رقم الحساب</label>
+                <input type="text" value="${acc.accountNumber || ''}" onchange="updateBankAccount(${index}, 'accountNumber', this.value)" style="padding: 6px; font-size: 0.8rem;" dir="ltr">
+              </div>
+            </div>
+            <div>
+              <label style="font-size: 0.75rem;">الآيبان (IBAN)</label>
+              <input type="text" value="${acc.iban || ''}" onchange="updateBankAccount(${index}, 'iban', this.value)" style="padding: 6px; font-size: 0.8rem;" dir="ltr">
+            </div>
+            <button type="button" onclick="removeBankAccount(${index})" style="position: absolute; top: 10px; left: 10px; background: rgba(255, 75, 75, 0.2); color: #ff6b6b; border: none; border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; cursor: pointer;">حذف</button>
+          </div>
+        `;
+      });
+      toggleBankTransferUI();
+    }
+
+    function addBankAccount() {
+      window.bankAccountsData = window.bankAccountsData || [];
+      window.bankAccountsData.push({ bankName: '', accountNumber: '', iban: '' });
+      renderBankAccounts();
+    }
+
+    function updateBankAccount(index, field, value) {
+      if (window.bankAccountsData[index]) {
+        window.bankAccountsData[index][field] = value;
+      }
+    }
+
+    function removeBankAccount(index) {
+      if (confirm('هل أنت متأكد من حذف هذا الحساب؟')) {
+        window.bankAccountsData.splice(index, 1);
+        renderBankAccounts();
       }
     }
 
@@ -2641,6 +2718,8 @@
         enablePickup: document.getElementById('enablePickupInput').checked,
         enableOnlinePayment: document.getElementById('enableOnlinePaymentInput').checked,
         enableCashPayment: document.getElementById('enableCashPaymentInput').checked,
+        enableBankTransfer: document.getElementById('enableBankTransferInput').checked,
+        bankAccounts: JSON.stringify(window.bankAccountsData || []),
         autoPostStatus: document.getElementById('autoPostStatusInput').checked,
         autoPostStatusTime: document.getElementById('autoPostStatusTimeInput').value,
       };

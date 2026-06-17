@@ -71,6 +71,8 @@ model Shop {
   // خيارات الدفع
   enableOnlinePayment Boolean   @default(true)  // دفع إلكتروني (Stripe)
   enableCashPayment   Boolean   @default(false) // دفع نقدًا عند الاستلام
+  enableBankTransfer  Boolean   @default(false) // دفع بالتحويل البنكي
+  bankAccounts        String    @default("[]")  // حسابات بنكية بصيغة JSON
 
   createdAt           DateTime  @default(now())
   products            Product[]

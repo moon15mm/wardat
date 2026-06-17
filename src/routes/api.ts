@@ -981,6 +981,8 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
     enablePickup,
     enableOnlinePayment,
     enableCashPayment,
+    enableBankTransfer,
+    bankAccounts,
     password,
   } = req.body;
 
@@ -1032,6 +1034,8 @@ router.put('/shop/details', authenticateShop, async (req, res) => {
       enablePickup: enablePickup !== undefined ? enablePickup : true,
       enableOnlinePayment: enableOnlinePayment !== undefined ? enableOnlinePayment : true,
       enableCashPayment: enableCashPayment !== undefined ? enableCashPayment : false,
+      enableBankTransfer: enableBankTransfer !== undefined ? enableBankTransfer : false,
+      bankAccounts: bankAccounts !== undefined ? bankAccounts : "[]",
       autoPostStatus: finalAutoPostStatus,
       autoPostStatusTime: req.body.autoPostStatusTime || '10:00',
     };

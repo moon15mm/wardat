@@ -329,6 +329,12 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
     case 'CONFIRMING_ORDER':
       await handleConfirmation(phone, shopId, whatsappConfig, userText, intent.intent, session, shop);
       break;
+    case 'COLLECTING_PAYMENT_METHOD':
+      await handlePaymentMethodSelection(phone, shopId, whatsappConfig, userText, session, shop);
+      break;
+    case 'AWAITING_BANK_TRANSFER':
+      await handleAwaitingBankTransfer(phone, shopId, whatsappConfig, userText, session, shop);
+      break;
     case 'AWAITING_PAYMENT': {
       const l = userText.trim().toLowerCase();
       const restartWords = ['جديد', 'طلب جديد', 'ابدأ', 'ابدا', 'البداية', 'القائمة', 'الغاء', 'إلغاء', 'الغاء الطلب', 'إلغاء الطلب', 'cancel', 'menu', 'start'];
@@ -760,82 +766,26 @@ async function handleConfirmation(
       }
     }
 
-    const orderId = generateOrderId();
-    session.orderData.id = orderId;
-    session.orderData.shopId = shopId;
-    session.orderData.timestamp = new Date().toISOString();
-    session.orderData.paymentStatus = 'PENDING';
+    const methods = [];
+    if (shop.enableOnlinePayment) methods.push({ id: 'ONLINE', label: 'دفع إلكتروني (بطاقة/أبل باي)' });
+    if (shop.enableCashPayment) methods.push({ id: 'CASH', label: 'دفع نقداً (عند الاستلام)' });
+    if (shop.enableBankTransfer) methods.push({ id: 'BANK', label: 'تحويل بنكي' });
 
-    await addOrder({
-      id: orderId,
-      shopId: shopId,
-      timestamp: session.orderData.timestamp!,
-      customerName: session.orderData.customerName || '',
-      customerPhone: session.orderData.customerPhone || phone,
-      recipientName: session.orderData.recipientName || '',
-      product: session.orderData.product || '',
-      price: session.orderData.price || 0,
-      paymentStatus: shop.paymentOnline ? 'PENDING' : 'CONFIRMED',
-      locationUrl: session.orderData.locationUrl || '',
-      fulfillmentType: session.orderData.fulfillmentType,
-      preferredTime: session.orderData.preferredTime,
-      cardLast4: shop.paymentOnline ? '' : 'CASH',
-      productImageUrl: session.orderData.productImageUrl || '',
-      notes: '',
-      productId: session.orderData.productId,
-      recipientPhone: session.orderData.recipientPhone,
-    });
-
-    if (shop.paymentOnline) {
-      await sendTextMessage(whatsappConfig, phone, 'تم تأكيد طلبك! ✅\n\nجاري إعداد رابط الدفع...');
-      session.messages.push({ role: 'assistant', content: 'تم تأكيد الطلب وإعداد رابط الدفع' });
-      session.state = 'AWAITING_PAYMENT';
-
-      await processPayment({
-        orderId,
-        shopId: shopId,
-        customerPhone: phone,
-        customerName: session.orderData.customerName || '',
-        product: session.orderData.product || '',
-        price: session.orderData.price || 0,
-        currency: 'SAR',
-      });
-    } else {
-      const isPickup = session.orderData.fulfillmentType === 'PICKUP';
-      const timeLine = session.orderData.preferredTime ? `\nالوقت المطلوب: ${session.orderData.preferredTime}` : '';
-      const summaryMsg =
-        `تم تأكيد طلبك بنجاح! ✅\n\n` +
-        `رقم الطلب: ${orderId}\n` +
-        `المبلغ: ${session.orderData.price} ريال (الدفع عند الاستلام)\n` +
-        (isPickup ? `📦 الاستلام: من المحل${timeLine}` : `🚚 التوصيل: إلى موقعك${timeLine}`) +
-        `\n\nشكراً لتسوقك معنا! 🌹`;
-
-      await sendTextMessage(whatsappConfig, phone, summaryMsg);
-      
-      const { sendToAdminGroup } = require('../services/whatsapp');
-      const adminMsg =
-        `🆕 NEW ORDER (${shop.name})\n` +
-        `━━━━━━━━━━━━━━\n` +
-        `📱 Customer Phone: ${phone}\n` +
-        `👤 Customer Name: ${session.orderData.customerName || ''}\n` +
-        `🌹 Product: ${session.orderData.product || 'N/A'}\n` +
-        `💰 Price: ${session.orderData.price} SAR (CASH)\n` +
-        `${isPickup ? '🏬 الاستلام: من المحل' : '🚚 التوصيل: إلى الموقع'}${session.orderData.preferredTime ? ' | الوقت: ' + session.orderData.preferredTime : ''}\n` +
-        (!isPickup && session.orderData.locationUrl && session.orderData.locationUrl.startsWith('http') ? `📍 الموقع: ${session.orderData.locationUrl}\n` : '') +
-        `✅ Payment: CASH ON DELIVERY\n` +
-        `📋 Order ID: ${orderId}\n` +
-        `━━━━━━━━━━━━━━`;
-        
-      try {
-        await sendToAdminGroup(whatsappConfig, adminMsg);
-      } catch (err) {
-        logger.warn(`[Agent1] Failed to send admin notification for COD order ${orderId}: ${err}`);
-      }
-      
-      const { clearSession } = require('../services/session');
-      await clearSession(phone, shopId);
-      // Exit here to prevent saving the session again below
+    if (methods.length === 0) {
+      await sendTextMessage(whatsappConfig, phone, 'عذراً، لا يوجد خيارات دفع متاحة حالياً. يرجى التواصل مع الإدارة.');
       return;
+    }
+
+    if (methods.length === 1) {
+      await proceedWithPaymentMethod(phone, shopId, whatsappConfig, session, shop, methods[0].id);
+    } else {
+      let msg = 'الرجاء اختيار طريقة الدفع:\n\n';
+      methods.forEach((m, idx) => {
+        msg += `${idx + 1} - ${m.label}\n`;
+      });
+      session.orderData.availablePaymentMethods = methods.map(m => m.id);
+      await sendTextMessage(whatsappConfig, phone, msg);
+      session.state = 'COLLECTING_PAYMENT_METHOD';
     }
   } else if (intent === 'cancel' || lower === 'لا' || lower === 'إلغاء') {
     await sendTextMessage(whatsappConfig, phone, 'تم إلغاء الطلب. يمكنك البدء من جديد في أي وقت! 🙏');
@@ -844,6 +794,169 @@ async function handleConfirmation(
     session.selectedProduct = undefined;
   } else {
     await sendTextMessage(whatsappConfig, phone, 'يرجى الرد بـ "نعم" لتأكيد الطلب أو "لا" للإلغاء.');
+  }
+}
+
+async function handlePaymentMethodSelection(
+  phone: string,
+  shopId: string,
+  whatsappConfig: WhatsAppConfig,
+  text: string,
+  session: Session,
+  shop: any
+): Promise<void> {
+  const methods = session.orderData.availablePaymentMethods || [];
+  const choice = parseInt(text.trim());
+
+  if (isNaN(choice) || choice < 1 || choice > methods.length) {
+    await sendTextMessage(whatsappConfig, phone, 'الرجاء إدخال رقم صحيح لخيارات الدفع المتاحة.');
+    return;
+  }
+
+  const selectedMethod = methods[choice - 1];
+  await proceedWithPaymentMethod(phone, shopId, whatsappConfig, session, shop, selectedMethod);
+}
+
+async function proceedWithPaymentMethod(
+  phone: string,
+  shopId: string,
+  whatsappConfig: WhatsAppConfig,
+  session: Session,
+  shop: any,
+  methodId: string
+): Promise<void> {
+  const orderId = generateOrderId();
+  session.orderData.id = orderId;
+  session.orderData.shopId = shopId;
+  session.orderData.timestamp = new Date().toISOString();
+  session.orderData.paymentStatus = 'PENDING';
+  session.orderData.paymentMethod = methodId; // Save selected method for later
+
+  await addOrder({
+    id: orderId,
+    shopId: shopId,
+    timestamp: session.orderData.timestamp!,
+    customerName: session.orderData.customerName || '',
+    customerPhone: session.orderData.customerPhone || phone,
+    recipientName: session.orderData.recipientName || '',
+    product: session.orderData.product || '',
+    price: session.orderData.price || 0,
+    paymentStatus: methodId === 'CASH' ? 'CONFIRMED' : 'PENDING',
+    locationUrl: session.orderData.locationUrl || '',
+    fulfillmentType: session.orderData.fulfillmentType,
+    preferredTime: session.orderData.preferredTime,
+    cardLast4: methodId === 'CASH' ? 'CASH' : (methodId === 'BANK' ? 'BANK' : ''),
+    productImageUrl: session.orderData.productImageUrl || '',
+    notes: '',
+    productId: session.orderData.productId,
+    recipientPhone: session.orderData.recipientPhone,
+  });
+
+  const isPickup = session.orderData.fulfillmentType === 'PICKUP';
+  const timeLine = session.orderData.preferredTime ? `\nالوقت المطلوب: ${session.orderData.preferredTime}` : '';
+
+  if (methodId === 'ONLINE') {
+    await sendTextMessage(whatsappConfig, phone, 'تم تأكيد طلبك! ✅\n\nجاري إعداد رابط الدفع...');
+    session.messages.push({ role: 'assistant', content: 'تم تأكيد الطلب وإعداد رابط الدفع' });
+    session.state = 'AWAITING_PAYMENT';
+
+    await processPayment({
+      orderId,
+      shopId: shopId,
+      customerPhone: phone,
+      customerName: session.orderData.customerName || '',
+      product: session.orderData.product || '',
+      price: session.orderData.price || 0,
+      currency: 'SAR',
+    });
+  } else if (methodId === 'BANK') {
+    let accountsMsg = 'لإتمام طلبك، يرجى التحويل لأحد الحسابات البنكية التالية:\n\n';
+    try {
+      const accounts = JSON.parse(shop.bankAccounts || "[]");
+      if (accounts.length === 0) {
+        accountsMsg += 'لا توجد حسابات بنكية مضافة حالياً. يرجى التواصل مع الإدارة.\n';
+      } else {
+        accounts.forEach((acc: any, idx: number) => {
+          accountsMsg += `🏦 *${acc.bankName}*\nرقم الحساب: ${acc.accountNumber}\nالآيبان: ${acc.iban}\n\n`;
+        });
+      }
+    } catch (e) {
+      accountsMsg += 'خطأ في تحميل الحسابات البنكية.\n';
+    }
+    accountsMsg += 'بعد التحويل، أرسل كلمة *تم التحويل* لكي نتمكن من مراجعة الطلب وتأكيده. 🌹';
+    await sendTextMessage(whatsappConfig, phone, accountsMsg);
+    session.state = 'AWAITING_BANK_TRANSFER';
+  } else if (methodId === 'CASH') {
+    const summaryMsg =
+      `تم تأكيد طلبك بنجاح! ✅\n\n` +
+      `رقم الطلب: ${orderId}\n` +
+      `المبلغ: ${session.orderData.price} ريال (الدفع عند الاستلام)\n` +
+      (isPickup ? `📦 الاستلام: من المحل${timeLine}` : `🚚 التوصيل: إلى موقعك${timeLine}`) +
+      `\n\nشكراً لتسوقك معنا! 🌹`;
+
+    await sendTextMessage(whatsappConfig, phone, summaryMsg);
+    
+    const { sendToAdminGroup } = require('../services/whatsapp');
+    const adminMsg =
+      `🆕 NEW ORDER (${shop.name})\n` +
+      `━━━━━━━━━━━━━━\n` +
+      `📱 Customer Phone: ${phone}\n` +
+      `👤 Customer Name: ${session.orderData.customerName || ''}\n` +
+      `🌹 Product: ${session.orderData.product || 'N/A'}\n` +
+      `💰 Price: ${session.orderData.price} SAR (CASH)\n` +
+      `${isPickup ? '🏬 الاستلام: من المحل' : '🚚 التوصيل: إلى الموقع'}${session.orderData.preferredTime ? ' | الوقت: ' + session.orderData.preferredTime : ''}\n` +
+      (!isPickup && session.orderData.locationUrl && session.orderData.locationUrl.startsWith('http') ? `📍 الموقع: ${session.orderData.locationUrl}\n` : '') +
+      `✅ Payment: CASH ON DELIVERY\n` +
+      `📋 Order ID: ${orderId}\n` +
+      `━━━━━━━━━━━━━━`;
+      
+    try {
+      await sendToAdminGroup(whatsappConfig, adminMsg);
+    } catch (err) {
+      logger.warn(`[Agent1] Failed to send admin notification for COD order ${orderId}: ${err}`);
+    }
+    
+    const { clearSession } = require('../services/session');
+    await clearSession(phone, shopId);
+  }
+}
+
+async function handleAwaitingBankTransfer(
+  phone: string,
+  shopId: string,
+  whatsappConfig: WhatsAppConfig,
+  text: string,
+  session: Session,
+  shop: any
+): Promise<void> {
+  const lower = text.trim().toLowerCase();
+  
+  if (lower.includes('تم التحويل') || lower.includes('حولت') || lower.includes('تم')) {
+    await sendTextMessage(whatsappConfig, phone, 'شكراً لك! 🌹\nسنقوم بمراجعة التحويل وتأكيد طلبك في أقرب وقت. سيصلك إشعار بالتأكيد.');
+    
+    const { sendToAdminGroup } = require('../services/whatsapp');
+    const isPickup = session.orderData.fulfillmentType === 'PICKUP';
+    const adminMsg =
+      `🏦 إشعار تحويل بنكي (${shop.name})\n` +
+      `━━━━━━━━━━━━━━\n` +
+      `أكد العميل تحويل مبلغ الطلب.\n` +
+      `📱 هاتف العميل: ${phone}\n` +
+      `👤 اسم العميل: ${session.orderData.customerName || ''}\n` +
+      `💰 المبلغ: ${session.orderData.price} SAR\n` +
+      `📋 رقم الطلب: ${session.orderData.id}\n` +
+      `يرجى مراجعة الحساب البنكي وتأكيد الطلب من لوحة التحكم.\n` +
+      `━━━━━━━━━━━━━━`;
+      
+    try {
+      await sendToAdminGroup(whatsappConfig, adminMsg);
+    } catch (err) {
+      logger.warn(`[Agent1] Failed to notify admin group about bank transfer: ${err}`);
+    }
+    
+    const { clearSession } = require('../services/session');
+    await clearSession(phone, shopId);
+  } else {
+    await sendTextMessage(whatsappConfig, phone, 'بعد الانتهاء من التحويل البنكي، يرجى الرد بكلمة *تم التحويل* لمراجعة العملية وتأكيد طلبك.');
   }
 }
 
