@@ -2378,6 +2378,9 @@
       } else if (tab === 'analytics') {
         document.getElementById('tabAnalytics').classList.add('active');
         fetchAnalytics();
+      } else if (tab === 'transactions') {
+        document.getElementById('tabTransactions').classList.add('active');
+        if (typeof renderTransactionsTable === 'function') renderTransactionsTable();
       } else if (tab === 'subscription') {
         document.getElementById('tabSubscription').classList.add('active');
         fetchShopDetails();
