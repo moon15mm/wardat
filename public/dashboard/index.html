@@ -1142,43 +1142,43 @@
 
     /* Mobile Chat Layout */
     @media (max-width: 768px) {
-      .chat-container {
-        height: calc(100vh - 160px);
-      }
+      .chat-container { height: calc(100vh - 160px); }
+      .chat-sidebar { width: 100%; min-width: unset; border-left: none; }
+      .chat-container.chat-view-open .chat-sidebar { display: none; }
+      .chat-main { display: none; }
+      .chat-container.chat-view-open .chat-main { display: flex; }
+      .chat-back-btn { display: inline-block; }
+      .chat-bubble { max-width: 88%; }
+      .tabs-nav { flex-wrap: wrap; }
+      .tab-btn { font-size: 0.8rem; padding: 8px 12px; }
+    }
 
-      .chat-sidebar {
+    /* Print Styles */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #printArea, #printArea * {
+        visibility: visible;
+      }
+      #printArea {
+        position: absolute;
+        left: 0;
+        top: 0;
         width: 100%;
-        min-width: unset;
-        border-left: none;
+        color: #000;
       }
-
-      .chat-container.chat-view-open .chat-sidebar {
-        display: none;
+      #printArea table {
+        width: 100%;
+        border-collapse: collapse;
       }
-
-      .chat-main {
-        display: none;
+      #printArea th, #printArea td {
+        border: 1px solid #000;
+        padding: 8px;
+        text-align: right;
       }
-
-      .chat-container.chat-view-open .chat-main {
-        display: flex;
-      }
-
-      .chat-back-btn {
-        display: inline-block;
-      }
-
-      .chat-bubble {
-        max-width: 88%;
-      }
-
-      .tabs-nav {
-        flex-wrap: wrap;
-      }
-
-      .tab-btn {
-        font-size: 0.8rem;
-        padding: 8px 12px;
+      .no-print {
+        display: none !important;
       }
     }
   </style>
@@ -1205,6 +1205,7 @@
       <button class="tab-btn active" onclick="switchTab('overview')">الرئيسية (Overview)</button>
       <button class="tab-btn" onclick="switchTab('products')">إدارة المنتجات (Products)</button>
       <button class="tab-btn" onclick="switchTab('analytics')">📈 الإحصائيات والتحليلات</button>
+      <button class="tab-btn" onclick="switchTab('transactions')">🗂️ العمليات المالية</button>
       <button class="tab-btn" onclick="switchTab('settings')">إعدادات الربط والمدفوعات</button>
       <button class="tab-btn" onclick="switchTab('subscription')">💳 تجديد الاشتراك</button>
       <button class="tab-btn" onclick="switchTab('livechat')">💬 محادثات العملاء</button>
@@ -1945,6 +1946,51 @@
             <input type="text" id="chatMsgInput" placeholder="اكتب رسالتك هنا..." onkeypress="if(event.key==='Enter')sendChatMsg()">
             <button class="chat-send-btn" id="chatSendBtn" onclick="sendChatMsg()" title="إرسال">📤</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. TRANSACTIONS TAB -->
+    <div id="tabTransactions" class="tab-content">
+      <div class="card-panel">
+        <div class="panel-header no-print">
+          <h3>🗂️ جميع العمليات المالية</h3>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <select id="filterTxStatus" onchange="renderTransactionsTable()" style="padding:8px; border-radius:8px; background:rgba(0,0,0,0.3); color:var(--text-main); border:1px solid var(--glass-border);">
+              <option value="ALL">جميع الحالات</option>
+              <option value="PENDING">معلّق</option>
+              <option value="CONFIRMED">مؤكد</option>
+              <option value="DELIVERED">تم التوصيل</option>
+              <option value="CANCELLED">ملغاة/فاشلة</option>
+            </select>
+            <select id="filterTxPayment" onchange="renderTransactionsTable()" style="padding:8px; border-radius:8px; background:rgba(0,0,0,0.3); color:var(--text-main); border:1px solid var(--glass-border);">
+              <option value="ALL">جميع طرق الدفع</option>
+              <option value="CASH">دفع عند الاستلام</option>
+              <option value="BANK">تحويل بنكي</option>
+              <option value="ONLINE">دفع إلكتروني</option>
+            </select>
+            <button class="btn-save" onclick="window.print()" style="background: linear-gradient(135deg, var(--purple-glow), var(--pink-glow));">🖨️ طباعة التقرير</button>
+          </div>
+        </div>
+        
+        <div id="printArea" style="overflow-x: auto; margin-top: 15px; background: var(--glass-bg); border-radius: 8px; padding: 10px; border: 1px solid var(--glass-border);">
+          <h2 class="only-print" style="text-align: center; margin-bottom: 20px; display: none;">سجل العمليات المالية - WARDAT</h2>
+          <table style="width: 100%; border-collapse: collapse; text-align: right;" id="txTable">
+            <thead>
+              <tr style="background: rgba(0,0,0,0.2); border-bottom: 2px solid var(--glass-border);">
+                <th style="padding: 10px; border: 1px solid var(--glass-border);">رقم الطلب</th>
+                <th style="padding: 10px; border: 1px solid var(--glass-border);">التاريخ والوقت</th>
+                <th style="padding: 10px; border: 1px solid var(--glass-border);">العميل</th>
+                <th style="padding: 10px; border: 1px solid var(--glass-border);">المنتج</th>
+                <th style="padding: 10px; border: 1px solid var(--glass-border);">طريقة الدفع</th>
+                <th style="padding: 10px; border: 1px solid var(--glass-border);">المبلغ</th>
+                <th style="padding: 10px; border: 1px solid var(--glass-border);">الحالة</th>
+              </tr>
+            </thead>
+            <tbody id="txTableBody">
+              <tr><td colspan="7" style="text-align: center; padding: 20px;">جاري تحميل العمليات...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -2854,10 +2900,86 @@
         document.getElementById('kbCountPending').textContent = pendingCount;
         document.getElementById('kbCountDelivered').textContent = deliveredCount;
         document.getElementById('kbCountCancelled').textContent = cancelledCount;
+        if (typeof renderTransactionsTable === 'function') renderTransactionsTable();
 
       } catch (err) {
         document.getElementById('kb-pending').innerHTML = `<p style="text-align: center; color: var(--danger); font-size: 0.85rem;">فشل التحميل</p>`;
       }
+    }
+
+    function renderTransactionsTable() {
+      const tbody = document.getElementById('txTableBody');
+      if (!tbody) return;
+      const fStatus = document.getElementById('filterTxStatus').value;
+      const fPayment = document.getElementById('filterTxPayment').value;
+      
+      tbody.innerHTML = '';
+      
+      let filtered = window.orders || [];
+      
+      if (fStatus !== 'ALL') {
+        filtered = filtered.filter(o => {
+          let currentVal = o.paymentStatus;
+          if (o.orderStatus === 'DELIVERED') currentVal = 'DELIVERED';
+          else if (o.orderStatus === 'CANCELLED') currentVal = 'CANCELLED';
+          return currentVal === fStatus;
+        });
+      }
+      
+      if (fPayment !== 'ALL') {
+        filtered = filtered.filter(o => {
+          if (fPayment === 'CASH') return o.cardLast4 === 'CASH';
+          if (fPayment === 'BANK') return o.cardLast4 === 'BANK';
+          if (fPayment === 'ONLINE') return o.cardLast4 !== 'CASH' && o.cardLast4 !== 'BANK';
+          return true;
+        });
+      }
+      
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">لا توجد عمليات مطابقة</td></tr>';
+        return;
+      }
+      
+      let totalAmount = 0;
+      
+      filtered.forEach(o => {
+        let currentVal = o.paymentStatus;
+        if (o.orderStatus === 'DELIVERED') currentVal = 'DELIVERED';
+        else if (o.orderStatus === 'CANCELLED') currentVal = 'CANCELLED';
+        
+        const statusMap = {
+          'PENDING': 'معلّق ⏳',
+          'CONFIRMED': 'مؤكد ✅',
+          'DELIVERED': 'تم التوصيل 📦',
+          'CANCELLED': 'ملغاة ❌',
+          'FAILED': 'فاشل ❌'
+        };
+        
+        let paymentType = 'دفع إلكتروني';
+        if (o.cardLast4 === 'CASH') paymentType = 'عند الاستلام';
+        else if (o.cardLast4 === 'BANK') paymentType = 'تحويل بنكي';
+        
+        totalAmount += parseFloat(o.price || 0);
+        
+        tbody.innerHTML += `
+          <tr style="border-bottom: 1px solid rgba(0,0,0,0.05); color: inherit;">
+            <td style="padding: 10px;">#${o.id}</td>
+            <td style="padding: 10px;" dir="ltr">${new Date(o.timestamp).toLocaleString('ar-SA')}</td>
+            <td style="padding: 10px;">${o.customerName}<br><span style="font-size:0.8rem; opacity:0.8;">${o.customerPhone}</span></td>
+            <td style="padding: 10px;">${o.productName || o.product || 'غير محدد'}</td>
+            <td style="padding: 10px;">${paymentType}</td>
+            <td style="padding: 10px; font-weight: bold;">${o.price} ر.س</td>
+            <td style="padding: 10px;">${statusMap[currentVal] || currentVal}</td>
+          </tr>
+        `;
+      });
+      
+      tbody.innerHTML += `
+        <tr style="background: rgba(142, 45, 226, 0.1); font-weight: bold;">
+          <td colspan="5" style="padding: 15px; text-align: left; border-top: 2px solid var(--purple-glow);">الإجمالي للعمليات المعروضة:</td>
+          <td colspan="2" style="padding: 15px; color: var(--success); border-top: 2px solid var(--purple-glow);">${totalAmount.toFixed(2)} ر.س</td>
+        </tr>
+      `;
     }
 
     async function updateOrderStatus(id, val) {
