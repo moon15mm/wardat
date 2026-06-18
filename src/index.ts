@@ -234,18 +234,30 @@ function verifyMetaSignature(req: express.Request): boolean {
 }
 
 // WhatsApp webhook verification (universal platform verification token)
-app.get('/webhook/whatsapp', (req, res) => {
+app.get('/webhook/whatsapp', async (req, res) => {
   const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
+  const token = req.query['hub.verify_token'] as string;
   const challenge = req.query['hub.challenge'];
 
-  if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
-    logger.info('[WhatsApp] Universal webhook verified');
-    res.status(200).send(challenge);
-  } else {
-    logger.warn('[WhatsApp] Webhook verification failed');
-    res.sendStatus(403);
+  if (mode === 'subscribe' && token) {
+    if (token === process.env.WHATSAPP_VERIFY_TOKEN) {
+      logger.info('[WhatsApp] Universal webhook verified (Global)');
+      return res.status(200).send(challenge);
+    }
+    
+    // Check if token belongs to any shop
+    const shop = await prisma.shop.findFirst({
+      where: { whatsappVerifyToken: token }
+    });
+    
+    if (shop) {
+      logger.info(`[WhatsApp] Universal webhook verified for shop: ${shop.name}`);
+      return res.status(200).send(challenge);
+    }
   }
+
+  logger.warn('[WhatsApp] Webhook verification failed');
+  res.sendStatus(403);
 });
 
 // WhatsApp incoming messages
