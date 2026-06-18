@@ -2423,18 +2423,25 @@
         document.getElementById('ownerPhoneInput').value = shop.ownerPhone || '';
         document.getElementById('whatsappTypeInput').value = shop.whatsappType || 'BUSINESS';
         document.getElementById('whatsappPhoneIdInput').value = shop.whatsappPhoneId || '';
-        document.getElementById('whatsappVerifyTokenInput').value = shop.whatsappVerifyToken || '';
-        document.getElementById('whatsappTokenInput').value = shop.whatsappToken || '';
+        // Secret fields: never pre-fill with masked values — show placeholder instead
+        const setSecret = (id, isSaved) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.value = '';
+          el.placeholder = isSaved ? '••• محفوظ — اكتب قيمة جديدة للتغيير' : el.getAttribute('data-placeholder') || '';
+        };
+        setSecret('whatsappVerifyTokenInput', !!shop.whatsappVerifyToken);
+        setSecret('whatsappTokenInput', !!shop.whatsappToken);
         document.getElementById('whatsappAdminGroupIdInput').value = shop.whatsappAdminGroupId || '';
-        document.getElementById('stripeSecretKeyInput').value = shop.stripeSecretKey || '';
-        document.getElementById('stripeWebhookSecretInput').value = shop.stripeWebhookSecret || '';
+        setSecret('stripeSecretKeyInput', !!shop.stripeSecretKey);
+        setSecret('stripeWebhookSecretInput', !!shop.stripeWebhookSecret);
         // Auto-fill success/cancel URLs with the site origin if not already set
         const siteOrigin = window.location.origin;
         document.getElementById('stripeSuccessUrlInput').value = shop.stripeSuccessUrl || `${siteOrigin}/success`;
         document.getElementById('stripeCancelUrlInput').value = shop.stripeCancelUrl || `${siteOrigin}/cancel`;
         document.getElementById('aiProviderInput').value = shop.aiProvider || 'OPENAI';
-        document.getElementById('geminiApiKeyInput').value = shop.geminiApiKey || '';
-        document.getElementById('openaiApiKeyInput').value = shop.openaiApiKey || '';
+        setSecret('geminiApiKeyInput', !!shop.geminiApiKey);
+        setSecret('openaiApiKeyInput', !!shop.openaiApiKey);
         document.getElementById('deliveryStartInput').value = shop.deliveryStartHour || '09:00';
         document.getElementById('deliveryEndInput').value = shop.deliveryEndHour || '22:00';
         
@@ -2753,20 +2760,20 @@
         ownerPhone: document.getElementById('ownerPhoneInput').value.trim() || null,
         whatsappType: document.getElementById('whatsappTypeInput').value,
         whatsappPhoneId: document.getElementById('whatsappPhoneIdInput').value.trim() || null,
-        whatsappVerifyToken: document.getElementById('whatsappVerifyTokenInput').value.trim() || null,
-        whatsappToken: document.getElementById('whatsappTokenInput').value.trim() || null,
+        whatsappVerifyToken: document.getElementById('whatsappVerifyTokenInput').value.trim() || undefined,
+        whatsappToken: document.getElementById('whatsappTokenInput').value.trim() || undefined,
         whatsappAdminGroupId: document.getElementById('whatsappAdminGroupIdInput').value.trim() || null,
         paymentGateway: document.getElementById('paymentGatewayInput').value,
-        stripeSecretKey: document.getElementById('stripeSecretKeyInput').value.trim() || null,
-        stripeWebhookSecret: document.getElementById('stripeWebhookSecretInput').value.trim() || null,
+        stripeSecretKey: document.getElementById('stripeSecretKeyInput').value.trim() || undefined,
+        stripeWebhookSecret: document.getElementById('stripeWebhookSecretInput').value.trim() || undefined,
         stripeSuccessUrl: document.getElementById('stripeSuccessUrlInput').value.trim() || null,
         stripeCancelUrl: document.getElementById('stripeCancelUrlInput').value.trim() || null,
-        moyasarApiKey: document.getElementById('moyasarApiKeyInput').value.trim() || null,
-        tapApiKey: document.getElementById('tapApiKeyInput').value.trim() || null,
-        myfatoorahApiKey: document.getElementById('myfatoorahApiKeyInput').value.trim() || null,
+        moyasarApiKey: document.getElementById('moyasarApiKeyInput').value.trim() || undefined,
+        tapApiKey: document.getElementById('tapApiKeyInput').value.trim() || undefined,
+        myfatoorahApiKey: document.getElementById('myfatoorahApiKeyInput').value.trim() || undefined,
         aiProvider: document.getElementById('aiProviderInput').value,
-        geminiApiKey: document.getElementById('geminiApiKeyInput').value.trim() || null,
-        openaiApiKey: document.getElementById('openaiApiKeyInput').value.trim() || null,
+        geminiApiKey: document.getElementById('geminiApiKeyInput').value.trim() || undefined,
+        openaiApiKey: document.getElementById('openaiApiKeyInput').value.trim() || undefined,
         deliveryStartHour: document.getElementById('deliveryStartInput').value,
         deliveryEndHour: document.getElementById('deliveryEndInput').value,
         enableDelivery: document.getElementById('enableDeliveryInput').checked,
