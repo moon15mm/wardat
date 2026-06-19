@@ -3,6 +3,21 @@ import logger from '../utils/logger';
 
 const GRAPH_API = 'https://graph.facebook.com/v21.0';
 
+// طابور انتظار لكل متجر لتجنب الحظر في واتساب الباركود
+const shopQueues = new Map<string, Promise<void>>();
+
+function enqueueBaileysTask(shopId: string, task: () => Promise<void>): Promise<void> {
+  const prev = shopQueues.get(shopId) || Promise.resolve();
+  const next = prev.catch(() => {}).then(() => task());
+  shopQueues.set(shopId, next);
+  next.finally(() => {
+    if (shopQueues.get(shopId) === next) {
+      shopQueues.delete(shopId);
+    }
+  });
+  return next;
+}
+
 export interface WhatsAppConfig {
   whatsappType: 'BUSINESS' | 'NORMAL';
   shopId?: string | null;
@@ -42,8 +57,18 @@ export async function sendTextMessage(
       }
 
       const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
-      await sock.sendMessage(jid, { text });
-      logger.info(`[Baileys] Message sent to ${to} for Shop ${shopId}`);
+      
+      await enqueueBaileysTask(shopId, async () => {
+        try {
+          await sock.sendPresenceUpdate('composing', jid);
+          const delayMs = Math.floor(Math.random() * 2000) + 2000;
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          await sock.sendPresenceUpdate('paused', jid);
+        } catch (e) {}
+        
+        await sock.sendMessage(jid, { text });
+        logger.info(`[Baileys] Message sent to ${to} for Shop ${shopId}`);
+      });
     } catch (err: any) {
       logger.error(`Failed to send Baileys message to ${to}: ${err.message}`);
       throw err;
@@ -96,8 +121,18 @@ export async function sendImageMessage(
       }
 
       const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
-      await sock.sendMessage(jid, { image: { url: imageUrl }, caption });
-      logger.info(`[Baileys] Image sent to ${to} for Shop ${shopId}`);
+      
+      await enqueueBaileysTask(shopId, async () => {
+        try {
+          await sock.sendPresenceUpdate('composing', jid);
+          const delayMs = Math.floor(Math.random() * 2500) + 2500;
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          await sock.sendPresenceUpdate('paused', jid);
+        } catch (e) {}
+
+        await sock.sendMessage(jid, { image: { url: imageUrl }, caption });
+        logger.info(`[Baileys] Image sent to ${to} for Shop ${shopId}`);
+      });
     } catch (err: any) {
       logger.error(`Failed to send Baileys image to ${to}: ${err.message}`);
       throw err;
