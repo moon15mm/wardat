@@ -1153,6 +1153,369 @@
       .tab-btn { font-size: 0.8rem; padding: 8px 12px; }
     }
 
+    /* Mobile app skin: soft smart-market cards and stable icon sizing */
+    @media (max-width: 768px) {
+      body,
+      body.light-mode {
+        --bg-gradient: linear-gradient(180deg, #f7fbff 0%, #edf7ff 48%, #fbfdff 100%);
+        --text-main: #101828;
+        --text-sub: #667085;
+        --glass-bg: rgba(255, 255, 255, 0.9);
+        --glass-border: rgba(33, 80, 130, 0.12);
+        --glass-hover: rgba(14, 116, 224, 0.06);
+        --pink-glow: #ff2d6f;
+        --purple-glow: #2367f5;
+        --success: #12b76a;
+        --warning: #f79009;
+        --danger: #f04438;
+      }
+
+      * {
+        letter-spacing: 0;
+      }
+
+      body {
+        background: var(--bg-gradient);
+        padding: 0 14px 106px;
+      }
+
+      .dashboard-container {
+        max-width: 560px;
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 80;
+        margin: 0 -14px 18px;
+        padding: 14px 18px;
+        min-height: 88px;
+        border: 0;
+        border-bottom: 1px solid rgba(33, 80, 130, 0.1);
+        border-radius: 0;
+        background: rgba(247, 251, 255, 0.92);
+        box-shadow: 0 10px 30px rgba(28, 78, 130, 0.08);
+      }
+
+      .logo-container h1 {
+        max-width: 210px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #244b84;
+        font-family: 'Outfit', 'Tajawal', sans-serif;
+        font-size: clamp(1.15rem, 5vw, 1.55rem);
+        text-shadow: 0 8px 20px rgba(35, 103, 245, 0.18);
+      }
+
+      .shop-info {
+        flex-direction: row;
+        gap: 8px;
+        width: auto;
+      }
+
+      #shopDomain {
+        display: none;
+      }
+
+      #themeToggleBtn,
+      .btn-logout,
+      .btn-add-product,
+      .btn-save {
+        border-radius: 18px !important;
+        min-height: 42px;
+      }
+
+      .btn-add-product,
+      .btn-save {
+        background: linear-gradient(135deg, #2367f5, #03c9c9) !important;
+        box-shadow: 0 12px 24px rgba(35, 103, 245, 0.22);
+      }
+
+      .tabs-nav {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 100;
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(72px, 1fr);
+        gap: 4px;
+        height: 82px;
+        margin: 0;
+        padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+        overflow-x: auto;
+        border: 0;
+        border-top: 1px solid rgba(33, 80, 130, 0.12);
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 -14px 34px rgba(28, 78, 130, 0.14);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        scrollbar-width: none;
+      }
+
+      .tabs-nav::-webkit-scrollbar {
+        display: none;
+      }
+
+      .tabs-nav > .tab-btn {
+        display: flex;
+        min-width: 72px;
+        height: 64px;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 3px;
+        padding: 2px 4px;
+        border-radius: 22px;
+        background: transparent;
+        box-shadow: none;
+        color: #475467;
+        font-size: 0;
+        white-space: normal;
+      }
+
+      .tabs-nav > .tab-btn::before {
+        content: attr(data-icon);
+        width: clamp(34px, 10vw, 46px);
+        height: clamp(34px, 10vw, 46px);
+        display: grid;
+        place-items: center;
+        border-radius: 18px;
+        background: #ffffff;
+        color: #344054;
+        box-shadow: 0 8px 22px rgba(28, 78, 130, 0.14);
+        font-size: clamp(18px, 5vw, 24px);
+        font-weight: 800;
+        line-height: 1;
+        transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+      }
+
+      .tabs-nav > .tab-btn::after {
+        content: attr(data-label);
+        color: inherit;
+        font-size: clamp(10px, 2.7vw, 12px);
+        font-weight: 800;
+        line-height: 1.2;
+      }
+
+      .tabs-nav > .tab-btn.active {
+        background: transparent;
+        color: #2367f5;
+        box-shadow: none;
+      }
+
+      .tabs-nav > .tab-btn.active::before {
+        transform: translateY(-12px) scale(1.28);
+        border-radius: 50%;
+        background: linear-gradient(135deg, #2367f5 0%, #1465ff 45%, #03c9c9 100%);
+        color: #ffffff;
+        box-shadow: 0 16px 32px rgba(35, 103, 245, 0.32);
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 12px !important;
+      }
+
+      .stat-card,
+      .product-card,
+      .card-panel,
+      .guide-panel,
+      .kanban-column,
+      .modal-content,
+      .chat-container {
+        border: 1px solid rgba(33, 80, 130, 0.12) !important;
+        background: rgba(255, 255, 255, 0.94) !important;
+        box-shadow: 0 14px 34px rgba(28, 78, 130, 0.1) !important;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+
+      .stat-card {
+        position: relative;
+        min-height: clamp(138px, 36vw, 170px);
+        padding: clamp(62px, 17vw, 76px) 10px 14px !important;
+        border-radius: 24px !important;
+        overflow: hidden;
+      }
+
+      .stat-card::before {
+        position: absolute;
+        top: 16px;
+        right: 50%;
+        width: clamp(42px, 14vw, 60px);
+        height: clamp(42px, 14vw, 60px);
+        transform: translateX(50%);
+        display: grid;
+        place-items: center;
+        border-radius: 20px;
+        background: linear-gradient(135deg, rgba(35, 103, 245, 0.12), rgba(3, 201, 201, 0.18));
+        color: #2367f5;
+        font-size: clamp(20px, 6vw, 30px);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+      }
+
+      .stat-card:nth-child(1)::before { content: "✦"; }
+      .stat-card:nth-child(2)::before { content: "↗"; }
+      .stat-card:nth-child(3)::before { content: "▤"; }
+      .stat-card:nth-child(4)::before { content: "◈"; }
+
+      .stat-title {
+        font-size: clamp(0.72rem, 2.8vw, 0.9rem) !important;
+        line-height: 1.35;
+      }
+
+      .stat-value {
+        font-size: clamp(1.15rem, 5.2vw, 1.75rem) !important;
+        line-height: 1.25;
+      }
+
+      .card-panel,
+      .guide-panel,
+      .chat-container {
+        border-radius: 24px !important;
+        padding: 18px !important;
+      }
+
+      .panel-header {
+        align-items: stretch;
+      }
+
+      .panel-header h2,
+      .panel-header h3,
+      .tab-content > h2,
+      .card-panel h3 {
+        color: #101828;
+        font-size: clamp(1.15rem, 5vw, 1.65rem);
+        font-weight: 800;
+      }
+
+      .product-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 12px !important;
+      }
+
+      .product-card {
+        min-height: clamp(210px, 56vw, 260px);
+        border-radius: 26px !important;
+        overflow: hidden;
+        transform: none !important;
+      }
+
+      .product-card:hover {
+        transform: translateY(-2px) !important;
+      }
+
+      .product-img {
+        width: clamp(74px, 27vw, 118px) !important;
+        height: clamp(74px, 27vw, 118px) !important;
+        margin: 16px auto 4px;
+        object-fit: contain;
+        border-radius: 22px;
+        background: radial-gradient(circle at 50% 45%, #ffffff 0%, #f4f8ff 62%, #eaf3ff 100%);
+        box-shadow: 0 14px 28px rgba(28, 78, 130, 0.1);
+      }
+
+      .product-details {
+        padding: 8px 12px 14px !important;
+        text-align: center;
+      }
+
+      .product-title {
+        justify-content: center !important;
+        min-height: 2.4em;
+        font-size: clamp(0.9rem, 3.6vw, 1.05rem) !important;
+        line-height: 1.2;
+      }
+
+      .product-desc {
+        display: -webkit-box;
+        min-height: 2.8em;
+        overflow: hidden;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        font-size: clamp(0.72rem, 2.9vw, 0.82rem) !important;
+      }
+
+      .product-meta {
+        flex-direction: column;
+        gap: 10px;
+        border-top-color: rgba(33, 80, 130, 0.1);
+      }
+
+      .product-price {
+        color: #2367f5 !important;
+      }
+
+      .product-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+        gap: 6px;
+      }
+
+      .btn-edit,
+      .btn-p-delete,
+      .btn-cancel {
+        min-height: 34px;
+        border-radius: 14px !important;
+        font-size: clamp(0.68rem, 2.6vw, 0.78rem) !important;
+      }
+
+      .kanban-board {
+        gap: 12px !important;
+        scroll-snap-type: x mandatory;
+      }
+
+      .kanban-column {
+        min-width: min(82vw, 320px) !important;
+        scroll-snap-align: center;
+        border-radius: 22px !important;
+      }
+
+      table {
+        min-width: 640px;
+      }
+
+      input,
+      textarea,
+      select {
+        min-height: 46px;
+        border-radius: 14px !important;
+        background: #ffffff !important;
+        color: #101828 !important;
+      }
+
+      .modal {
+        align-items: flex-end;
+      }
+
+      .modal-content {
+        width: calc(100% - 20px);
+        max-height: 88vh;
+        margin-bottom: 10px;
+        border-radius: 26px 26px 18px 18px !important;
+      }
+
+      .chat-container {
+        height: calc(100vh - 178px);
+        padding: 0 !important;
+        overflow: hidden;
+      }
+
+      .chat-avatar,
+      .chat-send-btn,
+      .chat-empty-state .chat-empty-icon {
+        width: clamp(42px, 12vw, 54px);
+        height: clamp(42px, 12vw, 54px);
+        display: grid;
+        place-items: center;
+        font-size: clamp(18px, 5vw, 24px);
+      }
+    }
+
     /* Print Styles */
     @media print {
       body * {
@@ -1202,13 +1565,13 @@
 
     <!-- Tab navigation -->
     <div class="tabs-nav">
-      <button class="tab-btn active" onclick="switchTab('overview')">الرئيسية (Overview)</button>
-      <button class="tab-btn" onclick="switchTab('products')">إدارة المنتجات (Products)</button>
-      <button class="tab-btn" onclick="switchTab('analytics')">📈 الإحصائيات والتحليلات</button>
-      <button class="tab-btn" onclick="switchTab('transactions')">🗂️ العمليات المالية</button>
-      <button class="tab-btn" onclick="switchTab('settings')">إعدادات الربط والمدفوعات</button>
-      <button class="tab-btn" onclick="switchTab('subscription')">💳 تجديد الاشتراك</button>
-      <button class="tab-btn" onclick="switchTab('livechat')">💬 محادثات العملاء</button>
+      <button class="tab-btn active" data-icon="⌂" data-label="الرئيسية" onclick="switchTab('overview')">الرئيسية</button>
+      <button class="tab-btn" data-icon="✦" data-label="المنتجات" onclick="switchTab('products')">المنتجات</button>
+      <button class="tab-btn" data-icon="↗" data-label="التحليلات" onclick="switchTab('analytics')">التحليلات</button>
+      <button class="tab-btn" data-icon="▤" data-label="العمليات" onclick="switchTab('transactions')">العمليات</button>
+      <button class="tab-btn" data-icon="⚙" data-label="الإعدادات" onclick="switchTab('settings')">الإعدادات</button>
+      <button class="tab-btn" data-icon="◈" data-label="الاشتراك" onclick="switchTab('subscription')">الاشتراك</button>
+      <button class="tab-btn" data-icon="○" data-label="الرسائل" onclick="switchTab('livechat')">الرسائل</button>
     </div>
 
     <!-- TABS CONTENT -->
@@ -2249,7 +2612,7 @@
 
     // Theme Logic
     function initTheme() {
-      const savedTheme = localStorage.getItem('wardat_theme') || 'dark';
+      const savedTheme = localStorage.getItem('wardat_theme') || 'light';
       const btn = document.getElementById('themeToggleBtn');
       if (savedTheme === 'light') {
         document.body.classList.add('light-mode');
