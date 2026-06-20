@@ -2665,7 +2665,7 @@
 
     // Authentication Guard
     if (!token || role !== 'shop') {
-      localStorage.clear();
+      clearAuthKeepRemember();
       window.location.href = '/login';
     }
 
@@ -4245,9 +4245,20 @@
       document.getElementById('waGuideModal').style.display = 'none';
     }
 
+    // Clears session/auth data but preserves "remember me" credentials and theme
+    function clearAuthKeepRemember() {
+      const keep = {};
+      ['wardat_remember', 'wardat_saved_username', 'wardat_saved_password', 'wardat_theme'].forEach(k => {
+        const v = localStorage.getItem(k);
+        if (v !== null) keep[k] = v;
+      });
+      localStorage.clear();
+      Object.keys(keep).forEach(k => localStorage.setItem(k, keep[k]));
+    }
+
     function logout() {
       if (chatPollInterval) clearInterval(chatPollInterval);
-      localStorage.clear();
+      clearAuthKeepRemember();
       window.location.href = '/login';
     }
   </script>
