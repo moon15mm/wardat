@@ -1174,9 +1174,14 @@
         letter-spacing: 0;
       }
 
+      html {
+        overflow-x: hidden;
+      }
+
       body {
         background: var(--bg-gradient);
         padding: 0 14px 106px;
+        max-width: 100%;
       }
 
       .dashboard-container {
@@ -1476,7 +1481,10 @@
       }
 
       table {
-        min-width: 640px;
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
       }
 
       input,
