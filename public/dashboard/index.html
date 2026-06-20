@@ -1496,6 +1496,23 @@
         color: #101828 !important;
       }
 
+      /* text fields fill their column and can shrink (checkboxes/radios excluded) */
+      input:not([type="checkbox"]):not([type="radio"]),
+      textarea,
+      select {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
+
+      /* let inline 2-column grids shrink instead of pushing the page wide */
+      [style*="grid-template-columns"] {
+        max-width: 100%;
+      }
+      [style*="grid-template-columns"] > * {
+        min-width: 0;
+      }
+
       .modal {
         align-items: flex-end;
       }
