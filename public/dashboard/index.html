@@ -469,6 +469,18 @@
       .settings-grid {
         grid-template-columns: 1fr;
       }
+
+      /* allow stacked panels & inline code to shrink/wrap instead of overflowing */
+      .settings-grid > *,
+      .card-panel,
+      .guide-panel {
+        min-width: 0;
+      }
+
+      code {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
     }
 
     .guide-panel {
