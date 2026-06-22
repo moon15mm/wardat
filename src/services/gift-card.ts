@@ -4,10 +4,26 @@ import fs from 'fs';
 import crypto from 'crypto';
 import logger from '../utils/logger';
 
-export async function generateGiftCardImage(senderName: string, message: string, shopName: string): Promise<string> {
+// Escape user-supplied text before embedding it in SVG markup. Prevents tag/markup
+// injection (e.g. an injected <image href="file://…"> that librsvg might load into
+// the rendered PNG) and avoids breaking the SVG XML.
+function escapeXml(s: string): string {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+export async function generateGiftCardImage(senderNameRaw: string, messageRaw: string, shopNameRaw: string): Promise<string> {
   const width = 800;
   const height = 600;
-  
+
+  const senderName = escapeXml(senderNameRaw);
+  const message = escapeXml(messageRaw);
+  const shopName = escapeXml(shopNameRaw);
+
   // Basic SVG template for the gift card
   const svgText = `
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">

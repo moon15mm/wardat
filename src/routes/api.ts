@@ -137,7 +137,10 @@ router.post('/auth/forgot-password', async (req, res) => {
         data: { resetToken: tokenHash, resetTokenExpiry: expiry },
       });
 
-      const baseUrl = (settings.raw('APP_BASE_URL') || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+      // SECURITY: never build the reset link from the request Host header — a forged
+      // Host would let an attacker poison the link and steal the reset token. Always
+      // use the server-configured base URL (defaults to https://wardat.xyz).
+      const baseUrl = settings.getAppBaseUrl();
       const resetLink = `${baseUrl}/reset-password?token=${rawToken}`;
 
       try {
