@@ -15,3 +15,9 @@ backups/
 .env.bak.*
 public/catalogs/
 public/uploads/
+
+# Android app project (kept out of the backend repo — large binaries)
+android-store-app/
+
+# Throwaway deploy helper scripts (never commit; may contain server access)
+_deploy_tmp.py
