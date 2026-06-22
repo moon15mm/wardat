@@ -72,10 +72,11 @@
   <div class="card">
     <h3>♻️ كيفية الاستعادة</h3>
     <div class="note">
-      الاستعادة عملية حسّاسة تُجرى يدوياً من الخادم (حمايةً من المسح بالخطأ). نزّل النسخة المطلوبة، ثم على الخادم:<br><br>
-      • قاعدة البيانات: <code>bash scripts/restore-db.sh wardat-db-YYYYMMDD-HHMMSS.sql.gz</code><br>
-      • جلسات واتساب: <code>tar xzf backups/wardat-sessions-YYYYMMDD.tar.gz -C data/ && pm2 restart wardat-saas</code><br><br>
-      أو اطلب مني تنفيذ الاستعادة من نسخة محددة وسأتولاها.
+      <b>استعادة قاعدة البيانات:</b> اضغط زر «♻️ استعادة» بجانب النسخة المطلوبة. عملية حسّاسة تكتب فوق كل البيانات الحالية، لذا:<br>
+      • تأخذ المنصة <b>نسخة أمان تلقائية</b> للحالة الحالية قبل الاستبدال (للتراجع).<br>
+      • يجب <b>كتابة اسم النسخة بالضبط</b> للتأكيد (حمايةً من المسح بالخطأ).<br>
+      • يُفضّل تنفيذها وقت قلّة الضغط، وقد يحدث تقطّع بسيط لثوانٍ.<br><br>
+      <b>جلسات واتساب</b> (تُستعاد يدوياً من الخادم): <code>tar xzf backups/wardat-sessions-YYYYMMDD.tar.gz -C data/ && pm2 restart wardat-saas</code>
     </div>
   </div>
 </div>
@@ -107,6 +108,7 @@ async function load(){
         <td>${fmtDate(b.createdAt)}</td>
         <td style="white-space:nowrap">
           <button class="btn btn-sm btn-ghost" onclick="download('${b.name}')">⬇️ تحميل</button>
+          ${b.kind==='db' ? `<button class="btn btn-sm" style="background:rgba(240,192,106,.15);border:1px solid rgba(240,192,106,.45);color:var(--amber)" onclick="restoreBackup('${b.name}')">♻️ استعادة</button>` : ''}
           <button class="btn btn-sm btn-red" onclick="del('${b.name}')">حذف</button>
         </td>
       </tr>`).join('')+'</tbody></table>';
@@ -138,6 +140,30 @@ async function del(name){
   if(!confirm('حذف النسخة "'+name+'"؟')) return;
   const res = await fetch('/api/admin/backups/'+encodeURIComponent(name),{method:'DELETE',headers});
   if(res.ok){ toast('تم الحذف'); load(); } else { toast('فشل الحذف'); }
+}
+
+// DESTRUCTIVE restore — requires typing the exact backup name, then a final confirm.
+// A safety snapshot of the current state is taken automatically by the server first.
+async function restoreBackup(name){
+  const typed = prompt(
+    '⚠️ تحذير خطير: ستُستبدل كل بيانات النظام الحالية (المتاجر، الطلبات، الإعدادات) ببيانات هذه النسخة.\n\n'+
+    '✅ ستأخذ المنصة نسخة أمان تلقائية للحالة الحالية قبل الاستبدال (يمكنك التراجع بها).\n\n'+
+    'للتأكيد، اكتب اسم النسخة بالضبط:\n'+name
+  );
+  if(typed === null) return;                       // ألغى
+  if(typed.trim() !== name){ toast('الاسم غير مطابق — أُلغيت الاستعادة'); return; }
+  if(!confirm('تأكيد نهائي: استعادة "'+name+'" والكتابة فوق كل البيانات الحالية؟')) return;
+
+  toast('جارٍ الاستعادة… لا تغلق الصفحة');
+  try{
+    const res = await fetch('/api/admin/backups/restore/'+encodeURIComponent(name),{
+      method:'POST', headers, body: JSON.stringify({ confirm: name })
+    });
+    const d = await res.json();
+    if(!res.ok) throw new Error(d.error||'فشل');
+    alert('✅ '+d.message+'\n\nعدد الجداول المستعادة: '+d.tables+'\nنسخة أمان للحالة السابقة: '+d.safetyBackup);
+    load();
+  }catch(e){ alert('❌ '+e.message); }
 }
 
 async function saveSettings(){

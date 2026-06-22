@@ -860,6 +860,32 @@ router.delete('/admin/backups/:name', authenticateSuperAdmin, (req, res) => {
   res.json({ message: 'تم حذف النسخة الاحتياطية' });
 });
 
+// DESTRUCTIVE: restore the database from a backup, overwriting ALL current data.
+// Guarded by: super-admin only + the caller must echo the exact backup name in
+// `confirm` (defends against accidental/one-click triggering). A safety snapshot
+// of the current state is taken automatically before the overwrite.
+router.post('/admin/backups/restore/:name', authenticateSuperAdmin, async (req, res) => {
+  const name = req.params.name as string;
+  const confirm = req.body?.confirm;
+
+  if (typeof confirm !== 'string' || confirm !== name) {
+    return res.status(400).json({ error: 'للتأكيد، يجب إرسال اسم النسخة بالضبط في حقل confirm.' });
+  }
+
+  logger.warn(`[API] DB RESTORE requested by super-admin from backup: ${name}`);
+  try {
+    const result = await backup.restoreBackup(name);
+    res.json({
+      message: 'تمت استعادة قاعدة البيانات بنجاح.',
+      tables: result.tables,
+      safetyBackup: result.safetyBackup,
+    });
+  } catch (err: any) {
+    logger.error(`[API] DB restore failed for ${name}: ${err.message}`);
+    res.status(500).json({ error: `فشلت الاستعادة: ${err.message}` });
+  }
+});
+
 router.put('/admin/backups/settings', authenticateSuperAdmin, async (req, res) => {
   try {
     const { enabled, retentionDays } = req.body || {};

@@ -99,6 +99,66 @@ export function safeBackupPath(name: string): string | null {
   return p;
 }
 
+/**
+ * Restore the database from a `wardat-db-*.sql.gz` backup.
+ *
+ * DESTRUCTIVE: this overwrites ALL current data. Safeguards:
+ *  - validates the filename (no path traversal, DB backups only),
+ *  - takes a fresh SAFETY snapshot of the current state first (so a mistaken
+ *    restore is reversible — its name is returned to the caller),
+ *  - drops only the app-owned tables in the `public` schema, then loads the dump,
+ *  - strips the version-specific `transaction_timeout` SET that an older server
+ *    rejects, and verifies tables exist afterwards.
+ */
+export async function restoreBackup(name: string): Promise<{ safetyBackup: string; tables: number }> {
+  const p = safeBackupPath(name);
+  if (!p || !name.startsWith('wardat-db-') || !name.endsWith('.sql.gz')) {
+    throw new Error('ملف غير صالح: الاستعادة متاحة لنسخ قاعدة البيانات فقط.');
+  }
+
+  // 1) Safety snapshot of the CURRENT state before we overwrite it.
+  const safety = await createBackup();
+  logger.warn(`[Backup] RESTORE starting from ${name}. Safety snapshot taken: ${safety.db}`);
+
+  // 2) Drop existing app tables (owned by the connecting user). Written to a temp
+  //    file and run with -f so no SQL/`$$` ever touches the shell.
+  const dropSql =
+    'DO $$ DECLARE r RECORD; BEGIN ' +
+    "FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP " +
+    "EXECUTE 'DROP TABLE IF EXISTS public.' || quote_ident(r.tablename) || ' CASCADE'; " +
+    'END LOOP; END $$;';
+  const tmpSql = path.join(BACKUP_DIR, `.restore-drop-${Date.now()}.sql`);
+  fs.writeFileSync(tmpSql, dropSql);
+  try {
+    await execAsync(`psql -v ON_ERROR_STOP=1 -f "${tmpSql}"`, { env: pgEnv() });
+
+    // 3) Load the dump. We strip the version-specific `transaction_timeout` SET
+    //    (an older server rejects it) and run fail-fast: any OTHER error aborts so
+    //    we never report success on a partial restore — the safety snapshot stays
+    //    available for rollback.
+    await execAsync(
+      `set -o pipefail; gunzip -c "${p}" | sed '/transaction_timeout/d' | psql -v ON_ERROR_STOP=1`,
+      { env: pgEnv(), maxBuffer: 1024 * 1024 * 256, shell: '/bin/bash' }
+    );
+  } finally {
+    try { fs.unlinkSync(tmpSql); } catch { /* ignore */ }
+  }
+
+  // 4) Verify the restore actually produced tables; otherwise the DB is now empty
+  //    and the operator must roll back from the safety snapshot.
+  const { stdout } = await execAsync(
+    `psql -At -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'"`,
+    { env: pgEnv() }
+  );
+  const tables = parseInt((stdout || '').trim(), 10) || 0;
+  if (tables < 1) {
+    throw new Error(`فشلت الاستعادة (لم تُنشأ أي جداول). استعد الحالة السابقة من نسخة الأمان: ${safety.db}`);
+  }
+
+  logger.warn(`[Backup] RESTORE completed from ${name}. ${tables} tables restored. Safety snapshot: ${safety.db}`);
+  return { safetyBackup: safety.db, tables };
+}
+
 export function deleteBackup(name: string): boolean {
   const p = safeBackupPath(name);
   if (!p) return false;
