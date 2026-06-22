@@ -1,5 +1,6 @@
 import axios from 'axios';
 import logger from '../utils/logger';
+import { maskPhone } from '../utils/helpers';
 
 const GRAPH_API = 'https://graph.facebook.com/v21.0';
 
@@ -67,10 +68,10 @@ export async function sendTextMessage(
         } catch (e) {}
         
         await sock.sendMessage(jid, { text });
-        logger.info(`[Baileys] Message sent to ${to} for Shop ${shopId}`);
+        logger.info(`[Baileys] Message sent to ${maskPhone(to)} for Shop ${shopId}`);
       });
     } catch (err: any) {
-      logger.error(`Failed to send Baileys message to ${to}: ${err.message}`);
+      logger.error(`Failed to send Baileys message to ${maskPhone(to)}: ${err.message}`);
       throw err;
     }
     return;
@@ -91,9 +92,9 @@ export async function sendTextMessage(
       },
       { headers: getHeaders(token) }
     );
-    logger.info(`Message sent to ${to} (Phone ID: ${phoneId})`);
+    logger.info(`Message sent to ${maskPhone(to)} (Phone ID: ${phoneId})`);
   } catch (err: any) {
-    logger.error(`Failed to send message to ${to}: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
+    logger.error(`Failed to send message to ${maskPhone(to)}: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
     throw err;
   }
 }
@@ -131,10 +132,10 @@ export async function sendImageMessage(
         } catch (e) {}
 
         await sock.sendMessage(jid, { image: { url: imageUrl }, caption });
-        logger.info(`[Baileys] Image sent to ${to} for Shop ${shopId}`);
+        logger.info(`[Baileys] Image sent to ${maskPhone(to)} for Shop ${shopId}`);
       });
     } catch (err: any) {
-      logger.error(`Failed to send Baileys image to ${to}: ${err.message}`);
+      logger.error(`Failed to send Baileys image to ${maskPhone(to)}: ${err.message}`);
       throw err;
     }
     return;
@@ -155,9 +156,9 @@ export async function sendImageMessage(
       },
       { headers: getHeaders(token) }
     );
-    logger.info(`Image sent to ${to} (Phone ID: ${phoneId})`);
+    logger.info(`Image sent to ${maskPhone(to)} (Phone ID: ${phoneId})`);
   } catch (err: any) {
-    logger.error(`Failed to send image to ${to}: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
+    logger.error(`Failed to send image to ${maskPhone(to)}: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
     throw err;
   }
 }

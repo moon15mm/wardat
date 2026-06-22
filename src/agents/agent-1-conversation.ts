@@ -3,7 +3,7 @@ import { getSession } from '../services/session';
 import { getAIResponse, classifyIntent } from '../services/openai';
 import { sendTextMessage, sendImageMessage, sendLocationRequest, WhatsAppConfig } from '../services/whatsapp';
 import { getAllProducts, getProductByName, formatProductList, sendProductCatalog } from '../products';
-import { generateOrderId, formatPrice } from '../utils/helpers';
+import { generateOrderId, formatPrice, maskPhone } from '../utils/helpers';
 import { processPayment } from './agent-2-payment';
 import { addOrder } from './agent-3-excel';
 import prisma from '../services/db';
@@ -62,12 +62,12 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
     // Auto-save JID for future LID matching
     if (!shop.ownerJid) {
       await prisma.shop.update({ where: { id: shopId }, data: { ownerJid: rawFrom } }).catch(() => {});
-      logger.info(`[Agent1] Auto-saved ownerJid: ${rawFrom} for shop ${shopId}`);
+      logger.info(`[Agent1] Auto-saved ownerJid: ${maskPhone(rawFrom)} for shop ${shopId}`);
     }
   }
 
   if (isOwner) {
-    logger.info(`[Agent1] Message from OWNER ${rawFrom} for shop ${shopId}`);
+    logger.info(`[Agent1] Message from OWNER ${maskPhone(rawFrom)} for shop ${shopId}`);
     const session = await getSession(rawFrom, shopId);
     await handleOwnerMessage(rawFrom, shopId, whatsappConfig, msg, session, shop);
     await saveSession(session, shopId);
@@ -79,14 +79,14 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
     where: { shopId_phone: { shopId, phone } }
   });
   if (isBlocked) {
-    logger.info(`[Agent1] Ignored message from blocked user ${phone} for shop ${shopId}`);
+    logger.info(`[Agent1] Ignored message from blocked user ${maskPhone(phone)} for shop ${shopId}`);
     return;
   }
 
   // 2. Load or create Session from DB
   const session = await getSession(phone, shopId);
 
-  logger.info(`[Agent1] Message from ${phone} for shop ${shop.name} (${shopId}), state: ${session.state}, type: ${msg.type}, botPaused: ${session.botPaused}`);
+  logger.info(`[Agent1] Message from ${maskPhone(phone)} for shop ${shop.name} (${shopId}), state: ${session.state}, type: ${msg.type}, botPaused: ${session.botPaused}`);
 
   // 2.1 If bot is paused (manual intervention mode), only record the message and exit
   if (session.botPaused) {
@@ -98,7 +98,7 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
     }
     // Save message to DB without triggering AI response
     await saveSession(session, shopId);
-    logger.info(`[Agent1] Bot paused for ${phone} in shop ${shopId}. Message recorded, no AI response.`);
+    logger.info(`[Agent1] Bot paused for ${maskPhone(phone)} in shop ${shopId}. Message recorded, no AI response.`);
     return;
   }
 

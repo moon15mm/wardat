@@ -13,6 +13,7 @@ import { getAgentLogs, clearAgentLogs, logAgentAction } from '../utils/agent-log
 import { discoverFlowerShops } from '../services/lead-finder';
 import { sendTextMessage, WhatsAppConfig } from '../services/whatsapp';
 import { getSessionStatus } from '../services/baileys-manager';
+import { maskPhone } from '../utils/helpers';
 
 const router = Router();
 
@@ -1440,9 +1441,9 @@ router.put('/shop/orders/:id', authenticateShop, async (req, res) => {
       const deliveredMsg = `مرحباً ${order.customerName}،\n\nيسعدنا إخبارك بأنه قد تم تسليم طلبك بنجاح! 🎉\nنأمل أن ينال إعجابك، ونتمنى رؤيتك قريباً.\n\nمع تحيات: *${order.shop.name}* 🌹`;
       try {
         await sendTextMessage(whatsappConfig, order.customerPhone, deliveredMsg);
-        logger.info(`[Delivery Notification] Sent to ${order.customerPhone} for order ${order.id}`);
+        logger.info(`[Delivery Notification] Sent to ${maskPhone(order.customerPhone)} for order ${order.id}`);
       } catch (err: any) {
-        logger.error(`[Delivery Notification] Failed to send to ${order.customerPhone}: ${err.message}`);
+        logger.error(`[Delivery Notification] Failed to send to ${maskPhone(order.customerPhone)}: ${err.message}`);
       }
     }
 
@@ -1500,7 +1501,7 @@ router.post('/shop/campaign', authenticateShop, async (req, res) => {
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         } catch (err: any) {
-          logger.error(`[Campaign] Failed to send to ${phone}: ${err.message}`);
+          logger.error(`[Campaign] Failed to send to ${maskPhone(phone)}: ${err.message}`);
         }
       }
       logger.info(`[Campaign] Completed campaign for shop ${shop.id}.`);

@@ -11,6 +11,21 @@ export function formatPrice(price: number, currency = 'SAR'): string {
   return `${price} ${currency === 'SAR' ? 'ريال' : currency}`;
 }
 
+/**
+ * Mask a phone number / JID for logging (PII minimization, GDPR/CWE-532).
+ * Keeps a short prefix + last 2 digits so logs stay useful for support without
+ * recording the full number, e.g. "966512345678" -> "9665****78".
+ */
+export function maskPhone(value: string | null | undefined): string {
+  if (!value) return '';
+  const s = String(value);
+  // Preserve any "@suffix" (WhatsApp JID) but mask the numeric/local part.
+  const [local, ...rest] = s.split('@');
+  const suffix = rest.length ? '@' + rest.join('@') : '';
+  if (local.length <= 6) return '****' + suffix;
+  return local.slice(0, 4) + '****' + local.slice(-2) + suffix;
+}
+
 export function formatTimestamp(): string {
   return new Date().toLocaleString('ar-SA', { timeZone: 'Asia/Riyadh' });
 }

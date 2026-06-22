@@ -7,6 +7,7 @@ import { sendTextMessage, WhatsAppConfig } from '../services/whatsapp';
 import { updateOrderPaymentSession } from './agent-3-excel';
 import prisma from '../services/db';
 import logger from '../utils/logger';
+import { maskPhone } from '../utils/helpers';
 
 export async function processPayment(payment: PaymentRequest): Promise<void> {
   logger.info(`[Agent2] Processing payment for order ${payment.orderId} (Shop: ${payment.shopId})`);
@@ -84,7 +85,7 @@ export async function processPayment(payment: PaymentRequest): Promise<void> {
       `⏰ الرابط صالح لفترة محدودة`;
 
     await sendTextMessage(whatsappConfig, payment.customerPhone, message);
-    logger.info(`[Agent2] Payment link sent to ${payment.customerPhone} via ${gateway}`);
+    logger.info(`[Agent2] Payment link sent to ${maskPhone(payment.customerPhone)} via ${gateway}`);
   } catch (err: any) {
     logger.error(`[Agent2] Payment processing failed: ${err.message}`);
     try {

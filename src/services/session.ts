@@ -1,6 +1,7 @@
 import { Session, ConversationState, ChatMessage, Product } from '../types';
 import prisma from './db';
 import logger from '../utils/logger';
+import { maskPhone } from '../utils/helpers';
 
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 
@@ -14,7 +15,7 @@ export async function getSession(phone: string, shopId: string): Promise<Session
   });
 
   if (dbSession && (now - Number(dbSession.lastActivity) > SESSION_TIMEOUT || dbSession.state === 'ARCHIVED')) {
-    logger.info(`Session reset/unarchived for ${phone} in shop ${shopId}`);
+    logger.info(`Session reset/unarchived for ${maskPhone(phone)} in shop ${shopId}`);
     dbSession = await prisma.session.update({
       where: { id: dbSession.id },
       data: {
@@ -36,7 +37,7 @@ export async function getSession(phone: string, shopId: string): Promise<Session
         orderData: JSON.stringify({}),
       }
     });
-    logger.info(`New session created for ${phone} in shop ${shopId}`);
+    logger.info(`New session created for ${maskPhone(phone)} in shop ${shopId}`);
   } else {
     // Update last activity
     dbSession = await prisma.session.update({
@@ -85,7 +86,7 @@ export async function updateSessionState(
     },
     data: { state }
   });
-  logger.info(`Session ${phone} in shop ${shopId} state updated to: ${state}`);
+  logger.info(`Session ${maskPhone(phone)} in shop ${shopId} state updated to: ${state}`);
 }
 
 export async function addMessage(
@@ -136,7 +137,7 @@ export async function clearSession(phone: string, shopId: string): Promise<void>
       botPaused: false
     }
   });
-  logger.info(`Session archived for ${phone} in shop ${shopId}`);
+  logger.info(`Session archived for ${maskPhone(phone)} in shop ${shopId}`);
 }
 
 export async function getActiveSessionCount(): Promise<number> {

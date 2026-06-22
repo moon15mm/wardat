@@ -17,6 +17,7 @@ import prisma from './services/db';
 import logger from './utils/logger';
 import { initAllSessions } from './services/baileys-manager';
 import { runSerialized, isDuplicate } from './utils/concurrency';
+import { maskPhone } from './utils/helpers';
 import * as settings from './services/settings';
 import cron from 'node-cron';
 import { runAcquisitionCycle } from './services/agent-acquisition';
@@ -341,7 +342,7 @@ app.post('/webhook/whatsapp', webhookLimiter, async (req, res) => {
     markAsRead(whatsappConfig, rawMessage.id);
 
     logger.info(
-      `[WhatsApp] Message from ${message.from} (${contact?.profile?.name || 'unknown'}) to Shop ${shop.name}: ${message.text?.body || message.type}`
+      `[WhatsApp] Message from ${maskPhone(message.from)} (${contact?.profile?.name || 'unknown'}) to Shop ${shop.name}: ${message.type}`
     );
 
     // Process one customer's messages strictly in order.
@@ -440,7 +441,7 @@ app.post('/webhook/ultramsg', webhookLimiter, async (req, res) => {
     };
 
     logger.info(
-      `[Ultramsg] Message from ${message.from} to Shop ${shop.name}: ${rawMsg.body || rawMsg.type}`
+      `[Ultramsg] Message from ${maskPhone(message.from)} to Shop ${shop.name}: ${message.type}`
     );
 
     await runSerialized(`${shop.id}:${message.from}`, () => handleMessage(message, shop.id));
