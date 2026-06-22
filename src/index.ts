@@ -156,6 +156,10 @@ app.use(
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth/forgot-password', loginLimiter);
 app.use('/api/auth/reset-password', loginLimiter);
+// Payment-gateway webhooks are public; cap request rate to deter abuse/forgery spam.
+app.use('/api/webhook/moyasar', webhookLimiter);
+app.use('/api/webhook/tap', webhookLimiter);
+app.use('/api/webhook/myfatoorah', webhookLimiter);
 app.use('/api', apiRoutes);
 
 // Static files serving. HTML is served with no-store so dashboard/cockpit
@@ -218,7 +222,13 @@ app.get('/test-simulator', (req, res) => {
 function verifyMetaSignature(req: express.Request): boolean {
   const appSecret = settings.getWhatsappAppSecret();
   if (!appSecret) {
-    // Not configured: allow (migration window) but it was warned about at boot.
+    // In production we FAIL CLOSED: without a secret we cannot prove the request
+    // came from Meta, so forged webhooks must be rejected. Only allow the unsigned
+    // path outside production (local testing / migration).
+    if (process.env.NODE_ENV === 'production') {
+      logger.error('[WhatsApp] WHATSAPP_APP_SECRET not set in production — rejecting unsigned webhook.');
+      return false;
+    }
     return true;
   }
 

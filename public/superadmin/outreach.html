@@ -319,6 +319,11 @@ let currentDraftId = null, currentDraftPhone = null, currentDraftName = null;
 
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',1800); }
 
+// Escape untrusted text (prospect names/notes can originate from Google Places) before
+// inserting into innerHTML, to prevent stored XSS in the super-admin panel.
+function escapeHtml(text){ const d=document.createElement('div'); d.textContent=(text==null?'':String(text)); return d.innerHTML; }
+function escapeAttr(text){ return String(text==null?'':text).replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+
 // Render status filters
 function renderFilters(){
   document.getElementById('filters').innerHTML = STATUSES.map(([k,l])=>
@@ -352,24 +357,25 @@ async function loadList(){
       const opts = Object.keys(STATUS_LABEL).map(s=>`<option value="${s}" ${p.status===s?'selected':''}>${STATUS_LABEL[s]}</option>`).join('');
       const waNum = (p.phone||'').replace(/\D/g,'');
       const contacts = [
-        p.phone?`<a href="https://wa.me/${waNum}" target="_blank" style="color:var(--green);text-decoration:none;font-weight:bold;">📱 ${p.phone}</a>`:'',
-        p.instagram?`<span style="color:#c4a9ff; font-weight:bold;">📷 ${p.instagram}</span>`:''
+        p.phone?`<a href="https://wa.me/${waNum}" target="_blank" style="color:var(--green);text-decoration:none;font-weight:bold;">📱 ${escapeHtml(p.phone)}</a>`:'',
+        p.instagram?`<span style="color:#c4a9ff; font-weight:bold;">📷 ${escapeHtml(p.instagram)}</span>`:''
       ].filter(Boolean).join(' · ');
       const last = p.lastContact?('آخر تواصل: '+new Date(p.lastContact).toLocaleDateString('ar')):'لم يتم التواصل بعد';
-      const dueNote = p.due ? `<div class="p-meta" style="color:var(--amber);font-weight:bold;">⏰ متأخرة المتابعة منذ ${p.staleDays} يوم</div>` : '';
+      const dueNote = p.due ? `<div class="p-meta" style="color:var(--amber);font-weight:bold;">⏰ متأخرة المتابعة منذ ${escapeHtml(p.staleDays)} يوم</div>` : '';
+      const nameAttr = escapeAttr(String(p.name||'').replace(/'/g,''));
       return `<div class="p-card" style="${p.due?'border-color:rgba(240,192,106,.6);':''}">
         <div class="p-head">
-          <div class="p-name">${p.name} <span class="badge st-${p.status}">${STATUS_LABEL[p.status]}</span>${p.due?' <span class="badge" style="background:rgba(240,192,106,.18);color:var(--amber)">🔔 متابعة</span>':''}</div>
-          <select onchange="changeStatus('${p.id}',this.value)" style="width:auto">${opts}</select>
+          <div class="p-name">${escapeHtml(p.name)} <span class="badge st-${escapeAttr(p.status)}">${STATUS_LABEL[p.status]||''}</span>${p.due?' <span class="badge" style="background:rgba(240,192,106,.18);color:var(--amber)">🔔 متابعة</span>':''}</div>
+          <select onchange="changeStatus('${escapeAttr(p.id)}',this.value)" style="width:auto">${opts}</select>
         </div>
-        <div class="p-meta">${[p.city,p.source].filter(Boolean).join(' · ')||'—'} • ${last}</div>
+        <div class="p-meta">${escapeHtml([p.city,p.source].filter(Boolean).join(' · ')||'—')} • ${last}</div>
         ${dueNote}
         ${contacts?`<div class="p-meta">${contacts}</div>`:''}
-        <textarea rows="2" style="margin-top:6px;" placeholder="ملاحظات العميل..." onblur="saveNotes('${p.id}',this.value)">${p.notes||''}</textarea>
+        <textarea rows="2" style="margin-top:6px;" placeholder="ملاحظات العميل..." onblur="saveNotes('${escapeAttr(p.id)}',this.value)">${escapeHtml(p.notes||'')}</textarea>
         <div class="p-actions">
-          <button class="btn btn-sm" onclick="openDraft('${p.id}','${waNum}','${p.name.replace(/'/g,'')}')">✍️ صياغة وإرسال</button>
-          <button class="btn btn-sm btn-ghost" onclick="touch('${p.id}')">⏱️ تم التواصل الآن</button>
-          <button class="btn btn-sm btn-ghost btn-red" onclick="del('${p.id}','${p.name.replace(/'/g,'')}')">🗑️ حذف</button>
+          <button class="btn btn-sm" onclick="openDraft('${escapeAttr(p.id)}','${waNum}','${nameAttr}')">✍️ صياغة وإرسال</button>
+          <button class="btn btn-sm btn-ghost" onclick="touch('${escapeAttr(p.id)}')">⏱️ تم التواصل الآن</button>
+          <button class="btn btn-sm btn-ghost btn-red" onclick="del('${escapeAttr(p.id)}','${nameAttr}')">🗑️ حذف</button>
         </div>
       </div>`;
     }).join('');
@@ -444,7 +450,7 @@ async function loadLogs() {
         if (l.includes('[خطأ')) color = '#fca5a5';
         else if (l.includes('[تنبيه')) color = '#fde047';
         else if (l.includes('[بدء') || l.includes('[انتهاء')) color = '#38bdf8';
-        return `<div style="color: ${color}; margin-bottom: 4px;">${l}</div>`;
+        return `<div style="color: ${color}; margin-bottom: 4px;">${escapeHtml(l)}</div>`;
       }).join('');
       // Scroll to bottom
       box.scrollTop = box.scrollHeight;
@@ -516,9 +522,9 @@ async function discoverLeads() {
         const igSearch = `<a href="https://www.google.com/search?q=${igQuery}" target="_blank" style="color:#c4a9ff;text-decoration:none;">🔎 بحث انستقرام</a>`;
         return `<div class="discovered-item">
           <div class="discovered-info">
-            <div class="discovered-name">${l.name}</div>
-            <div class="discovered-subtext">${contactInfo} | ${l.source}</div>
-            <div class="discovered-subtext" style="font-style: italic; color: #a5b4fc;">${l.notes}</div>
+            <div class="discovered-name">${escapeHtml(l.name)}</div>
+            <div class="discovered-subtext">${escapeHtml(contactInfo)} | ${escapeHtml(l.source)}</div>
+            <div class="discovered-subtext" style="font-style: italic; color: #a5b4fc;">${escapeHtml(l.notes)}</div>
             <div class="discovered-subtext" style="margin-top:5px;">${igSearch}</div>
           </div>
           <button class="btn btn-sm" id="addBtn${index}" onclick="addDiscoveredLeadByIndex(${index})">➕ إضافة</button>
@@ -585,7 +591,7 @@ async function genDraft(kind){
       const waLink = currentDraftPhone ? `<a class="btn btn-sm btn-ghost" style="text-decoration:none" target="_blank" href="https://wa.me/${currentDraftPhone}?text=${enc}">📱 إرسال عبر المتصفح (wa.me)</a>` : '';
       const directBot = (currentDraftPhone && senderShopId) ? `<button class="btn btn-sm btn-green" onclick="sendViaBot('${currentDraftId}', '${senderShopId}', ${i})">🤖 إرسال فوري عبر البوت</button>` : '';
       
-      return `<div class="variant" id="var${i}">${v}
+      return `<div class="variant" id="var${i}">${escapeHtml(v)}
         <div class="v-actions">
           <button class="btn btn-sm btn-ghost" onclick="copyVar(${i})">نسخ النص</button>
           ${waLink}

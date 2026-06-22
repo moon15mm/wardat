@@ -2024,80 +2024,100 @@ router.delete('/shop/chats/:phone/block', authenticateShop, async (req, res) => 
 });
 
 import { handleGenericPaymentSuccess } from '../agents/agent-4-finance';
+import { verifyMoyasarPayment, PaymentVerification } from '../services/moyasar-service';
+import { verifyTapPayment } from '../services/tap-service';
+import { verifyMyFatoorahPayment } from '../services/myfatoorah-service';
 
 // ==========================================
 // Webhooks for Payment Gateways
 // ==========================================
+//
+// SECURITY: these webhooks are PUBLIC and UNSIGNED at the transport level, so the
+// request body proves nothing. We treat the body only as a hint ("order X may have
+// paid"), then independently re-query the gateway's API (with the shop's own key)
+// to confirm the payment is real and the amount matches before confirming the order.
+// This blocks forged "status: paid" requests that would otherwise grant free orders.
+
+type GatewayVerifier = (apiKey: string | null, sessionId: string) => Promise<PaymentVerification>;
+
+async function confirmVerifiedPayment(
+  orderId: string,
+  gatewayName: 'MOYASAR' | 'TAP' | 'MYFATOORAH',
+  keyOf: (shop: any) => string | null,
+  verify: GatewayVerifier
+): Promise<void> {
+  if (!orderId) return;
+
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) {
+    logger.warn(`[${gatewayName} Webhook] Unknown order ${orderId}; ignoring.`);
+    return;
+  }
+  if (order.paymentStatus === 'CONFIRMED') return; // idempotent
+
+  if (!order.stripeSessionId) {
+    logger.warn(`[${gatewayName} Webhook] Order ${orderId} has no payment session; cannot verify.`);
+    return;
+  }
+
+  const shop = await prisma.shop.findUnique({ where: { id: order.shopId } });
+  if (!shop) return;
+
+  // Authoritative check against the gateway — NOT the request body.
+  const verification = await verify(keyOf(shop), order.stripeSessionId);
+  if (!verification.paid) {
+    logger.warn(`[${gatewayName} Webhook] Gateway did NOT confirm payment for order ${orderId}; rejecting.`);
+    return;
+  }
+
+  // Guard against amount tampering: the verified amount must match the order price.
+  if (Math.abs(verification.amount - order.price) > 0.5) {
+    logger.error(
+      `[${gatewayName} Webhook] SECURITY: amount mismatch for order ${orderId} ` +
+      `(gateway=${verification.amount}, order=${order.price}); rejecting.`
+    );
+    return;
+  }
+
+  await handleGenericPaymentSuccess({
+    sessionId: order.stripeSessionId,
+    orderId: order.id,
+    shopId: order.shopId,
+    customerPhone: order.customerPhone || '',
+    customerName: order.customerName || 'Customer',
+    amount: order.price,
+    gatewayName,
+  });
+}
 
 router.post('/webhook/moyasar', async (req, res) => {
+  // Acknowledge immediately; Moyasar retries on slow responses.
+  res.json({ received: true });
   try {
-    const { id, status, amount, metadata } = req.body;
-    if (status === 'paid' && metadata?.orderId && metadata?.shopId) {
-      await handleGenericPaymentSuccess({
-        sessionId: id,
-        orderId: metadata.orderId,
-        shopId: metadata.shopId,
-        customerPhone: metadata.customerPhone || '',
-        customerName: 'Customer', // Moyasar metadata might not have name
-        amount: amount / 100, // Moyasar returns halalas
-        gatewayName: 'MOYASAR'
-      });
-    }
-    res.json({ received: true });
+    const orderId = req.body?.metadata?.orderId;
+    await confirmVerifiedPayment(orderId, 'MOYASAR', (s) => s.moyasarApiKey, verifyMoyasarPayment);
   } catch (err: any) {
     logger.error(`[Moyasar Webhook] Error: ${err.message}`);
-    res.status(500).json({ error: err.message });
   }
 });
 
 router.post('/webhook/tap', async (req, res) => {
+  res.json({ received: true });
   try {
-    const { id, status, amount, metadata, reference } = req.body;
-    // Tap uses status 'CAPTURED' or 'AUTHORIZED'
-    if ((status === 'CAPTURED' || status === 'AUTHORIZED') && metadata?.orderId && metadata?.shopId) {
-      await handleGenericPaymentSuccess({
-        sessionId: id,
-        orderId: metadata.orderId,
-        shopId: metadata.shopId,
-        customerPhone: metadata.customerPhone || '',
-        customerName: 'Customer',
-        amount: amount, // Tap returns normal units
-        gatewayName: 'TAP'
-      });
-    }
-    res.json({ received: true });
+    const orderId = req.body?.metadata?.orderId;
+    await confirmVerifiedPayment(orderId, 'TAP', (s) => s.tapApiKey, verifyTapPayment);
   } catch (err: any) {
     logger.error(`[Tap Webhook] Error: ${err.message}`);
-    res.status(500).json({ error: err.message });
   }
 });
 
 router.post('/webhook/myfatoorah', async (req, res) => {
+  res.json({ received: true });
   try {
-    const { Event, Data } = req.body;
-    // MyFatoorah sends Event = 'TransactionsStatusChanged'
-    if (Event === 'TransactionsStatusChanged' && Data?.TransactionStatus === 'SUCCESS') {
-      const orderId = Data.CustomerReference;
-      const shopId = Data.UserDefinedField;
-      const invoiceId = Data.InvoiceId;
-      const amount = Data.InvoiceValue;
-
-      if (orderId && shopId) {
-        await handleGenericPaymentSuccess({
-          sessionId: invoiceId.toString(),
-          orderId: orderId,
-          shopId: shopId,
-          customerPhone: '', // Not always sent back in webhook body
-          customerName: Data.CustomerName || 'Customer',
-          amount: amount,
-          gatewayName: 'MYFATOORAH'
-        });
-      }
-    }
-    res.json({ received: true });
+    const orderId = req.body?.Data?.CustomerReference;
+    await confirmVerifiedPayment(orderId, 'MYFATOORAH', (s) => s.myfatoorahApiKey, verifyMyFatoorahPayment);
   } catch (err: any) {
     logger.error(`[MyFatoorah Webhook] Error: ${err.message}`);
-    res.status(500).json({ error: err.message });
   }
 });
 

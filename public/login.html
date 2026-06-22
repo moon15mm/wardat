@@ -306,10 +306,11 @@
           return;
         }
       }
-      // Pre-fill saved credentials if "remember me" was enabled
+      // Remove any password saved by older versions (passwords must never be stored).
+      localStorage.removeItem('wardat_saved_password');
+      // Pre-fill saved username only if "remember me" was enabled (never the password).
       if (localStorage.getItem('wardat_remember') === '1') {
         document.getElementById('username').value = localStorage.getItem('wardat_saved_username') || '';
-        document.getElementById('password').value = localStorage.getItem('wardat_saved_password') || '';
         const cb = document.getElementById('rememberMe');
         if (cb) cb.checked = true;
       }
@@ -342,17 +343,17 @@
         if (data.shopId) localStorage.setItem('wardat_shop_id', data.shopId);
         localStorage.setItem('wardat_name', data.name);
 
-        // Remember-me: persist or clear saved login credentials
+        // Remember-me: persist ONLY the username (never the password).
         const rememberMe = document.getElementById('rememberMe');
         if (rememberMe && rememberMe.checked) {
           localStorage.setItem('wardat_remember', '1');
           localStorage.setItem('wardat_saved_username', username);
-          localStorage.setItem('wardat_saved_password', password);
         } else {
           localStorage.removeItem('wardat_remember');
           localStorage.removeItem('wardat_saved_username');
-          localStorage.removeItem('wardat_saved_password');
         }
+        // Always purge any password stored by older builds.
+        localStorage.removeItem('wardat_saved_password');
 
         // Redirect based on role
         if (data.role === 'superadmin') {

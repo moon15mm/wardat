@@ -54,3 +54,36 @@ export async function createMyFatoorahInvoice(
     throw new Error('فشل توليد رابط الدفع من ماي فاتورة');
   }
 }
+
+export interface PaymentVerification {
+  paid: boolean;
+  amount: number;
+}
+
+/**
+ * SECURITY: Re-query MyFatoorah for the authoritative status of an invoice we
+ * created. The webhook body is unauthenticated and must never be trusted as proof
+ * of payment — verify directly with MyFatoorah using the shop's own API key.
+ */
+export async function verifyMyFatoorahPayment(
+  apiKey: string | null,
+  invoiceId: string
+): Promise<PaymentVerification> {
+  if (!apiKey || !invoiceId) return { paid: false, amount: 0 };
+  try {
+    const isTest = apiKey.startsWith('rLtt6JW');
+    const baseUrl = isTest ? 'https://apitest.myfatoorah.com' : 'https://api-sa.myfatoorah.com';
+    const response = await axios.post(
+      `${baseUrl}/v2/getPaymentStatus`,
+      { Key: invoiceId, KeyType: 'InvoiceId' },
+      { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 15000 }
+    );
+    const data = response.data?.Data;
+    const status = data?.InvoiceStatus;
+    const amount = Number(data?.InvoiceValue) || 0;
+    return { paid: status === 'Paid', amount };
+  } catch (error: any) {
+    logger.error(`[MyFatoorah] Verify failed for invoice ${invoiceId}: ${error.response?.data?.Message || error.message}`);
+    return { paid: false, amount: 0 };
+  }
+}

@@ -760,6 +760,11 @@
     const token = localStorage.getItem('wardat_token');
     const role = localStorage.getItem('wardat_role');
 
+    // Escape shop-supplied text (e.g. shop name, editable by tenants) before inserting
+    // into innerHTML, to prevent a tenant from injecting script into the super-admin panel.
+    function escapeHtml(text){ const d=document.createElement('div'); d.textContent=(text==null?'':String(text)); return d.innerHTML; }
+    function escapeAttr(text){ return String(text==null?'':text).replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
     // Theme Logic
     function initTheme() {
       const savedTheme = localStorage.getItem('wardat_theme') || 'dark';
@@ -903,18 +908,19 @@
           if (shop.subscriptionPlan === 'PLATINUM') planName = '💎 بلاتينية';
 
           const row = document.createElement('tr');
+          const nameAttr = escapeAttr(shop.name);
           row.innerHTML = `
-            <td style="font-weight: 500;">${shop.name}</td>
-            <td style="font-family: 'Outfit';">${shop.subdomain}.wardat.xyz</td>
-            <td>${shop.username}</td>
+            <td style="font-weight: 500;">${escapeHtml(shop.name)}</td>
+            <td style="font-family: 'Outfit';">${escapeHtml(shop.subdomain)}.wardat.xyz</td>
+            <td>${escapeHtml(shop.username)}</td>
             <td><strong>${planName}</strong></td>
             <td><span class="status-tag ${statusClass}">${statusLabel}</span></td>
             <td style="font-size: 0.85rem; color: var(--text-sub);">${shop.subscriptionEnd ? new Date(shop.subscriptionEnd).toLocaleDateString('ar-SA') : 'غير محدد'}</td>
             <td>${shop.productsCount}</td>
             <td>${shop.ordersCount}</td>
             <td>
-              <button class="btn-edit" onclick="openRenewModal('${shop.id}', '${shop.name}', '${shop.subscriptionPlan}', '${shop.subscriptionStatus}', '${shop.openaiApiKey || ''}')" style="margin-left: 5px;">تجديد / تعديل</button>
-              <button class="btn-delete" onclick="deleteShop('${shop.id}', '${shop.name}')">حذف</button>
+              <button class="btn-edit" onclick="openRenewModal('${escapeAttr(shop.id)}', '${nameAttr}', '${escapeAttr(shop.subscriptionPlan)}', '${escapeAttr(shop.subscriptionStatus)}', '${escapeAttr(shop.openaiApiKey || '')}')" style="margin-left: 5px;">تجديد / تعديل</button>
+              <button class="btn-delete" onclick="deleteShop('${escapeAttr(shop.id)}', '${nameAttr}')">حذف</button>
             </td>
           `;
           tbody.appendChild(row);

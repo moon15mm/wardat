@@ -60,3 +60,31 @@ export async function createTapCharge(
     throw new Error('فشل توليد رابط الدفع من تاب');
   }
 }
+
+export interface PaymentVerification {
+  paid: boolean;
+  amount: number;
+}
+
+/**
+ * SECURITY: Re-query Tap for the authoritative status of a charge we created.
+ * Never trust the unauthenticated webhook body — verify directly with Tap.
+ */
+export async function verifyTapPayment(
+  apiKey: string | null,
+  chargeId: string
+): Promise<PaymentVerification> {
+  if (!apiKey || !chargeId) return { paid: false, amount: 0 };
+  try {
+    const response = await axios.get(`https://api.tap.company/v2/charges/${encodeURIComponent(chargeId)}`, {
+      headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
+      timeout: 15000,
+    });
+    const status = response.data?.status;
+    const amount = Number(response.data?.amount) || 0;
+    return { paid: status === 'CAPTURED', amount };
+  } catch (error: any) {
+    logger.error(`[Tap] Verify failed for charge ${chargeId}: ${error.response?.data?.errors?.[0]?.description || error.message}`);
+    return { paid: false, amount: 0 };
+  }
+}

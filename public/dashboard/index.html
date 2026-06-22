@@ -3281,14 +3281,14 @@
                 <strong style="font-family: 'Outfit'; font-size: 0.9rem;">#${order.id}</strong>
                 <span style="font-size: 0.7rem; color: var(--text-sub);">${new Date(order.timestamp).toLocaleTimeString('ar-SA', {hour: '2-digit', minute:'2-digit'})}</span>
               </div>
-              <div style="font-size: 0.85rem; margin-bottom: 6px;">👤 ${order.customerName} <br><span style="font-family: 'Outfit'; color: var(--text-sub); font-size: 0.75rem;">${order.customerPhone}</span></div>
-              <div style="font-size: 0.8rem; margin-bottom: 6px; color: var(--pink-glow); font-weight: bold;">🎁 ${order.productName}</div>
+              <div style="font-size: 0.85rem; margin-bottom: 6px;">👤 ${escapeHtml(order.customerName)} <br><span style="font-family: 'Outfit'; color: var(--text-sub); font-size: 0.75rem;">${escapeHtml(order.customerPhone)}</span></div>
+              <div style="font-size: 0.8rem; margin-bottom: 6px; color: var(--pink-glow); font-weight: bold;">🎁 ${escapeHtml(order.productName)}</div>
               
               <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
                 <span style="font-family: 'Outfit'; font-weight: bold; font-size: 0.9rem; color: var(--success);">${order.price} ر.س</span>
                 <div style="display: flex; gap: 5px;">
                   <select onchange="updateOrderStatus('${order.id}', this.value)" style="padding:4px; border-radius:6px; background:rgba(0,0,0,0.3); color:var(--text-main); border:1px solid var(--glass-border); font-size:0.75rem;">${opts}</select>
-                  ${order.locationUrl ? `<a href="${order.locationUrl}" target="_blank" style="padding: 4px 8px; background: rgba(142, 45, 226, 0.15); color: #a29bfe; border-radius: 6px; text-decoration: none; font-size: 0.8rem;" title="خريطة التوصيل">📍</a>` : ''}
+                  ${(order.locationUrl && /^https?:\/\//i.test(order.locationUrl)) ? `<a href="${escapeHtml(order.locationUrl)}" target="_blank" rel="noopener noreferrer" style="padding: 4px 8px; background: rgba(142, 45, 226, 0.15); color: #a29bfe; border-radius: 6px; text-decoration: none; font-size: 0.8rem;" title="خريطة التوصيل">📍</a>` : ''}
                   <button onclick="deleteOrder('${order.id}')" style="padding: 4px 8px; background: rgba(255, 75, 75, 0.15); color: #ff6b6b; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem;" title="حذف الطلب">🗑️</button>
                 </div>
               </div>
@@ -3375,8 +3375,8 @@
           <tr style="border-bottom: 1px solid rgba(0,0,0,0.05); color: inherit;">
             <td style="padding: 10px;">#${o.id}</td>
             <td style="padding: 10px;" dir="ltr">${new Date(o.timestamp).toLocaleString('ar-SA')}</td>
-            <td style="padding: 10px;">${o.customerName}<br><span style="font-size:0.8rem; opacity:0.8;">${o.customerPhone}</span></td>
-            <td style="padding: 10px;">${o.productName || o.product || 'غير محدد'}</td>
+            <td style="padding: 10px;">${escapeHtml(o.customerName)}<br><span style="font-size:0.8rem; opacity:0.8;">${escapeHtml(o.customerPhone)}</span></td>
+            <td style="padding: 10px;">${escapeHtml(o.productName || o.product || 'غير محدد')}</td>
             <td style="padding: 10px;">${paymentType}</td>
             <td style="padding: 10px; font-weight: bold;">${o.price} ر.س</td>
             <td style="padding: 10px;">${statusMap[currentVal] || currentVal}</td>
@@ -3444,13 +3444,13 @@
             : '';
 
           card.innerHTML = `
-            <img class="product-img" src="${p.imageUrl || 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&q=80&w=400'}" alt="${p.name}">
+            <img class="product-img" src="${encodeURI(p.imageUrl || 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&q=80&w=400')}" alt="${escapeHtml(p.name)}">
             <div class="product-details">
               <div class="product-title" style="display:flex; justify-content:space-between; align-items:center;">
-                <span>${p.name}</span>
+                <span>${escapeHtml(p.name)}</span>
                 ${stockText}
               </div>
-              <div class="product-desc">${p.description || 'لا يوجد تفاصيل إضافية للمنتج.'}</div>
+              <div class="product-desc">${escapeHtml(p.description || 'لا يوجد تفاصيل إضافية للمنتج.')}</div>
               <div class="product-meta">
                 <span class="product-price">${p.price} ر.س</span>
                 <div class="product-actions">
@@ -3704,7 +3704,7 @@
           data.salesByProduct.forEach(item => {
             const row = document.createElement('tr');
             row.innerHTML = `
-              <td style="font-weight: bold;">${item.productName}</td>
+              <td style="font-weight: bold;">${escapeHtml(item.productName)}</td>
               <td style="font-family: \'Outfit\';">${item.count}</td>
               <td style="font-family: \'Outfit\'; color: var(--pink-glow); font-weight: bold;">${item.totalRevenue.toLocaleString()}</td>
             `;
@@ -3765,7 +3765,7 @@
         } else {
           data.predictiveAnalytics.restockAlerts.forEach(alert => {
             const li = document.createElement('li');
-            li.innerHTML = alert;
+            li.textContent = alert;
             li.style.marginBottom = '8px';
             alertsList.appendChild(li);
           });
@@ -3781,7 +3781,7 @@
             const row = document.createElement('tr');
             const colorClass = item.stock <= 3 ? 'color: var(--danger); font-weight: bold;' : '';
             row.innerHTML = `
-              <td style="font-weight: bold;">${item.name}</td>
+              <td style="font-weight: bold;">${escapeHtml(item.name)}</td>
               <td style="font-family: \'Outfit\'; ${colorClass}">${item.stock} حبة</td>
               <td style="font-family: \'Outfit\';">${item.velocity} حبة / يوم</td>
               <td style="font-weight: 500; color: ${item.stock <= 3 ? 'var(--danger)' : (item.daysToStockOut.includes('أيام') ? 'var(--warning)' : 'var(--success)')};">${item.daysToStockOut}</td>
@@ -3799,8 +3799,8 @@
           data.topCustomers.forEach(item => {
             const row = document.createElement('tr');
             row.innerHTML = `
-              <td style="font-family: \'Outfit\';">${formatPhone(item.phone)}</td>
-              <td style="font-weight: bold; color: var(--success);">${item.name}</td>
+              <td style="font-family: \'Outfit\';">${escapeHtml(formatPhone(item.phone))}</td>
+              <td style="font-weight: bold; color: var(--success);">${escapeHtml(item.name)}</td>
               <td style="font-family: \'Outfit\';">${item.count}</td>
               <td style="font-family: \'Outfit\'; color: var(--pink-glow); font-weight: bold;">${item.spent.toLocaleString()}</td>
             `;
@@ -3817,7 +3817,7 @@
           data.stagnantProducts.forEach(item => {
             const row = document.createElement('tr');
             row.innerHTML = `
-              <td style="font-weight: bold;">${item.name}</td>
+              <td style="font-weight: bold;">${escapeHtml(item.name)}</td>
               <td style="font-family: \'Outfit\'; color: var(--danger); font-weight: bold;">${item.stock} حبة</td>
               <td style="font-size: 0.8rem; color: var(--warning);">يفضل عمل خصم 10% أو عرض ترويجي</td>
             `;
@@ -3968,8 +3968,8 @@
             <div class="chat-list-item ${isActive ? 'active' : ''}" onclick="openChat('${chat.phone}')">
               <div class="chat-avatar">${chat.phone.slice(-2)}</div>
               <div class="chat-item-info">
-                <div class="chat-item-phone">${formatPhone(chat.phone)}</div>
-                <div class="chat-item-preview">${roleIcon} ${preview}</div>
+                <div class="chat-item-phone">${escapeHtml(formatPhone(chat.phone))}</div>
+                <div class="chat-item-preview">${roleIcon} ${escapeHtml(preview)}</div>
               </div>
               <div class="chat-item-meta">
                 ${botBadge}

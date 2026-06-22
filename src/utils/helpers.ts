@@ -1,7 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
 
 export function generateOrderId(): string {
-  return uuidv4().slice(0, 8).toUpperCase();
+  // 16 hex chars (64 bits): collision-safe at our scale and not enumerable, while
+  // still short enough to read over WhatsApp. (The old 8-char/32-bit id was both
+  // guessable and prone to collisions.)
+  return uuidv4().replace(/-/g, '').slice(0, 16).toUpperCase();
 }
 
 export function formatPrice(price: number, currency = 'SAR'): string {

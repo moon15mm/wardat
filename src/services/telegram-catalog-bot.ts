@@ -23,6 +23,29 @@ interface OwnerSession {
 const ownerSessions = new Map<string, OwnerSession>();
 let bot: any = null;
 
+// -------------------------------------------------------------------
+// Brute-force protection for /link (this channel bypasses the HTTP login
+// rate limiter, so it needs its own throttle).
+// -------------------------------------------------------------------
+const linkAttempts = new Map<string, { count: number; first: number }>();
+const LINK_MAX_ATTEMPTS = 5;
+const LINK_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+function linkRateLimited(chatId: string): boolean {
+  const now = Date.now();
+  const rec = linkAttempts.get(chatId);
+  if (!rec || now - rec.first > LINK_WINDOW_MS) {
+    linkAttempts.set(chatId, { count: 1, first: now });
+    return false;
+  }
+  rec.count += 1;
+  return rec.count > LINK_MAX_ATTEMPTS;
+}
+
+function resetLinkAttempts(chatId: string): void {
+  linkAttempts.delete(chatId);
+}
+
 export function initTelegramBot(token: string): void {
   if (bot) return;
 
@@ -61,6 +84,13 @@ export function initTelegramBot(token: string): void {
   // -------------------------------------------------------------------
   bot.onText(/\/link (.+)/, async (msg: any, match: any) => {
     const chatId = String(msg.chat.id);
+
+    // Throttle repeated attempts to stop password brute-forcing over Telegram.
+    if (linkRateLimited(chatId)) {
+      bot.sendMessage(chatId, '⛔ محاولات كثيرة جداً. يرجى المحاولة بعد 15 دقيقة.');
+      return;
+    }
+
     const parts = match[1].trim().split(/\s+/);
     if (parts.length < 2) {
       bot.sendMessage(chatId, '❌ الصيغة: `/link اسم_المستخدم كلمة_المرور`', { parse_mode: 'Markdown' });
@@ -70,9 +100,14 @@ export function initTelegramBot(token: string): void {
     try {
       const shop = await prisma.shop.findUnique({ where: { username } });
       if (!shop) { bot.sendMessage(chatId, '❌ اسم المستخدم غير موجود.'); return; }
-      const bcrypt = require('bcryptjs');
-      const isValid = await bcrypt.compare(password, shop.password);
-      if (!isValid) { bot.sendMessage(chatId, '❌ كلمة المرور غير صحيحة.'); return; }
+      // Use the shared verifier so legacy SHA-256 hashes also work, then upgrade them.
+      const { verifyPassword, hashPassword } = require('../utils/auth');
+      const { valid, needsRehash } = await verifyPassword(password, shop.password);
+      if (!valid) { bot.sendMessage(chatId, '❌ كلمة المرور غير صحيحة.'); return; }
+      if (needsRehash) {
+        try { await prisma.shop.update({ where: { id: shop.id }, data: { password: await hashPassword(password) } }); } catch {}
+      }
+      resetLinkAttempts(chatId);
       await prisma.shop.update({ where: { id: shop.id }, data: { ownerTelegramId: chatId } });
       logger.info(`[Telegram] Owner linked: chatId=${chatId} shop=${shop.id}`);
       bot.sendMessage(chatId,
