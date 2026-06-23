@@ -188,6 +188,28 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
     return;
   }
 
+  // Human Assistance Request
+  const wantsHuman = /موظف|خدمة عملاء|خدمه عملاء|انسان|إنسان|بشر|شخص|اكلم موظف|بكلم موظف|مساعده من موظف|تحدث مع موظف|ابغى موظف|ابي موظف|الدعم الفني|دعم فني/i.test(userText);
+  if (wantsHuman) {
+    const reply = 'تم إيقاف الرد الآلي وتحويل محادثتك للموظف، سيتم الرد عليك في أقرب وقت. 🌹';
+    await sendTextMessage(whatsappConfig, phone, reply);
+    session.messages.push({ role: 'assistant', content: reply });
+    
+    session.botPaused = true;
+    await saveSession(session, shopId);
+
+    // Notify Admin
+    if (whatsappConfig.adminGroupId) {
+      try {
+        const adminMsg = `👨‍💼 *تنبيه خدمة عملاء*: العميل يطلب التحدث مع موظف.\nرقم العميل: ${phone.split('@')[0]}\nالاسم: ${session.orderData.customerName || 'غير مسجل'}\n\nتم إيقاف الرد الآلي مؤقتاً لهذه المحادثة لكي تتمكن من الرد عليه.`;
+        await sendTextMessage(whatsappConfig, whatsappConfig.adminGroupId, adminMsg);
+      } catch (err) {
+        logger.error(`[Agent1] Failed to notify admin group about human request: ${err}`);
+      }
+    }
+    return;
+  }
+
 
   // Image request: send the ACTUAL product image(s) instead of letting the text AI
   // wrongly claim there is no image.
