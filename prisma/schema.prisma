@@ -48,6 +48,7 @@ model Shop {
   aiProvider          String     @default("OPENAI") // OPENAI or GEMINI
   geminiApiKey        String?
   openaiApiKey        String?
+  aiTokensUsed        Int        @default(0)
   
   // Stripe settings per shop
   paymentGateway      String    @default("STRIPE") // STRIPE, MOYASAR, TAP, MYFATOORAH
