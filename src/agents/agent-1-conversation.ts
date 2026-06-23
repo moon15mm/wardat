@@ -233,7 +233,7 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
   }
 
   // Check Order Status
-  const asksOrderStatus = /حالة الطلب|حاله الطلب|وين طلبي|وين الطلب|وش صار على|تتبع الطلب|حالة طلبي|متى يوصل طلبي|متابعة الطلب|حالة طلبيتي/i.test(userText);
+  const asksOrderStatus = /حالة الطلب|حاله الطلب|وين طلبي|وين الطلب|وش صار|ايش صار|تتبع الطلب|حالة طلبي|متى يوصل طلبي|متابعة الطلب|حالة طلبيتي/i.test(userText);
   if (asksOrderStatus) {
     const lastOrder = await prisma.order.findFirst({
       where: { shopId, customerPhone: phone },
@@ -372,6 +372,19 @@ export async function handleMessage(msg: WhatsAppMessage, shopId: string): Promi
           phone,
           'طلبك السابق ما زال بانتظار الدفع عبر الرابط المرسل. 💳\n\nلبدء *طلب جديد* اكتب كلمة: *جديد* 🆕'
         );
+      }
+      break;
+    }
+    case 'COMPLETED': {
+      const l = userText.trim().toLowerCase();
+      const restartWords = ['جديد', 'طلب جديد', 'ابدأ', 'ابدا', 'البداية', 'القائمة', 'menu', 'start'];
+      if (restartWords.some(w => l.includes(w)) || intent.intent === 'greeting' || intent.intent === 'browse') {
+        session.orderData = {};
+        session.selectedProduct = undefined;
+        session.state = 'GREETING';
+        await handleGreeting(phone, shopId, whatsappConfig, userText, 'greeting', session);
+      } else {
+        await handleWithAI(phone, shopId, whatsappConfig, session);
       }
       break;
     }
@@ -929,7 +942,7 @@ async function proceedWithPaymentMethod(
       logger.warn(`[Agent1] Failed to send admin notification for COD order ${orderId}: ${err}`);
     }
     
-    session.state = 'ARCHIVED';
+    session.state = 'COMPLETED';
     session.orderData = {};
     session.selectedProduct = undefined;
   }
@@ -979,7 +992,7 @@ async function handleAwaitingBankTransfer(
       logger.warn(`[Agent1] Failed to notify admin group about bank transfer: ${err}`);
     }
     
-    session.state = 'ARCHIVED';
+    session.state = 'COMPLETED';
     session.orderData = {};
     session.selectedProduct = undefined;
   } else {
