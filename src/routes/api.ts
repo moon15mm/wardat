@@ -913,9 +913,19 @@ router.get('/shop/stats', authenticateShop, async (req, res) => {
   const shopId = (req as any).shopId;
   try {
     const productsCount = await prisma.product.count({ where: { shopId } });
-    const ordersCount = await prisma.order.count({ where: { shopId } });
+    const ordersCount = await prisma.order.count({ 
+      where: { 
+        shopId, 
+        OR: [{ paymentStatus: 'CONFIRMED' }, { orderStatus: 'DELIVERED' }],
+        NOT: [{ paymentStatus: 'CANCELLED' }, { paymentStatus: 'FAILED' }, { orderStatus: 'CANCELLED' }]
+      } 
+    });
     const revenueAggregate = await prisma.order.aggregate({
-      where: { shopId, paymentStatus: 'CONFIRMED' },
+      where: { 
+        shopId, 
+        OR: [{ paymentStatus: 'CONFIRMED' }, { orderStatus: 'DELIVERED' }],
+        NOT: [{ paymentStatus: 'CANCELLED' }, { paymentStatus: 'FAILED' }, { orderStatus: 'CANCELLED' }]
+      },
       _sum: { price: true },
     });
 

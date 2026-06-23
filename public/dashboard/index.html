@@ -3431,7 +3431,14 @@
         
         let priceNum = parseFloat(o.price || 0);
         totalAmount += priceNum;
-        if (o.paymentStatus === 'CONFIRMED') {
+        
+        let isValidSale = false;
+        if ((o.paymentStatus === 'CONFIRMED' || o.orderStatus === 'DELIVERED') &&
+            o.paymentStatus !== 'CANCELLED' && o.paymentStatus !== 'FAILED' && o.orderStatus !== 'CANCELLED') {
+          isValidSale = true;
+        }
+        
+        if (isValidSale) {
           totalConfirmed += priceNum;
         }
         
