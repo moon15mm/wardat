@@ -3398,7 +3398,7 @@
               <p style="margin: 8px 0 0; font-size: 14px; color: #333;">تقرير مبيعات: ${dateTitles[fDate]}</p>
               <p style="margin: 4px 0 0; font-size: 12px; color: #666;">تاريخ الطباعة: ${new Date().toLocaleString('ar-SA')}</p>
             </div>
-            ${shop.logoUrl ? \`<img src="\${shop.logoUrl}" style="max-height: 80px; max-width: 150px; object-fit: contain;" />\` : ''}
+            ${shop.logoUrl ? '<img src="' + shop.logoUrl + '" style="max-height: 80px; max-width: 150px; object-fit: contain;" />' : ''}
           </div>
         `;
       }
