@@ -1580,6 +1580,15 @@
       .no-print {
         display: none !important;
       }
+      .only-print {
+        display: block !important;
+      }
+    }
+    
+    @media screen {
+      .only-print {
+        display: none !important;
+      }
     }
   </style>
 </head>
@@ -2356,6 +2365,12 @@
         <div class="panel-header no-print">
           <h3>🗂️ جميع العمليات المالية</h3>
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <select id="filterTxDate" onchange="renderTransactionsTable()" style="padding:8px; border-radius:8px; background:rgba(0,0,0,0.3); color:var(--text-main); border:1px solid var(--glass-border);">
+              <option value="ALL">جميع الأوقات</option>
+              <option value="TODAY">اليوم</option>
+              <option value="WEEK">آخر 7 أيام</option>
+              <option value="MONTH">هذا الشهر</option>
+            </select>
             <select id="filterTxStatus" onchange="renderTransactionsTable()" style="padding:8px; border-radius:8px; background:rgba(0,0,0,0.3); color:var(--text-main); border:1px solid var(--glass-border);">
               <option value="ALL">جميع الحالات</option>
               <option value="PENDING">معلّق</option>
@@ -2374,7 +2389,7 @@
         </div>
         
         <div id="printArea" style="overflow-x: auto; margin-top: 15px; background: var(--glass-bg); border-radius: 8px; padding: 10px; border: 1px solid var(--glass-border);">
-          <h2 class="only-print" style="text-align: center; margin-bottom: 20px; display: none;">سجل العمليات المالية - WARDAT</h2>
+          <div id="printHeaderArea" class="only-print"></div>
           <table style="width: 100%; border-collapse: collapse; text-align: right;" id="txTable">
             <thead>
               <tr style="background: rgba(0,0,0,0.2); border-bottom: 2px solid var(--glass-border);">
@@ -2811,6 +2826,7 @@
         const res = await fetch('/api/shop/details', { headers });
         if (!res.ok) throw new Error();
         const shop = await res.json();
+        window.shopDetails = shop;
 
         // Header info
         document.getElementById('shopTitleName').textContent = `لوحة تحكم | ${shop.name}`;
@@ -3323,10 +3339,27 @@
       if (!tbody) return;
       const fStatus = document.getElementById('filterTxStatus').value;
       const fPayment = document.getElementById('filterTxPayment').value;
+      const fDate = document.getElementById('filterTxDate').value;
       
       tbody.innerHTML = '';
       
       let filtered = window.orders || [];
+      
+      if (fDate !== 'ALL') {
+        const today = new Date();
+        filtered = filtered.filter(o => {
+          const d = new Date(o.timestamp);
+          if (fDate === 'TODAY') {
+            return d.toDateString() === today.toDateString();
+          } else if (fDate === 'WEEK') {
+            const diff = today.getTime() - d.getTime();
+            return diff <= 7 * 24 * 60 * 60 * 1000 && diff >= 0;
+          } else if (fDate === 'MONTH') {
+            return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+          }
+          return true;
+        });
+      }
       
       if (fStatus !== 'ALL') {
         filtered = filtered.filter(o => {
@@ -3344,6 +3377,22 @@
           if (fPayment === 'ONLINE') return o.cardLast4 !== 'CASH' && o.cardLast4 !== 'BANK';
           return true;
         });
+      }
+      
+      const shop = window.shopDetails || {};
+      const printHeader = document.getElementById('printHeaderArea');
+      if (printHeader) {
+        const dateTitles = { 'ALL': 'كل الأوقات', 'TODAY': 'مبيعات اليوم', 'WEEK': 'مبيعات آخر 7 أيام', 'MONTH': 'مبيعات هذا الشهر' };
+        printHeader.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+            <div style="text-align: right;">
+              <h2 style="margin: 0; color: #000; font-size: 26px;">${shop.name || 'المتجر'}</h2>
+              <p style="margin: 8px 0 0; font-size: 14px; color: #333;">تقرير مبيعات: ${dateTitles[fDate]}</p>
+              <p style="margin: 4px 0 0; font-size: 12px; color: #666;">تاريخ الطباعة: ${new Date().toLocaleString('ar-SA')}</p>
+            </div>
+            ${shop.logoUrl ? \`<img src="\${shop.logoUrl}" style="max-height: 80px; max-width: 150px; object-fit: contain;" />\` : ''}
+          </div>
+        `;
       }
       
       if (filtered.length === 0) {
