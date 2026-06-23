@@ -2,7 +2,6 @@ import OpenAI from 'openai';
 import axios from 'axios';
 import { ChatMessage } from '../types';
 import logger from '../utils/logger';
-import prisma from './db';
 
 // Each shop uses ITS OWN OpenAI key. The platform key (env) is only a fallback
 // for shops that haven't set one yet.
@@ -55,16 +54,14 @@ async function getGeminiResponse(
   }
 
   const response = await axios.post(url, body);
-  const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 'عذراً، حدث خطأ في معالجة الرد.';
-  const tokens = response.data?.usageMetadata?.totalTokenCount || 0;
-  return { text, tokens };
+  return response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 'عذراً، حدث خطأ في معالجة الرد.';
 }
 
 async function classifyIntentGemini(
   message: string,
   state: string,
   apiKey: string
-): Promise<{ intent: string; extractedData?: Record<string, string>; tokens: number }> {
+): Promise<{ intent: string; extractedData?: Record<string, string> }> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   
   const systemInstruction = `حلل رسالة العميل وحدد النية. الحالة الحالية: ${state}
@@ -91,15 +88,14 @@ async function classifyIntentGemini(
 
   const response = await axios.post(url, body);
   const content = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-  const tokens = response.data?.usageMetadata?.totalTokenCount || 0;
-  return { ...JSON.parse(content), tokens };
+  return JSON.parse(content);
 }
 
 // Unified AI Interface exports
 export async function getAIResponse(
   messages: ChatMessage[],
   productContext: string,
-  shop: { id?: string; aiProvider: string; geminiApiKey?: string | null; openaiApiKey?: string | null }
+  shop: { aiProvider: string; geminiApiKey?: string | null; openaiApiKey?: string | null }
 ): Promise<string> {
   const provider = shop.aiProvider || 'OPENAI';
 
@@ -110,14 +106,7 @@ export async function getAIResponse(
       return 'عذراً، نظام الذكاء الاصطناعي غير مهيأ حالياً. يرجى إدخال مفتاح Gemini API في الإعدادات.';
     }
     try {
-      const res = await getGeminiResponse(messages, SYSTEM_PROMPT + '\n\n' + productContext, apiKey);
-      if (shop.id && res.tokens > 0) {
-        await prisma.shop.update({
-          where: { id: shop.id },
-          data: { aiTokensUsed: { increment: res.tokens } }
-        }).catch(err => logger.error(`Failed to update AI tokens for shop ${shop.id}: ${err.message}`));
-      }
-      return res.text;
+      return await getGeminiResponse(messages, SYSTEM_PROMPT + '\n\n' + productContext, apiKey);
     } catch (err: any) {
       logger.error(`[AI] Gemini API Error: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
       return 'عذراً، نظام الذكاء الاصطناعي مشغول حالياً. يرجى المحاولة بعد قليل.';
@@ -141,13 +130,6 @@ export async function getAIResponse(
       temperature: 0.7,
     });
 
-    if (shop.id && response.usage?.total_tokens) {
-      await prisma.shop.update({
-        where: { id: shop.id },
-        data: { aiTokensUsed: { increment: response.usage.total_tokens } }
-      }).catch(err => logger.error(`Failed to update AI tokens for shop ${shop.id}: ${err.message}`));
-    }
-
     return response.choices[0]?.message?.content || 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.';
   } catch (err: any) {
     logger.error(`OpenAI API error: ${err.message}`);
@@ -158,7 +140,7 @@ export async function getAIResponse(
 export async function classifyIntent(
   message: string,
   state: string,
-  shop: { id?: string; aiProvider: string; geminiApiKey?: string | null; openaiApiKey?: string | null }
+  shop: { aiProvider: string; geminiApiKey?: string | null; openaiApiKey?: string | null }
 ): Promise<{
   intent: string;
   extractedData?: Record<string, string>;
@@ -171,14 +153,7 @@ export async function classifyIntent(
       return { intent: 'other' };
     }
     try {
-      const res = await classifyIntentGemini(message, state, apiKey);
-      if (shop.id && res.tokens > 0) {
-        await prisma.shop.update({
-          where: { id: shop.id },
-          data: { aiTokensUsed: { increment: res.tokens } }
-        }).catch(() => {});
-      }
-      return { intent: res.intent, extractedData: res.extractedData };
+      return await classifyIntentGemini(message, state, apiKey);
     } catch (err: any) {
       logger.error(`[AI] Gemini classification error: ${err.message}`);
       return { intent: 'other' };
@@ -207,12 +182,6 @@ export async function classifyIntent(
     });
 
     const content = response.choices[0]?.message?.content || '{}';
-    if (shop.id && response.usage?.total_tokens) {
-      await prisma.shop.update({
-        where: { id: shop.id },
-        data: { aiTokensUsed: { increment: response.usage.total_tokens } }
-      }).catch(() => {});
-    }
     return JSON.parse(content);
   } catch {
     return { intent: 'other' };

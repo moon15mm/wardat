@@ -316,7 +316,6 @@ router.get('/admin/shops', authenticateSuperAdmin, async (req, res) => {
         aiProvider: s.aiProvider,
         geminiApiKey: maskSecret(s.geminiApiKey),
         openaiApiKey: maskSecret(s.openaiApiKey),
-        aiTokensUsed: s.aiTokensUsed,
         ultramsgInstanceId: s.ultramsgInstanceId,
         ultramsgToken: maskSecret(s.ultramsgToken),
         createdAt: s.createdAt,

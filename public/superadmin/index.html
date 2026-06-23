@@ -487,7 +487,6 @@
             <th>تاريخ الانتهاء</th>
             <th>المنتجات</th>
             <th>الطلبات</th>
-            <th>استهلاك AI</th>
             <th>الإجراءات</th>
           </tr>
         </thead>
@@ -919,7 +918,6 @@
             <td style="font-size: 0.85rem; color: var(--text-sub);">${shop.subscriptionEnd ? new Date(shop.subscriptionEnd).toLocaleDateString('ar-SA') : 'غير محدد'}</td>
             <td>${shop.productsCount}</td>
             <td>${shop.ordersCount}</td>
-            <td><span class="status-tag ${shop.aiTokensUsed > 100000 ? 'status-inactive' : 'status-active'}">${shop.aiTokensUsed || 0}</span></td>
             <td>
               <button class="btn-edit" onclick="openRenewModal('${escapeAttr(shop.id)}', '${nameAttr}', '${escapeAttr(shop.subscriptionPlan)}', '${escapeAttr(shop.subscriptionStatus)}', '${escapeAttr(shop.openaiApiKey || '')}')" style="margin-left: 5px;">تجديد / تعديل</button>
               <button class="btn-delete" onclick="deleteShop('${escapeAttr(shop.id)}', '${nameAttr}')">حذف</button>
