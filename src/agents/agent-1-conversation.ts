@@ -929,8 +929,9 @@ async function proceedWithPaymentMethod(
       logger.warn(`[Agent1] Failed to send admin notification for COD order ${orderId}: ${err}`);
     }
     
-    const { clearSession } = require('../services/session');
-    await clearSession(phone, shopId);
+    session.state = 'ARCHIVED';
+    session.orderData = {};
+    session.selectedProduct = undefined;
   }
 }
 
@@ -978,8 +979,9 @@ async function handleAwaitingBankTransfer(
       logger.warn(`[Agent1] Failed to notify admin group about bank transfer: ${err}`);
     }
     
-    const { clearSession } = require('../services/session');
-    await clearSession(phone, shopId);
+    session.state = 'ARCHIVED';
+    session.orderData = {};
+    session.selectedProduct = undefined;
   } else {
     await sendTextMessage(whatsappConfig, phone, 'بعد الانتهاء من التحويل البنكي، يرجى الرد بكلمة *تم التحويل* لمراجعة العملية وتأكيد طلبك.');
   }
