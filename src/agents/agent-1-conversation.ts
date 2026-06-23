@@ -592,10 +592,10 @@ async function handleCollectRecipient(
   intent: { intent: string; extractedData?: Record<string, string> },
   session: Session
 ): Promise<void> {
-  const recipient = text.trim().toLowerCase();
-  const isMe = recipient === 'لي' || recipient === 'أنا' || recipient === 'نفسي';
+  const recipient = text.trim();
+  const isMe = /^(لي|انا|أنا|نفسي|حقي)$/i.test(recipient);
 
-  session.orderData.recipientName = isMe ? (session.orderData.customerName || 'نفس العميل') : text.trim();
+  session.orderData.recipientName = isMe ? (session.orderData.customerName || 'نفس العميل') : recipient;
 
   if (!isMe) {
     const reply = `بما أن الطلب لشخص آخر، ما هو رقم جوال المستلم (للتواصل معه عند التوصيل)؟`;
@@ -702,14 +702,22 @@ async function handleCollectTime(
   text: string,
   session: Session
 ): Promise<void> {
-  if (!text.trim()) {
+  const t = text.trim();
+  if (!t) {
     await sendTextMessage(whatsappConfig, phone, 'يرجى كتابة الوقت المناسب لك (مثال: 6 مساءً). 🕒');
     return;
   }
+  
+  const hasTimeKeywords = /[٠-٩0-9]|ساعة|ساعه|صباح|مساء|ظهر|عصر|مغرب|عشا|ص|م|am|pm|الان|الآن|فور/i.test(t);
+  if (!hasTimeKeywords || t.length > 50) {
+    await sendTextMessage(whatsappConfig, phone, 'عذراً، لم أتمكن من فهم الوقت. يرجى كتابة وقت محدد (مثال: 5 العصر، 10 الصباح، أو الآن). 🕒');
+    return;
+  }
+
   // Accept the customer's stated time as-is (Arabic time phrasing is too varied to
   // validate reliably; the allowed window was already shown, and the merchant
   // confirms the order). Store it for the summary + admin notice.
-  session.orderData.preferredTime = text.trim();
+  session.orderData.preferredTime = t;
   await sendOrderSummary(phone, shopId, whatsappConfig, session);
   session.state = 'CONFIRMING_ORDER';
 }

@@ -5,6 +5,7 @@ import { buildCatalogCollage } from './services/catalog-image';
 export async function getAllProducts(shopId: string): Promise<Product[]> {
   const dbProducts = await prisma.product.findMany({
     where: { shopId, available: true },
+    orderBy: { id: 'asc' },
   });
   return dbProducts.map((p) => ({
     id: p.id,
@@ -34,26 +35,34 @@ export async function getProductById(shopId: string, id: string): Promise<Produc
 }
 
 export async function getProductByName(shopId: string, name: string): Promise<Product | null> {
-  const p = await prisma.product.findFirst({
-    where: {
-      shopId,
-      available: true,
-      OR: [
-        { name: { contains: name } },
-        { id: { contains: name.toLowerCase() } },
-      ],
-    },
-  });
-  if (!p) return null;
-  return {
-    id: p.id,
-    name: p.name,
-    description: p.description,
-    price: p.price,
-    imageUrl: p.imageUrl,
-    category: p.category,
-    available: p.available,
-  };
+  const products = await getAllProducts(shopId);
+  const searchWords = name.trim().toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  if (searchWords.length === 0) {
+    // If name is too short or empty, try exact match just in case
+    return products.find(p => p.name.toLowerCase() === name.trim().toLowerCase()) || null;
+  }
+  
+  let bestMatch = null;
+  let maxScore = 0;
+  
+  for (const p of products) {
+    const pName = p.name.toLowerCase();
+    let score = 0;
+    // Exact match is an automatic win
+    if (pName === name.trim().toLowerCase()) return p;
+    
+    for (const w of searchWords) {
+      if (pName.includes(w)) score++;
+    }
+    if (score > maxScore) {
+      maxScore = score;
+      bestMatch = p;
+    }
+  }
+  
+  // Require at least half the words to match to avoid wild guesses
+  const threshold = Math.max(1, Math.floor(searchWords.length / 2));
+  return maxScore >= threshold ? bestMatch : null;
 }
 
 export async function formatProductList(shopId: string): Promise<string> {
