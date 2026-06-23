@@ -3401,6 +3401,7 @@
       }
       
       let totalAmount = 0;
+      let htmlContent = '';
       
       filtered.forEach(o => {
         let currentVal = o.paymentStatus;
@@ -3421,7 +3422,7 @@
         
         totalAmount += parseFloat(o.price || 0);
         
-        tbody.innerHTML += `
+        htmlContent += `
           <tr style="border-bottom: 1px solid rgba(0,0,0,0.05); color: inherit;">
             <td style="padding: 10px;">#${o.id}</td>
             <td style="padding: 10px;" dir="ltr">${new Date(o.timestamp).toLocaleString('ar-SA')}</td>
@@ -3434,12 +3435,13 @@
         `;
       });
       
-      tbody.innerHTML += `
+      htmlContent += `
         <tr style="background: rgba(142, 45, 226, 0.1); font-weight: bold;">
           <td colspan="5" style="padding: 15px; text-align: left; border-top: 2px solid var(--purple-glow);">الإجمالي للعمليات المعروضة:</td>
           <td colspan="2" style="padding: 15px; color: var(--success); border-top: 2px solid var(--purple-glow);">${totalAmount.toFixed(2)} ر.س</td>
         </tr>
       `;
+      tbody.innerHTML = htmlContent;
     }
 
     async function updateOrderStatus(id, val) {
