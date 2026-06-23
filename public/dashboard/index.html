@@ -3285,6 +3285,10 @@
 
         const STATUS_OPTS = [['PENDING','معلّق'],['CONFIRMED','مؤكد'],['DELIVERED','تم التوصيل'],['CANCELLED','إلغاء'],['FAILED','فاشل']];
 
+        let pendingHtml = '';
+        let deliveredHtml = '';
+        let cancelledHtml = '';
+
         orders.forEach(order => {
           let currentVal = order.paymentStatus;
           if (order.orderStatus === 'DELIVERED') currentVal = 'DELIVERED';
@@ -3305,7 +3309,7 @@
                 <span style="font-family: 'Outfit'; font-weight: bold; font-size: 0.9rem; color: var(--success);">${order.price} ر.س</span>
                 <div style="display: flex; gap: 5px;">
                   <select onchange="updateOrderStatus('${order.id}', this.value)" style="padding:4px; border-radius:6px; background:rgba(0,0,0,0.3); color:var(--text-main); border:1px solid var(--glass-border); font-size:0.75rem;">${opts}</select>
-                  ${(order.locationUrl && /^https?:\/\//i.test(order.locationUrl)) ? `<a href="${escapeHtml(order.locationUrl)}" target="_blank" rel="noopener noreferrer" style="padding: 4px 8px; background: rgba(142, 45, 226, 0.15); color: #a29bfe; border-radius: 6px; text-decoration: none; font-size: 0.8rem;" title="خريطة التوصيل">📍</a>` : ''}
+                  ${(order.locationUrl && (order.locationUrl.startsWith('http://') || order.locationUrl.startsWith('https://'))) ? `<a href="${escapeHtml(order.locationUrl)}" target="_blank" rel="noopener noreferrer" style="padding: 4px 8px; background: rgba(142, 45, 226, 0.15); color: #a29bfe; border-radius: 6px; text-decoration: none; font-size: 0.8rem;" title="خريطة التوصيل">📍</a>` : ''}
                   <button onclick="deleteOrder('${order.id}')" style="padding: 4px 8px; background: rgba(255, 75, 75, 0.15); color: #ff6b6b; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem;" title="حذف الطلب">🗑️</button>
                 </div>
               </div>
@@ -3313,16 +3317,20 @@
           `;
 
           if (order.orderStatus === 'DELIVERED' || order.paymentStatus === 'DELIVERED') {
-            kbDelivered.insertAdjacentHTML('beforeend', cardHtml);
+            deliveredHtml += cardHtml;
             deliveredCount++;
           } else if (order.orderStatus === 'CANCELLED' || order.paymentStatus === 'CANCELLED' || order.paymentStatus === 'FAILED') {
-            kbCancelled.insertAdjacentHTML('beforeend', cardHtml);
+            cancelledHtml += cardHtml;
             cancelledCount++;
           } else {
-            kbPending.insertAdjacentHTML('beforeend', cardHtml);
+            pendingHtml += cardHtml;
             pendingCount++;
           }
         });
+        
+        kbPending.innerHTML = pendingHtml;
+        kbDelivered.innerHTML = deliveredHtml;
+        kbCancelled.innerHTML = cancelledHtml;
         
         document.getElementById('kbCountPending').textContent = pendingCount;
         document.getElementById('kbCountDelivered').textContent = deliveredCount;
