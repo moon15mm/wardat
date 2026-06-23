@@ -3409,6 +3409,7 @@
       }
       
       let totalAmount = 0;
+      let totalConfirmed = 0;
       let htmlContent = '';
       
       filtered.forEach(o => {
@@ -3428,7 +3429,11 @@
         if (o.cardLast4 === 'CASH') paymentType = 'عند الاستلام';
         else if (o.cardLast4 === 'BANK') paymentType = 'تحويل بنكي';
         
-        totalAmount += parseFloat(o.price || 0);
+        let priceNum = parseFloat(o.price || 0);
+        totalAmount += priceNum;
+        if (o.paymentStatus === 'CONFIRMED') {
+          totalConfirmed += priceNum;
+        }
         
         htmlContent += `
           <tr style="border-bottom: 1px solid rgba(0,0,0,0.05); color: inherit;">
@@ -3445,8 +3450,12 @@
       
       htmlContent += `
         <tr style="background: rgba(142, 45, 226, 0.1); font-weight: bold;">
-          <td colspan="5" style="padding: 15px; text-align: left; border-top: 2px solid var(--purple-glow);">الإجمالي للعمليات المعروضة:</td>
-          <td colspan="2" style="padding: 15px; color: var(--success); border-top: 2px solid var(--purple-glow);">${totalAmount.toFixed(2)} ر.س</td>
+          <td colspan="5" style="padding: 15px; text-align: left; border-top: 2px solid var(--purple-glow);">الإجمالي لكل العمليات المعروضة (بما فيها الملغاة والمعلقة):</td>
+          <td colspan="2" style="padding: 15px; color: var(--text-main); border-top: 2px solid var(--purple-glow);">${totalAmount.toFixed(2)} ر.س</td>
+        </tr>
+        <tr style="background: rgba(37, 211, 102, 0.1); font-weight: bold;">
+          <td colspan="5" style="padding: 15px; text-align: left; border-top: 1px solid rgba(255,255,255,0.05);">✅ المبيعات المؤكدة الفعلية (للفترة المعروضة فقط):</td>
+          <td colspan="2" style="padding: 15px; color: var(--success); border-top: 1px solid rgba(255,255,255,0.05);">${totalConfirmed.toFixed(2)} ر.س</td>
         </tr>
       `;
       tbody.innerHTML = htmlContent;
