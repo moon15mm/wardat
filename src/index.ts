@@ -611,5 +611,15 @@ async function shutdown(signal: string) {
   }, 15000).unref();
 }
 
+// Multi-tenant safety net: a stray rejection/exception from ONE shop's flow
+// (e.g. a missing product image) must never take down the whole process and
+// every other shop with it. Log loudly but keep the server alive.
+process.on('unhandledRejection', (reason: any) => {
+  logger.error(`[Process] Unhandled promise rejection: ${reason?.stack || reason?.message || reason}`);
+});
+process.on('uncaughtException', (err: any) => {
+  logger.error(`[Process] Uncaught exception: ${err?.stack || err?.message || err}`);
+});
+
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
