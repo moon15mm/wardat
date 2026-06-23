@@ -564,7 +564,7 @@ const server = app.listen(PORT, async () => {
         if (targetHour === currentHourStr) {
           // Find a random available product
           const products = await prisma.product.findMany({
-            where: { shopId: shop.id, available: true }
+            where: { shopId: shop.id, available: true, stock: { gt: 0 } }
           });
           
           if (products.length > 0) {

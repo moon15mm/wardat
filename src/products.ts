@@ -4,7 +4,7 @@ import { buildCatalogCollage } from './services/catalog-image';
 
 export async function getAllProducts(shopId: string): Promise<Product[]> {
   const dbProducts = await prisma.product.findMany({
-    where: { shopId, available: true },
+    where: { shopId, available: true, stock: { gt: 0 } },
     orderBy: { id: 'asc' },
   });
   return dbProducts.map((p) => ({
@@ -15,12 +15,13 @@ export async function getAllProducts(shopId: string): Promise<Product[]> {
     imageUrl: p.imageUrl,
     category: p.category,
     available: p.available,
+    stock: p.stock,
   }));
 }
 
 export async function getProductById(shopId: string, id: string): Promise<Product | null> {
   const p = await prisma.product.findFirst({
-    where: { id, shopId, available: true },
+    where: { id, shopId, available: true, stock: { gt: 0 } },
   });
   if (!p) return null;
   return {
@@ -31,6 +32,7 @@ export async function getProductById(shopId: string, id: string): Promise<Produc
     imageUrl: p.imageUrl,
     category: p.category,
     available: p.available,
+    stock: p.stock,
   };
 }
 
