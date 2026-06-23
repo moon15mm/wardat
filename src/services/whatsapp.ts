@@ -11,7 +11,11 @@ function enqueueBaileysTask(shopId: string, task: () => Promise<void>): Promise<
   const prev = shopQueues.get(shopId) || Promise.resolve();
   const next = prev.catch(() => {}).then(() => task());
   shopQueues.set(shopId, next);
-  next.finally(() => {
+  // NOTE: attach a `.catch` BEFORE `.finally` so the cleanup branch never
+  // becomes an unhandled rejection when `task()` fails. The original
+  // `next.finally(...)` created a separate promise that rejected with no
+  // handler — crashing the whole process on a single failed send.
+  next.catch(() => {}).finally(() => {
     if (shopQueues.get(shopId) === next) {
       shopQueues.delete(shopId);
     }
@@ -131,13 +135,35 @@ export async function sendImageMessage(
           await sock.sendPresenceUpdate('paused', jid);
         } catch (e) {}
 
+        const path = require('path');
+        const fs = require('fs');
         let finalImageUrl = imageUrl;
         if (imageUrl.startsWith('/uploads')) {
-          const path = require('path');
           finalImageUrl = path.join(__dirname, '../../public', imageUrl);
         }
-        await sock.sendMessage(jid, { image: { url: finalImageUrl }, caption });
-        logger.info(`[Baileys] Image sent to ${maskPhone(to)} for Shop ${shopId}`);
+
+        // If it's a local upload that no longer exists on disk, NEVER pass it to
+        // baileys (it would throw ENOENT and crash the session loop). Degrade
+        // gracefully to a caption-only text message instead.
+        const isLocalUpload = imageUrl.startsWith('/uploads');
+        if (isLocalUpload && !fs.existsSync(finalImageUrl)) {
+          logger.warn(`[Baileys] Image file missing on disk (${imageUrl}); sending caption only for Shop ${shopId}`);
+          if (caption && caption.trim()) {
+            await sock.sendMessage(jid, { text: caption });
+          }
+          return;
+        }
+
+        try {
+          await sock.sendMessage(jid, { image: { url: finalImageUrl }, caption });
+          logger.info(`[Baileys] Image sent to ${maskPhone(to)} for Shop ${shopId}`);
+        } catch (sendErr: any) {
+          // A failed image send must not crash the queue/process — fall back to text.
+          logger.error(`[Baileys] Image send failed for Shop ${shopId}: ${sendErr.message}. Falling back to caption.`);
+          if (caption && caption.trim()) {
+            try { await sock.sendMessage(jid, { text: caption }); } catch (e) {}
+          }
+        }
       });
     } catch (err: any) {
       logger.error(`Failed to send Baileys image to ${maskPhone(to)}: ${err.message}`);
