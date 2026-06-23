@@ -131,7 +131,12 @@ export async function sendImageMessage(
           await sock.sendPresenceUpdate('paused', jid);
         } catch (e) {}
 
-        await sock.sendMessage(jid, { image: { url: imageUrl }, caption });
+        let finalImageUrl = imageUrl;
+        if (imageUrl.startsWith('/uploads')) {
+          const path = require('path');
+          finalImageUrl = path.join(__dirname, '../../public', imageUrl);
+        }
+        await sock.sendMessage(jid, { image: { url: finalImageUrl }, caption });
         logger.info(`[Baileys] Image sent to ${maskPhone(to)} for Shop ${shopId}`);
       });
     } catch (err: any) {
