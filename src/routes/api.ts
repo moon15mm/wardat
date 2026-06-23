@@ -14,6 +14,7 @@ import { discoverFlowerShops } from '../services/lead-finder';
 import { sendTextMessage, WhatsAppConfig } from '../services/whatsapp';
 import { getSessionStatus } from '../services/baileys-manager';
 import { maskPhone } from '../utils/helpers';
+import { estimateCostUsd } from '../services/ai-usage';
 
 const router = Router();
 
@@ -326,6 +327,78 @@ router.get('/admin/shops', authenticateSuperAdmin, async (req, res) => {
         subscriptionStatus: s.subscriptionStatus,
       }))
     );
+  } catch (err: any) {
+    logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
+    res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });
+  }
+});
+
+// AI token consumption per shop: running totals + per-month breakdown + estimated
+// USD cost. Powers the "استهلاك الذكاء الاصطناعي" table in the superadmin dashboard.
+router.get('/admin/ai-usage', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const [rows, shops] = await Promise.all([
+      prisma.aiUsage.findMany({ orderBy: [{ shopId: 'asc' }, { yearMonth: 'desc' }] }),
+      prisma.shop.findMany({ select: { id: true, name: true } }),
+    ]);
+
+    const shopName = new Map(shops.map((s) => [s.id, s.name]));
+
+    // Aggregate per shop: overall totals, per-provider split, and monthly rows.
+    const byShop = new Map<string, any>();
+    for (const r of rows) {
+      let entry = byShop.get(r.shopId);
+      if (!entry) {
+        entry = {
+          shopId: r.shopId,
+          shopName: shopName.get(r.shopId) || '(متجر محذوف)',
+          totalTokens: 0,
+          totalRequests: 0,
+          totalCostUsd: 0,
+          providers: {} as Record<string, { totalTokens: number; requests: number; costUsd: number }>,
+          months: new Map<string, { yearMonth: string; totalTokens: number; requests: number; costUsd: number }>(),
+        };
+        byShop.set(r.shopId, entry);
+      }
+
+      const cost = estimateCostUsd(r.provider, r.promptTokens, r.completionTokens);
+      entry.totalTokens += r.totalTokens;
+      entry.totalRequests += r.requests;
+      entry.totalCostUsd += cost;
+
+      const prov = entry.providers[r.provider] || { totalTokens: 0, requests: 0, costUsd: 0 };
+      prov.totalTokens += r.totalTokens;
+      prov.requests += r.requests;
+      prov.costUsd += cost;
+      entry.providers[r.provider] = prov;
+
+      const m = entry.months.get(r.yearMonth) || { yearMonth: r.yearMonth, totalTokens: 0, requests: 0, costUsd: 0 };
+      m.totalTokens += r.totalTokens;
+      m.requests += r.requests;
+      m.costUsd += cost;
+      entry.months.set(r.yearMonth, m);
+    }
+
+    const result = Array.from(byShop.values())
+      .map((e) => ({
+        ...e,
+        totalCostUsd: Math.round(e.totalCostUsd * 1e4) / 1e4,
+        months: Array.from(e.months.values())
+          .map((m: any) => ({ ...m, costUsd: Math.round(m.costUsd * 1e4) / 1e4 }))
+          .sort((a: any, b: any) => b.yearMonth.localeCompare(a.yearMonth)),
+      }))
+      .sort((a, b) => b.totalTokens - a.totalTokens);
+
+    const grandTotal = result.reduce(
+      (acc, e) => ({
+        totalTokens: acc.totalTokens + e.totalTokens,
+        totalRequests: acc.totalRequests + e.totalRequests,
+        totalCostUsd: Math.round((acc.totalCostUsd + e.totalCostUsd) * 1e4) / 1e4,
+      }),
+      { totalTokens: 0, totalRequests: 0, totalCostUsd: 0 }
+    );
+
+    res.json({ shops: result, grandTotal });
   } catch (err: any) {
     logger.error(`[API] ${req.method} ${req.originalUrl}: ${err.message}`);
     res.status(500).json({ error: 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.' });

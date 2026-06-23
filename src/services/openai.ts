@@ -2,6 +2,18 @@ import OpenAI from 'openai';
 import axios from 'axios';
 import { ChatMessage } from '../types';
 import logger from '../utils/logger';
+import { recordAiUsage } from './ai-usage';
+
+interface TokenUsage { promptTokens: number; completionTokens: number; }
+
+// Extract token usage from a Gemini generateContent response (usageMetadata).
+function geminiUsage(data: any): TokenUsage {
+  const u = data?.usageMetadata || {};
+  return {
+    promptTokens: u.promptTokenCount || 0,
+    completionTokens: u.candidatesTokenCount || 0,
+  };
+}
 
 // Each shop uses ITS OWN OpenAI key. The platform key (env) is only a fallback
 // for shops that haven't set one yet.
@@ -30,9 +42,9 @@ async function getGeminiResponse(
   messages: ChatMessage[],
   systemPrompt: string,
   apiKey: string
-): Promise<string> {
+): Promise<{ text: string; usage: TokenUsage }> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  
+
   // Map messages: Gemini roles are 'user' and 'model'
   const contents = messages.map((m) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
@@ -54,14 +66,15 @@ async function getGeminiResponse(
   }
 
   const response = await axios.post(url, body);
-  return response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 'عذراً، حدث خطأ في معالجة الرد.';
+  const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 'عذراً، حدث خطأ في معالجة الرد.';
+  return { text, usage: geminiUsage(response.data) };
 }
 
 async function classifyIntentGemini(
   message: string,
   state: string,
   apiKey: string
-): Promise<{ intent: string; extractedData?: Record<string, string> }> {
+): Promise<{ result: { intent: string; extractedData?: Record<string, string> }; usage: TokenUsage }> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   
   const systemInstruction = `حلل رسالة العميل وحدد النية. الحالة الحالية: ${state}
@@ -88,14 +101,14 @@ async function classifyIntentGemini(
 
   const response = await axios.post(url, body);
   const content = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-  return JSON.parse(content);
+  return { result: JSON.parse(content), usage: geminiUsage(response.data) };
 }
 
 // Unified AI Interface exports
 export async function getAIResponse(
   messages: ChatMessage[],
   productContext: string,
-  shop: { aiProvider: string; geminiApiKey?: string | null; openaiApiKey?: string | null }
+  shop: { id?: string; aiProvider: string; geminiApiKey?: string | null; openaiApiKey?: string | null }
 ): Promise<string> {
   const provider = shop.aiProvider || 'OPENAI';
 
@@ -106,7 +119,9 @@ export async function getAIResponse(
       return 'عذراً، نظام الذكاء الاصطناعي غير مهيأ حالياً. يرجى إدخال مفتاح Gemini API في الإعدادات.';
     }
     try {
-      return await getGeminiResponse(messages, SYSTEM_PROMPT + '\n\n' + productContext, apiKey);
+      const { text, usage } = await getGeminiResponse(messages, SYSTEM_PROMPT + '\n\n' + productContext, apiKey);
+      await recordAiUsage(shop.id, 'GEMINI', usage.promptTokens, usage.completionTokens);
+      return text;
     } catch (err: any) {
       logger.error(`[AI] Gemini API Error: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
       return 'عذراً، نظام الذكاء الاصطناعي مشغول حالياً. يرجى المحاولة بعد قليل.';
@@ -130,6 +145,7 @@ export async function getAIResponse(
       temperature: 0.7,
     });
 
+    await recordAiUsage(shop.id, 'OPENAI', response.usage?.prompt_tokens || 0, response.usage?.completion_tokens || 0);
     return response.choices[0]?.message?.content || 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.';
   } catch (err: any) {
     logger.error(`OpenAI API error: ${err.message}`);
@@ -140,7 +156,7 @@ export async function getAIResponse(
 export async function classifyIntent(
   message: string,
   state: string,
-  shop: { aiProvider: string; geminiApiKey?: string | null; openaiApiKey?: string | null }
+  shop: { id?: string; aiProvider: string; geminiApiKey?: string | null; openaiApiKey?: string | null }
 ): Promise<{
   intent: string;
   extractedData?: Record<string, string>;
@@ -153,7 +169,9 @@ export async function classifyIntent(
       return { intent: 'other' };
     }
     try {
-      return await classifyIntentGemini(message, state, apiKey);
+      const { result, usage } = await classifyIntentGemini(message, state, apiKey);
+      await recordAiUsage(shop.id, 'GEMINI', usage.promptTokens, usage.completionTokens);
+      return result;
     } catch (err: any) {
       logger.error(`[AI] Gemini classification error: ${err.message}`);
       return { intent: 'other' };
@@ -181,6 +199,7 @@ export async function classifyIntent(
       response_format: { type: 'json_object' },
     });
 
+    await recordAiUsage(shop.id, 'OPENAI', response.usage?.prompt_tokens || 0, response.usage?.completion_tokens || 0);
     const content = response.choices[0]?.message?.content || '{}';
     return JSON.parse(content);
   } catch {

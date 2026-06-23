@@ -79,6 +79,7 @@ model Shop {
   orders              Order[]
   sessions            Session[]
   blockedCustomers    BlockedCustomer[]
+  aiUsage             AiUsage[]
 }
 
 model PlatformSetting {
@@ -101,6 +102,26 @@ model Prospect {
   updatedAt   DateTime  @updatedAt
 
   @@index([status])
+}
+
+// Per-shop AI token consumption, bucketed by provider + calendar month so the
+// superadmin can see both running totals (sum across months) and a monthly
+// breakdown. One row per (shop, provider, yearMonth); counters are incremented.
+model AiUsage {
+  id               String   @id @default(uuid())
+  shopId           String
+  shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  provider         String   // OPENAI or GEMINI
+  yearMonth        String   // "YYYY-MM" (UTC)
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  requests         Int      @default(0)
+  updatedAt        DateTime @updatedAt @default(now())
+  createdAt        DateTime @default(now())
+
+  @@unique([shopId, provider, yearMonth])
+  @@index([shopId])
 }
 
 model Product {

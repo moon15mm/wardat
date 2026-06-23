@@ -497,6 +497,32 @@
         </tbody>
       </table>
     </div>
+
+    <!-- AI Token Consumption -->
+    <div class="section-header" style="margin-top:36px;">
+      <h2>🤖 استهلاك الذكاء الاصطناعي لكل متجر</h2>
+      <div id="aiUsageGrandTotal" style="font-size:0.9rem; color: var(--text-sub);"></div>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>المتجر</th>
+            <th>المزوّد</th>
+            <th>إجمالي التوكنات</th>
+            <th>عدد الطلبات</th>
+            <th>التكلفة التقديرية (USD)</th>
+            <th>التفصيل الشهري</th>
+          </tr>
+        </thead>
+        <tbody id="aiUsageTableBody">
+          <tr>
+            <td colspan="6" style="text-align:center; color: var(--text-sub);">جاري تحميل بيانات الاستهلاك...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Modal for Creating New Shop -->
@@ -800,6 +826,7 @@
       initTheme();
       fetchStats();
       fetchShops();
+      fetchAiUsage();
     };
 
     // ---- System Settings ----
@@ -927,6 +954,61 @@
         });
       } catch (err) {
         document.getElementById('shopTableBody').innerHTML = `<tr><td colspan="9" style="text-align:center; color: var(--danger);">فشل تحميل المتاجر</td></tr>`;
+      }
+    }
+
+    const nf = (n) => (n || 0).toLocaleString('en-US');
+    const usd = (n) => '$' + (n || 0).toFixed(4);
+
+    async function fetchAiUsage() {
+      const tbody = document.getElementById('aiUsageTableBody');
+      try {
+        const res = await fetch('/api/admin/ai-usage', { headers });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const shops = data.shops || [];
+        const gt = data.grandTotal || { totalTokens: 0, totalRequests: 0, totalCostUsd: 0 };
+
+        document.getElementById('aiUsageGrandTotal').innerHTML =
+          `الإجمالي الكلي: <strong>${nf(gt.totalTokens)}</strong> توكن · ` +
+          `<strong>${nf(gt.totalRequests)}</strong> طلب · ` +
+          `<strong style="color:#1d9e75;">${usd(gt.totalCostUsd)}</strong>`;
+
+        tbody.innerHTML = '';
+        if (shops.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-sub);">لا يوجد استهلاك مسجّل بعد. سيظهر هنا تلقائياً عند بدء المتاجر باستخدام الذكاء الاصطناعي.</td></tr>`;
+          return;
+        }
+
+        shops.forEach(s => {
+          const provBadges = Object.keys(s.providers || {}).map(p => {
+            const pv = s.providers[p];
+            const color = p === 'GEMINI' ? '#4a00e0' : '#1d9e75';
+            return `<span class="status-tag" style="background:${color};color:#fff;">${p === 'GEMINI' ? 'Gemini' : 'OpenAI'}: ${nf(pv.totalTokens)}</span>`;
+          }).join(' ');
+
+          const monthsRows = (s.months || []).map(m =>
+            `<tr><td style="padding:2px 8px;">${escapeHtml(m.yearMonth)}</td><td style="padding:2px 8px;">${nf(m.totalTokens)} توكن</td><td style="padding:2px 8px;">${nf(m.requests)} طلب</td><td style="padding:2px 8px;color:#1d9e75;">${usd(m.costUsd)}</td></tr>`
+          ).join('');
+
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td style="font-weight:500;">${escapeHtml(s.shopName)}</td>
+            <td style="display:flex; gap:4px; flex-wrap:wrap;">${provBadges || '—'}</td>
+            <td><strong>${nf(s.totalTokens)}</strong></td>
+            <td>${nf(s.totalRequests)}</td>
+            <td style="color:#1d9e75; font-weight:600;">${usd(s.totalCostUsd)}</td>
+            <td>
+              <details>
+                <summary style="cursor:pointer; color:var(--text-sub);">عرض (${(s.months || []).length} شهر)</summary>
+                <table style="margin-top:6px; font-size:0.82rem; width:100%;">${monthsRows}</table>
+              </details>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--danger);">فشل تحميل بيانات الاستهلاك</td></tr>`;
       }
     }
 
