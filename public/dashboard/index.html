@@ -3250,6 +3250,7 @@
         const res = await fetch('/api/shop/orders', { headers });
         if (!res.ok) throw new Error();
         const orders = await res.json();
+        window.orders = orders;
 
         const kbPending = document.getElementById('kb-pending');
         const kbDelivered = document.getElementById('kb-delivered');
