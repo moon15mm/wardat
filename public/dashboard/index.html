@@ -1977,12 +1977,15 @@
             </div>
             
             <div id="stripeFieldsGroup">
+              <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
+                <button type="button" onclick="openStripeGuideModal()" style="background: rgba(142, 45, 226, 0.2); color: #a29bfe; border: 1px solid rgba(142, 45, 226, 0.5); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">كيف أحصل على المفاتيح؟ ℹ️</button>
+              </div>
               <div class="form-group">
-                <label for="stripeSecretKeyInput">Stripe Secret Key</label>
+                <label for="stripeSecretKeyInput">Stripe Secret Key (sk_test_... / sk_live_...)</label>
                 <input type="text" id="stripeSecretKeyInput">
               </div>
               <div class="form-group">
-                <label for="stripeWebhookSecretInput">Stripe Webhook Secret</label>
+                <label for="stripeWebhookSecretInput">Stripe Webhook Secret (whsec_...)</label>
                 <input type="text" id="stripeWebhookSecretInput">
               </div>
               <div class="form-group">
@@ -2035,28 +2038,6 @@
             <div class="form-group">
               <label for="whatsappAdminGroupIdInput">WhatsApp Admin Group ID (جروب الإدارة لإشعار الطلبات)</label>
               <input type="text" id="whatsappAdminGroupIdInput">
-            </div>
-
-            <!-- Stripe Configuration -->
-            <h4 style="margin: 20px 0 10px 0; color: var(--purple-glow); border-bottom: 1px solid var(--glass-border); padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
-              إعدادات بوابة الدفع (Stripe)
-              <button type="button" onclick="openStripeGuideModal()" style="background: rgba(142, 45, 226, 0.2); color: #a29bfe; border: 1px solid rgba(142, 45, 226, 0.5); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s;">كيف أحصل على المفاتيح؟ ℹ️</button>
-            </h4>
-            <div class="form-group">
-              <label for="stripeSecretKeyInput">Stripe Secret Key (sk_test_... / sk_live_...)</label>
-              <input type="text" id="stripeSecretKeyInput">
-            </div>
-            <div class="form-group">
-              <label for="stripeWebhookSecretInput">Stripe Webhook Secret (whsec_...)</label>
-              <input type="text" id="stripeWebhookSecretInput">
-            </div>
-            <div class="form-group">
-              <label for="stripeSuccessUrlInput">Redirect Success URL (بعد نجاح الدفع)</label>
-              <input type="text" id="stripeSuccessUrlInput">
-            </div>
-            <div class="form-group">
-              <label for="stripeCancelUrlInput">Redirect Cancel URL (في حال إلغاء الدفع)</label>
-              <input type="text" id="stripeCancelUrlInput">
             </div>
 
             <!-- AI Configuration -->
@@ -2131,6 +2112,27 @@
 
             <button type="submit" class="btn-save" style="width:100%; margin-top:20px; padding: 12px;">حفظ وتحديث الإعدادات</button>
           </form>
+        </div>
+
+        <!-- Telegram Catalog Bot -->
+        <div class="card-panel" style="margin-top: 20px;">
+          <h3>🛍️ بوت تلجرام لإدارة الكتالوج</h3>
+          <p style="color: var(--text-sub); font-size:0.85rem; margin-bottom: 18px;">أضِف منتجاتك بسهولة من تلجرام: امسح الباركود، اربط متجرك مرة واحدة، ثم أرسل صورة أي منتج ليُضاف للكتالوج تلقائياً.</p>
+          <div style="display:flex; flex-wrap:wrap; gap:24px; align-items:center;">
+            <div style="background:#fff; padding:12px; border-radius:14px; flex:0 0 auto;">
+              <img src="telegram-bot-qr.svg" alt="باركود بوت تلجرام WardatAdminBot" width="170" height="170" style="display:block;">
+            </div>
+            <div style="flex:1 1 260px; min-width:240px;">
+              <ol class="guide-steps" style="padding-inline-start: 18px; line-height: 2;">
+                <li>امسح الباركود بكاميرا جوالك، أو اضغط الزر بالأسفل لفتح البوت <b>WardatAdminBot</b> في تلجرام.</li>
+                <li>اضغط <b>Start</b>، ثم اربط متجرك بإرسال الأمر التالي (بنفس بيانات دخولك للوحة):
+                  <div class="code-box" style="margin-top:6px;">/link <span id="tgLinkUsername">اسم_المستخدم</span> كلمة_المرور</div>
+                </li>
+                <li>بعد الربط، أرسل <b>صورة المنتج</b> وسيسألك البوت عن الاسم والسعر والوصف ليضيفه لكتالوجك. 🌹</li>
+              </ol>
+              <a href="https://t.me/WardatAdminBot" target="_blank" rel="noopener" style="display:inline-block; margin-top:10px; background:#229ED9; color:#fff; padding:10px 20px; border-radius:10px; text-decoration:none; font-weight:bold;">✈️ فتح البوت في تلجرام</a>
+            </div>
+          </div>
         </div>
 
         <!-- Blocked Users Management -->
@@ -2834,6 +2836,9 @@
 
         // Settings inputs
         document.getElementById('shopNameInput').value = shop.name || '';
+        // Fill the store's username into the Telegram /link command card.
+        var _tgU = document.getElementById('tgLinkUsername');
+        if (_tgU && shop.username) _tgU.textContent = shop.username;
         document.getElementById('shopEmailInput').value = shop.email || '';
         document.getElementById('logoUrlInput').value = shop.logoUrl || '';
         document.getElementById('ownerPhoneInput').value = shop.ownerPhone || '';
